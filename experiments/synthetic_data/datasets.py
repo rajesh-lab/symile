@@ -4,13 +4,13 @@ import torch
 from torch.utils.data import Dataset
 
 class PretrainingDataset(Dataset):
-    def __init__(self, d, n, p):
-            data = self.generate_data(n, p)
+    def __init__(self, d, n):
+            data = self.generate_data(n)
             i = np.random.randint(0, d)
             self.v_a, self.v_b, self.v_c = self.get_vectors(data, i, d)
             assert self.v_a.shape == self.v_b.shape == self.v_c.shape, "All vectors must be the same shape."
 
-    def generate_data(self, n, p):
+    def generate_data(self, n):
         A = uniform.rvs(size=n)
         B = uniform.rvs(size=n)
         assert A.shape == B.shape, "A and B must be the same shape"
