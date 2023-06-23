@@ -8,7 +8,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=100,
                         help="Number of samples triples (a, b, c) in generated dataset.")
-    parser.add_argument("--d_v", type=int, default=5,
+    parser.add_argument("--d_v", type=int, default=10,
                         help="Dimensionality of dataset vectors.")
     parser.add_argument("--d_r", type=int, default=2,
                         help="Dimensionality of representation vectors.")
@@ -22,7 +22,7 @@ def parse_args():
                         help="Number of epochs to train for.")
     parser.add_argument("--normalize", type=bool, default=True,
                         help="Whether to normalize representations before loss calculation.")
-    parser.add_argument("--wandb", type=bool, default=True,
+    parser.add_argument("--wandb", type=bool, default=False,
                         help="Whether to use wandb for logging.")
     return parser.parse_args()
 
