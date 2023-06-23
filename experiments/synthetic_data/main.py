@@ -1,7 +1,6 @@
 """
 Experiment to demonstrate performance of SYMILE on synthetic data.
 """
-from sklearn.linear_model import LinearRegression
 import torch
 from torch.utils.data import DataLoader
 try:
@@ -36,32 +35,6 @@ def pretrain(pt_loader, model, loss_fn, optimizer, args):
                 wandb.log({"loss": loss, "logit_scale": model.logit_scale.item()})
             optimizer.zero_grad()
 
-def finetune(ft_loader, model, args):
-    model.eval()
-    X_train = None
-    y_train = None
-    X_test = None
-    y_test = None
-    with torch.no_grad():
-        i = 0
-        for v_a, v_b, v_c in ft_loader:
-            r_a, r_b, r_c, logit_scale = model(v_a, v_b, v_c)
-            if i == 0:
-                X_test = torch.cat((r_a,r_b), dim=1)
-                y_test = r_c
-            else:
-                if X_train is None:
-                    X_train = torch.cat((r_a,r_b), dim=1)
-                else:
-                    X_train = torch.cat((X_train, torch.cat((r_a,r_b), dim=1)), dim=0)
-                if y_train is None:
-                    y_train = r_c
-                else:
-                    y_train = torch.cat((y_train, r_c), dim=0)
-            i += 1
-    reg = LinearRegression().fit(X_train, y_train)
-    print("R^2 score: {}".format(reg.score(X_test, y_test)))
-
 
 if __name__ == '__main__':
     # TODO: write tests for all experiment scripts
@@ -73,5 +46,3 @@ if __name__ == '__main__':
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
     loss_fn = symile if args.loss_fn == "symile" else pairwise_infonce
     pretrain(pt_loader, model, loss_fn, optimizer, args)
-
-    reg = finetune(ft_loader, model, args)

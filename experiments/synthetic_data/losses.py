@@ -26,9 +26,36 @@ def pairwise_infonce(r_a, r_b, r_c, logit_scale, normalize=True):
 # symile #
 ##########
 def compute_logits(x, y, z):
+    """
+    Computes the logits for x, by computing the positive multilinear inner product
+    and the negative multilinear inner products for each sample (row) in x.
+    Positive multilinear inner products (MIP) are along the diagonal of the logits matrix.
+    For example, the second row of `logits` might be:
+    [ MIP(x[1], y[3], z[2]) MIP(x[1], y[1], z[1]) MIP(x[1], y[5], z[4]) MIP(x[1], y[2], z[5]) ].
+    Notice that only the second element is the positive MIP; all others are negative.
+    There is a small chance of a false negative MIP.
+
+    Args:
+        x (torch.Tensor): representation vector of size (batch_size, d_r).
+        y (torch.Tensor): representation vector of size (batch_size, d_r).
+        z (torch.Tensor): representation vector of size (batch_size, d_r).
+    Returns:
+        logits (torch.Tensor): logits for x of size (batch_size, batch_size).
+    """
+    # shuffle rows of y and z
+    y_shuff = y[torch.randperm(y.shape[0])]
+    z_shuff = z[torch.randperm(z.shape[0])]
     def _multilinear_inner_product(x):
         return torch.t(x) @ torch.t(y * z)
-    return torch.vmap(_multilinear_inner_product)(x)
+    def _multilinear_inner_product_shuffled(x):
+        return torch.t(x) @ torch.t(y_shuff * z_shuff)
+
+    logits_ordered = torch.vmap(_multilinear_inner_product)(x)
+    logits_x = torch.vmap(_multilinear_inner_product_shuffled)(x)
+
+    # insert positive triples along diagonal of shuffled logits
+    logits_x.diagonal().copy_(torch.diag(logits_ordered))
+    return logits_x
 
 def symile(r_a, r_b, r_c, logit_scale, normalize):
     if normalize:

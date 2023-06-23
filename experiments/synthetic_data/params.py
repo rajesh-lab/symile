@@ -20,7 +20,7 @@ def parse_args():
                         help="Batch size for training.")
     parser.add_argument("--lr", type=float, default=5.0e-4,
                         help="Learning rate.")
-    parser.add_argument("--loss_fn", type=str, default="pairwise_infonce",
+    parser.add_argument("--loss_fn", type=str, default="symile",
                         help="Loss function to use for training. Options are 'symile' and 'pairwise_infonce'.")
     parser.add_argument("--epochs", type=int, default=32,
                         help="Number of epochs to train for.")
