@@ -1,5 +1,5 @@
 """
-Experiment to demonstrate performance of SYMILE on synthetic data.
+Experiment to demonstrate performance of SYMILE on synthetic datasets.
 """
 import torch
 from torch.nn import MSELoss
@@ -63,6 +63,7 @@ def test(test_loader, model, loss_fn, args):
 
 if __name__ == '__main__':
     # TODO: write tests for all experiment scripts
+    # TODO: add comments
     args = parse_args()
     wandb_init(args)
 
