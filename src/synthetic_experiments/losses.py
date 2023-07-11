@@ -6,6 +6,16 @@ import torch.nn.functional as F
 # pairwise infonce #
 ####################
 def infonce(u, v, logit_scale):
+    """
+    Computes the InfoNCE loss for a batch of representations.
+
+    Args:
+        u, v (torch.Tensor): representation vectors each of size (batch_sz, d_r).
+        logit_scale (torch.Tensor): temperature parameter as a log-parameterized
+                                    multiplicative scalar (see CLIP).
+    Returns:
+        (torch.Tensor): InfoNCE loss
+    """
     logits_u = logit_scale * u @ v.T
     logits_v = logit_scale * v @ u.T
 
@@ -14,6 +24,14 @@ def infonce(u, v, logit_scale):
     return (F.cross_entropy(logits_u, labels) + F.cross_entropy(logits_v, labels)) / 2.0
 
 def pairwise_infonce(r_a, r_b, r_c, logit_scale, normalize=True):
+    """
+    Computes the pairwise InfoNCE loss for a batch of representations.
+
+    Args:
+        r_a, r_b, r_c (torch.Tensor): representation vectors each of size (batch_sz, d_r).
+    Returns:
+        (torch.Tensor): average over the pairwise InfoNCE losses
+    """
     if normalize:
         r_a = F.normalize(r_a, p=2.0, dim=1)
         r_b = F.normalize(r_b, p=2.0, dim=1)

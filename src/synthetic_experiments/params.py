@@ -7,13 +7,13 @@ except ImportError:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pretrain_n", type=int, default=5,
+    parser.add_argument("--pretrain_n", type=int, default=5000,
                         help="Number of samples (a, b, c) in pretraining dataset.")
     parser.add_argument("--finetune_n", type=int, default=5000,
                         help="Number of samples (a, b, c) in finetuning dataset.")
-    parser.add_argument("--test_n", type=int, default=5000,
+    parser.add_argument("--test_n", type=int, default=500,
                         help="Number of samples (a, b, c) in test dataset.")
-    parser.add_argument("--d_v", type=int, default=200,
+    parser.add_argument("--d_v", type=int, default=100,
                         help="Dimensionality of dataset vectors.")
     parser.add_argument("--d_r", type=int, default=2,
                         help="Dimensionality of representation vectors.")

@@ -27,7 +27,7 @@ def pretrain(pt_loader, model, loss_fn, optimizer, args):
     for epoch in range(args.pretrain_epochs):
         for v_a, v_b, v_c in pt_loader:
             r_a, r_b, r_c, logit_scale = model(v_a, v_b, v_c)
-
+            assert r_c is not None, "r_c must be defined for pretraining."
             loss = loss_fn(r_a, r_b, r_c, logit_scale, args.normalize)
             loss.backward()
             optimizer.step()
@@ -41,7 +41,8 @@ def finetune(ft_loader, model, loss_fn, optimizer, args):
     for epoch in range(args.finetune_epochs):
         for r_a, r_b, C in ft_loader:
             C_pred = model(r_a, r_b)
-
+            assert C_pred.shape[0] == args.finetune_n, \
+                "C_pred must have shape (n, 1)."
             loss = loss_fn(C_pred, C.float().unsqueeze(1))
             loss.backward()
             optimizer.step()
@@ -51,15 +52,20 @@ def finetune(ft_loader, model, loss_fn, optimizer, args):
             # TODO: how long to train for?
 
 def test(test_loader, model, loss_fn, args):
+    # TODO: am I doing the loss calculation correctly?
     model.eval()
     n = len(test_loader.dataset)
     loss = 0
     with torch.no_grad():
         for r_a, r_b, C in test_loader:
             C_pred = model(r_a, r_b)
+            breakpoint()
             loss += loss_fn(C_pred, C.float().unsqueeze(1)).item()
     loss /= n
     print("Test MSE: ", round(loss, 3))
+    if args.wandb:
+        wandb.log({"test_loss": loss})
+
 
 if __name__ == '__main__':
     # TODO: write tests for all experiment scripts
@@ -75,12 +81,13 @@ if __name__ == '__main__':
     pretrain(pt_loader, encoders, loss_fn, optimizer, args)
 
     # finetuning
-    ft_loader = load_data(args.d_v, args.finetune_n, args.batch_sz,
-                          stage="finetune", model=encoders)
+    ft_loader = load_data(args.d_v, args.finetune_n, args.batch_sz, stage="finetune",
+                          model=encoders)
     regression_model = LinearRegression(args.d_r)
+    # TODO: MSE loss is okay?
     finetune(ft_loader, regression_model, MSELoss(), optimizer, args)
 
     # testing
-    test_loader = load_data(args.d_v, args.test_n, args.batch_sz,
-                            stage="test", model=encoders)
+    test_loader = load_data(args.d_v, args.test_n, args.batch_sz, stage="test",
+                            model=encoders)
     test(test_loader, regression_model, MSELoss(reduction="sum"), args)

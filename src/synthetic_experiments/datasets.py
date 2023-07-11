@@ -66,7 +66,7 @@ class FinetuningDataset(Dataset):
         (A, B, self.C) = generate_data(n)
         i = np.random.randint(0, d)
         v_a, v_b = self.get_vectors(A, B, i, d)
-        self.r_a, self.r_b = self.get_representations(model, v_a, v_b)
+        self.r_a, self.r_b, _, _ = self.get_representations(model, v_a, v_b)
         assert self.r_a.shape == self.r_b.shape, \
             "Vectors must be the same shape."
         assert self.r_a.shape[0] == self.C.shape[0], \
