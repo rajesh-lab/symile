@@ -9,6 +9,8 @@ try:
 except ImportError:
     wandb = None
 
+from sklearn.linear_model import LogisticRegression
+
 from datasets import FinetuningDataset, PretrainingDataset
 from losses import pairwise_infonce, symile
 from models import LinearEncoders, LinearRegression
@@ -36,36 +38,52 @@ def pretrain(pt_loader, model, loss_fn, optimizer, args):
             optimizer.zero_grad()
             # TODO: how long to train for?
 
+# def finetune(ft_loader, model, loss_fn, optimizer, args):
+#     model.train()
+#     for epoch in range(args.finetune_epochs):
+#         for r_a, r_b, C in ft_loader:
+#             C_pred = model(r_a, r_b)
+#             assert C_pred.shape[0] == args.finetune_n, \
+#                 "C_pred must have shape (n, 1)."
+#             loss = loss_fn(C_pred, C.float().unsqueeze(1))
+#             loss.backward()
+#             optimizer.step()
+#             if args.wandb:
+#                 wandb.log({"finetune_loss": loss})
+#             optimizer.zero_grad()
+#             # TODO: how long to train for?
+
 def finetune(ft_loader, model, loss_fn, optimizer, args):
-    model.train()
-    for epoch in range(args.finetune_epochs):
-        for r_a, r_b, C in ft_loader:
-            C_pred = model(r_a, r_b)
-            assert C_pred.shape[0] == args.finetune_n, \
-                "C_pred must have shape (n, 1)."
-            loss = loss_fn(C_pred, C.float().unsqueeze(1))
-            loss.backward()
-            optimizer.step()
-            if args.wandb:
-                wandb.log({"finetune_loss": loss})
-            optimizer.zero_grad()
-            # TODO: how long to train for?
+    i = 0
+    for r_a, r_b, C in ft_loader:
+        lr.fit(torch.cat((r_a, r_b), dim=1), C)
+        i += 1
+    assert i == 1
+
+# def test(test_loader, model, loss_fn, args):
+#     # TODO: am I doing the loss calculation correctly?
+#     model.eval()
+#     n = len(test_loader.dataset)
+#     loss = 0
+#     with torch.no_grad():
+#         for r_a, r_b, C in test_loader:
+#             C_pred = model(r_a, r_b)
+#             breakpoint()
+#             loss += loss_fn(C_pred, C.float().unsqueeze(1)).item()
+#     loss /= n
+#     print("Test MSE: ", round(loss, 3))
+#     if args.wandb:
+#         wandb.log({"test_loss": loss})
 
 def test(test_loader, model, loss_fn, args):
-    # TODO: am I doing the loss calculation correctly?
-    model.eval()
-    n = len(test_loader.dataset)
-    loss = 0
-    with torch.no_grad():
-        for r_a, r_b, C in test_loader:
-            C_pred = model(r_a, r_b)
-            breakpoint()
-            loss += loss_fn(C_pred, C.float().unsqueeze(1)).item()
-    loss /= n
-    print("Test MSE: ", round(loss, 3))
-    if args.wandb:
-        wandb.log({"test_loss": loss})
-
+    i = 0
+    for r_a, r_b, C in test_loader:
+        mean_acc = lr.score(torch.cat((r_a, r_b), dim=1), C)
+        print("Mean accuracy: ", mean_acc)
+        if args.wandb:
+            wandb.log({"mean_acc": mean_acc})
+        i += 1
+    assert i == 1
 
 if __name__ == '__main__':
     # TODO: write tests for all experiment scripts
@@ -83,11 +101,13 @@ if __name__ == '__main__':
     # finetuning
     ft_loader = load_data(args.d_v, args.finetune_n, args.batch_sz, stage="finetune",
                           model=encoders)
-    regression_model = LinearRegression(args.d_r)
-    # TODO: MSE loss is okay?
-    finetune(ft_loader, regression_model, MSELoss(), optimizer, args)
+    # regression_model = LinearRegression(args.d_r)
+    # finetune(ft_loader, regression_model, MSELoss(), optimizer, args)
+    lr = LogisticRegression()
+    finetune(ft_loader, lr, MSELoss(), optimizer, args)
 
     # testing
     test_loader = load_data(args.d_v, args.test_n, args.batch_sz, stage="test",
                             model=encoders)
-    test(test_loader, regression_model, MSELoss(reduction="sum"), args)
+    # test(test_loader, regression_model, MSELoss(reduction="sum"), args)
+    test(test_loader, lr, None, args)

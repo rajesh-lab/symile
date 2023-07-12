@@ -21,15 +21,15 @@ def parse_args():
                         help="Batch size for training.")
     parser.add_argument("--lr", type=float, default=5.0e-4,
                         help="Learning rate.")
-    parser.add_argument("--loss_fn", type=str, default="pairwise_infonce",
+    parser.add_argument("--loss_fn", type=str, default="symile",
                         help="Loss function to use for training. Options are 'symile' and 'pairwise_infonce'.")
-    parser.add_argument("--pretrain_epochs", type=int, default=32,
+    parser.add_argument("--pretrain_epochs", type=int, default=512,
                         help="Number of epochs to pretrain for.")
     parser.add_argument("--finetune_epochs", type=int, default=32,
                         help="Number of epochs to finetune for.")
-    parser.add_argument("--normalize", type=bool, default=False,
+    parser.add_argument("--normalize", type=bool, default=True,
                         help="Whether to normalize representations before loss calculation.")
-    parser.add_argument("--wandb", type=bool, default=False,
+    parser.add_argument("--wandb", type=bool, default=True,
                         help="Whether to use wandb for logging.")
     return parser.parse_args()
 

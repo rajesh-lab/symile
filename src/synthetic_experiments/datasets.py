@@ -63,10 +63,12 @@ class FinetuningDataset(Dataset):
     provided encoders.
     """
     def __init__(self, d, n, model):
-        (A, B, self.C) = generate_data(n)
+        (A, B, C) = generate_data(n)
         i = np.random.randint(0, d)
         v_a, v_b = self.get_vectors(A, B, i, d)
         self.r_a, self.r_b, _, _ = self.get_representations(model, v_a, v_b)
+        # binarize C
+        self.C = np.where(C <= 1.0, 0, 1)
         assert self.r_a.shape == self.r_b.shape, \
             "Vectors must be the same shape."
         assert self.r_a.shape[0] == self.C.shape[0], \
@@ -117,7 +119,7 @@ class FinetuningDataset(Dataset):
             idx (int): index of data sample to retrieve.
         Returns
             r_a, r_b: each of r_a, r_b is a torch.Tensor of size d_r.
-            C: numpy.float64.
+            C (numpy.int64): label for the data sample, either 0 or 1.
         """
         r_a = self.r_a[idx, :]
         r_b = self.r_b[idx, :]
