@@ -32,7 +32,6 @@ def pairwise_infonce(r_a, r_b, r_c, logit_scale, normalize=True):
     Returns:
         (torch.Tensor): average over the pairwise InfoNCE losses
     """
-    print("WE'RE USING PAIRWISE INFO")
     if normalize:
         r_a = F.normalize(r_a, p=2.0, dim=1)
         r_b = F.normalize(r_b, p=2.0, dim=1)
@@ -74,7 +73,6 @@ def compute_logits(x, y, z):
     return torch.where(torch.eye(n=x.shape[0]) > 0.5, MIP_of_pos_triples, logits_x)
 
 def symile(r_a, r_b, r_c, logit_scale, normalize):
-    print("WE'RE USING SYMILE")
     if normalize:
         r_a = F.normalize(r_a, p=2.0, dim=1)
         r_b = F.normalize(r_b, p=2.0, dim=1)
