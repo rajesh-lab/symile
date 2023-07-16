@@ -10,7 +10,7 @@ try:
 except ImportError:
     wandb = None
 
-from datasets import FinetuningDataset, PretrainingDataset
+from datasets import FinetuningDataset, PretrainingDataset, TestDataset
 from losses import pairwise_infonce, symile
 from models import LinearEncoders
 from params import parse_args, wandb_init
@@ -82,13 +82,26 @@ if __name__ == '__main__':
     loss_fn = symile if args.loss_fn == "symile" else pairwise_infonce
     pretrain(pt_loader, pt_val_loader, encoders, loss_fn, optimizer, args)
 
-    # finetuning
-    ft_loader = load_data(args.d_v, args.finetune_n, args.finetune_n, stage="finetune",
-                          model=encoders)
-    clf = MLPClassifier([100,100])
-    finetune(ft_loader, clf)
+    # # finetuning
+    # ft_loader = load_data(args.d_v, args.finetune_n, args.finetune_n, stage="finetune",
+    #                       model=encoders)
+    # clf = MLPClassifier([100,100])
+    # finetune(ft_loader, clf)
 
-    # testing
-    test_loader = load_data(args.d_v, args.test_n, args.test_n, stage="test",
-                            model=encoders)
-    test(test_loader, clf)
+    # # testing
+    # test_loader = load_data(args.d_v, args.test_n, args.test_n, stage="test",
+    #                         model=encoders)
+    # test(test_loader, clf)
+
+    from sklearn.linear_model import LinearRegression
+    ft_dataset = TestDataset(args.d_v, args.finetune_n, encoders)
+    ft_loader = DataLoader(ft_dataset, batch_size=args.finetune_n, shuffle=True)
+    lr = LinearRegression()
+    for A, B, C, r_a, r_b, r_c, C_bin in ft_loader:
+        lr.fit(r_a, A)
+
+    test_dataset = TestDataset(args.d_v, args.test_n, encoders)
+    test_loader = DataLoader(ft_dataset, batch_size=args.test_n, shuffle=True)
+    for A, B, C, r_a, r_b, r_c, C_bin in test_loader:
+        r2 = lr.score(r_a, A)
+    print("R^2: ", r2)

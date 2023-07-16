@@ -191,3 +191,69 @@ class PretrainingDataset(Dataset):
         v_b = self.v_b[idx, :]
         v_c = self.v_c[idx, :]
         return v_a, v_b, v_c
+    
+
+class TestDataset(Dataset):
+    def __init__(self, d, n, model):
+        (self.A, self.B, self.C) = generate_data(n)
+        i = np.random.randint(0, d)
+        v_a, v_b, v_c = self.get_vectors(self.A, self.B, self.C, i, d)
+        self.r_a, self.r_b, self.r_c, _ = self.get_representations(model, v_a, v_b, v_c)
+        # binarize C
+        self.C_bin = np.where(self.C <= 1.0, 0, 1)
+        assert self.r_a.shape == self.r_b.shape, \
+            "Vectors must be the same shape."
+        assert self.r_a.shape[0] == self.C_bin.shape[0], \
+            "Vectors and labels must be the same length."
+
+    def get_vectors(self, A, B, C, i, d):
+        v_a = torch.tensor([build_vector(a, i, d) for a in A], dtype=torch.float32)
+        v_b = torch.tensor([build_vector(b, i, d) for b in B], dtype=torch.float32)
+        v_c = torch.tensor([build_vector(c, i, d) for c in C], dtype=torch.float32)
+        assert torch.all(v_a[:,i] == torch.tensor(A, dtype=torch.float32))
+        assert torch.all(v_b[:,i] == torch.tensor(B, dtype=torch.float32))
+        return v_a, v_b, v_c
+
+    def get_representations(self, model, v_a, v_b, v_c):
+        """
+        Generate representations (r_a, r_b) from (v_a, v_b) using encoders in
+        `model`.
+
+        Args:
+            model (nn.Module): model used to generate representations.
+            v_a (torch.Tensor): vector of size (n, d_v).
+            v_b (torch.Tensor): vector of size (n, d_v).
+        Returns:
+            r_a, r_b (tuple): each of r_a, r_b is a torch.Tensor of size (n, d_r).
+        """
+        model.eval()
+        with torch.no_grad():
+            return model(v_a, v_b, v_c)
+
+    def __len__(self):
+        """
+        Compute length of the dataset.
+
+        Args:
+            n (int): dataset size.
+        """
+        return len(self.r_a)
+
+    def __getitem__(self, idx):
+        """
+        Index into the dataset.
+
+        Args:
+            idx (int): index of data sample to retrieve.
+        Returns
+            r_a, r_b: each of r_a, r_b is a torch.Tensor of size d_r.
+            C_bin (numpy.int64): label for the data sample, either 0 or 1.
+        """
+        A = self.A[idx]
+        B = self.B[idx]
+        C = self.C[idx]
+        r_a = self.r_a[idx, :]
+        r_b = self.r_b[idx, :]
+        r_c = self.r_c[idx, :]
+        C_bin = self.C_bin[idx]
+        return A, B, C, r_a, r_b, r_c, C_bin
