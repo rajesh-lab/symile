@@ -32,6 +32,7 @@ def pairwise_infonce(r_a, r_b, r_c, logit_scale, normalize=True):
     Returns:
         (torch.Tensor): average over the pairwise InfoNCE losses
     """
+    print("WE'RE USING PAIRWISE INFO")
     if normalize:
         r_a = F.normalize(r_a, p=2.0, dim=1)
         r_b = F.normalize(r_b, p=2.0, dim=1)
@@ -64,19 +65,16 @@ def compute_logits(x, y, z):
     # shuffle rows of y and z
     y_shuff = y[torch.randperm(y.shape[0])]
     z_shuff = z[torch.randperm(z.shape[0])]
-    def _multilinear_inner_product(x):
-        return torch.t(x) @ torch.t(y * z)
     def _multilinear_inner_product_shuffled(x):
         return torch.t(x) @ torch.t(y_shuff * z_shuff)
 
-    logits_ordered = torch.vmap(_multilinear_inner_product)(x)
-    logits_x = torch.vmap(_multilinear_inner_product_shuffled)(x)
-
+    logits_x = torch.vmap(_multilinear_inner_product_shuffled)(x) # (batch_sz, batch_sz)
+    MIP_of_pos_triples = (x * y * z).sum(axis=1) # (batch_sz)
     # insert positive triples along diagonal of shuffled logits
-    logits_x.diagonal().copy_(torch.diag(logits_ordered))
-    return logits_x
+    return torch.where(torch.eye(n=x.shape[0]) > 0.5, MIP_of_pos_triples, logits_x)
 
 def symile(r_a, r_b, r_c, logit_scale, normalize):
+    print("WE'RE USING SYMILE")
     if normalize:
         r_a = F.normalize(r_a, p=2.0, dim=1)
         r_b = F.normalize(r_b, p=2.0, dim=1)

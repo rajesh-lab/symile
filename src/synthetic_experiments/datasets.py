@@ -56,6 +56,7 @@ class FinetuningDataset(Dataset):
     Generates n samples of (A, B, C) where:
         -- A, B, eps ~ Uniform(0,1)
         -- C = ((A+B) % 1) + eps
+        -- C_bin = 0 if C <= 1.0 else 1
         -- i ~ Uniform(1, d)
     For each sample (A, B, C), we create vectors (v_a, v_b), each of size d_v,
     where v_a[i] = A, v_b[i] = B, and v_a[j!=i], v_b[j!=i] ~ Uniform(0,1).
@@ -68,10 +69,10 @@ class FinetuningDataset(Dataset):
         v_a, v_b = self.get_vectors(A, B, i, d)
         self.r_a, self.r_b, _, _ = self.get_representations(model, v_a, v_b)
         # binarize C
-        self.C = np.where(C <= 1.0, 0, 1)
+        self.C_bin = np.where(C <= 1.0, 0, 1)
         assert self.r_a.shape == self.r_b.shape, \
             "Vectors must be the same shape."
-        assert self.r_a.shape[0] == self.C.shape[0], \
+        assert self.r_a.shape[0] == self.C_bin.shape[0], \
             "Vectors and labels must be the same length."
 
     def get_vectors(self, A, B, i, d):
@@ -119,12 +120,12 @@ class FinetuningDataset(Dataset):
             idx (int): index of data sample to retrieve.
         Returns
             r_a, r_b: each of r_a, r_b is a torch.Tensor of size d_r.
-            C (numpy.int64): label for the data sample, either 0 or 1.
+            C_bin (numpy.int64): label for the data sample, either 0 or 1.
         """
         r_a = self.r_a[idx, :]
         r_b = self.r_b[idx, :]
-        C = self.C[idx]
-        return r_a, r_b, C
+        C_bin = self.C_bin[idx]
+        return r_a, r_b, C_bin
 
 
 class PretrainingDataset(Dataset):

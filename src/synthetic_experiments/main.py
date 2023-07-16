@@ -1,6 +1,7 @@
 """
 Experiment to demonstrate performance of SYMILE on synthetic datasets.
 """
+from sklearn.neural_network import MLPClassifier
 import torch
 from torch.nn import MSELoss
 from torch.utils.data import DataLoader
@@ -9,11 +10,9 @@ try:
 except ImportError:
     wandb = None
 
-from sklearn.linear_model import LogisticRegression
-
 from datasets import FinetuningDataset, PretrainingDataset
 from losses import pairwise_infonce, symile
-from models import LinearEncoders, LinearRegression
+from models import LinearEncoders
 from params import parse_args, wandb_init
 
 
@@ -24,9 +23,11 @@ def load_data(d, n, batch_sz, stage="pretrain", model=None):
         dataset = FinetuningDataset(d, n, model)
     return DataLoader(dataset, batch_size=batch_sz, shuffle=True)
 
-def pretrain(pt_loader, model, loss_fn, optimizer, args):
+def pretrain(pt_loader, pt_val_loader, model, loss_fn, optimizer, args):
     model.train()
-    for epoch in range(args.pretrain_epochs):
+    best_val_loss = float("inf")
+    patience_counter = 0
+    for epoch in range(args.pt_epochs):
         for v_a, v_b, v_c in pt_loader:
             r_a, r_b, r_c, logit_scale = model(v_a, v_b, v_c)
             assert r_c is not None, "r_c must be defined for pretraining."
@@ -36,78 +37,58 @@ def pretrain(pt_loader, model, loss_fn, optimizer, args):
             if args.wandb:
                 wandb.log({"pretrain_loss": loss, "logit_scale": model.logit_scale.item()})
             optimizer.zero_grad()
-            # TODO: how long to train for?
 
-# def finetune(ft_loader, model, loss_fn, optimizer, args):
-#     model.train()
-#     for epoch in range(args.finetune_epochs):
-#         for r_a, r_b, C in ft_loader:
-#             C_pred = model(r_a, r_b)
-#             assert C_pred.shape[0] == args.finetune_n, \
-#                 "C_pred must have shape (n, 1)."
-#             loss = loss_fn(C_pred, C.float().unsqueeze(1))
-#             loss.backward()
-#             optimizer.step()
-#             if args.wandb:
-#                 wandb.log({"finetune_loss": loss})
-#             optimizer.zero_grad()
-#             # TODO: how long to train for?
+            if epoch % args.pt_val_epochs == 0:
+                model.eval()
+                with torch.no_grad():
+                    for v_a, v_b, v_c in pt_val_loader:
+                        r_a, r_b, r_c, logit_scale = model(v_a, v_b, v_c)
+                        val_loss = loss_fn(r_a, r_b, r_c, logit_scale, args.normalize)
+                        if args.wandb:
+                            wandb.log({"pretrain_val_loss": val_loss})
+                        if val_loss < best_val_loss:
+                            best_val_loss = val_loss
+                            patience_counter = 0
+                        else:
+                            patience_counter += 1
+                if patience_counter >= args.early_stopping_patience_pt:
+                    break
+                else:
+                    model.train()
 
-def finetune(ft_loader, model, loss_fn, optimizer, args):
-    i = 0
-    for r_a, r_b, C in ft_loader:
-        lr.fit(torch.cat((r_a, r_b), dim=1), C)
-        i += 1
-    assert i == 1
+def finetune(ft_loader, model):
+    for r_a, r_b, C_bin in ft_loader:
+        model.fit(torch.cat((r_a, r_b), dim=1), C_bin)
 
-# def test(test_loader, model, loss_fn, args):
-#     # TODO: am I doing the loss calculation correctly?
-#     model.eval()
-#     n = len(test_loader.dataset)
-#     loss = 0
-#     with torch.no_grad():
-#         for r_a, r_b, C in test_loader:
-#             C_pred = model(r_a, r_b)
-#             breakpoint()
-#             loss += loss_fn(C_pred, C.float().unsqueeze(1)).item()
-#     loss /= n
-#     print("Test MSE: ", round(loss, 3))
-#     if args.wandb:
-#         wandb.log({"test_loss": loss})
-
-def test(test_loader, model, loss_fn, args):
-    i = 0
-    for r_a, r_b, C in test_loader:
-        mean_acc = lr.score(torch.cat((r_a, r_b), dim=1), C)
+def test(test_loader, model):
+    for r_a, r_b, C_bin in test_loader:
+        mean_acc = model.score(torch.cat((r_a, r_b), dim=1), C_bin)
         print("Mean accuracy: ", mean_acc)
         if args.wandb:
             wandb.log({"mean_acc": mean_acc})
-        i += 1
-    assert i == 1
 
 if __name__ == '__main__':
-    # TODO: write tests for all experiment scripts
-    # TODO: add comments
     args = parse_args()
     wandb_init(args)
 
+    # set batch sizes
+    batch_sz_pt = args.pretrain_n if args.use_full_dataset else args.batch_sz_pt
+
     # pretraining
-    pt_loader = load_data(args.d_v, args.pretrain_n, args.batch_sz, stage="pretrain")
+    pt_loader = load_data(args.d_v, args.pretrain_n, batch_sz_pt, stage="pretrain")
+    pt_val_loader = load_data(args.d_v, args.pretrain_val_n, args.pretrain_val_n, stage="pretrain")
     encoders = LinearEncoders(args.d_v, args.d_r)
     optimizer = torch.optim.AdamW(encoders.parameters(), lr=args.lr)
     loss_fn = symile if args.loss_fn == "symile" else pairwise_infonce
-    pretrain(pt_loader, encoders, loss_fn, optimizer, args)
+    pretrain(pt_loader, pt_val_loader, encoders, loss_fn, optimizer, args)
 
     # finetuning
-    ft_loader = load_data(args.d_v, args.finetune_n, args.batch_sz, stage="finetune",
+    ft_loader = load_data(args.d_v, args.finetune_n, args.finetune_n, stage="finetune",
                           model=encoders)
-    # regression_model = LinearRegression(args.d_r)
-    # finetune(ft_loader, regression_model, MSELoss(), optimizer, args)
-    lr = LogisticRegression()
-    finetune(ft_loader, lr, MSELoss(), optimizer, args)
+    clf = MLPClassifier([100,100])
+    finetune(ft_loader, clf)
 
     # testing
-    test_loader = load_data(args.d_v, args.test_n, args.batch_sz, stage="test",
+    test_loader = load_data(args.d_v, args.test_n, args.test_n, stage="test",
                             model=encoders)
-    # test(test_loader, regression_model, MSELoss(reduction="sum"), args)
-    test(test_loader, lr, None, args)
+    test(test_loader, clf)

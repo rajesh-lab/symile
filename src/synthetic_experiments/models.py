@@ -39,26 +39,3 @@ class LinearEncoders(nn.Module):
         assert r_a.shape[1] == self.d_r, \
             f"Representations must have dimensionality d_r ({self.d_r})."
         return r_a, r_b, r_c, self.logit_scale.exp()
-
-
-class LinearRegression(nn.Module):
-    def __init__(self, d_r):
-        """
-        Initialize linear regression model that predicts C from r_a, r_b.
-
-        Args:
-            d_r (int): dimensionality for each of the representations r_a, r_b.
-        """
-        super().__init__()
-        self.linear = nn.Linear(d_r*2, 1, bias=True)
-
-    def forward(self, r_a, r_b):
-        """
-        Concatenate r_a, r_b and pass through the linear layer.
-
-        Args:
-            r_a, r_b (torch.Tensor): each of size (n, d_r).
-        Returns:
-            (torch.Tensor): size (n, 1)
-        """
-        return self.linear(torch.cat((r_a, r_b), dim=1))
