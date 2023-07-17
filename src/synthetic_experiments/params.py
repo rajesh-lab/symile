@@ -21,11 +21,9 @@ def parse_args():
                         help="Dimensionality of dataset vectors.")
     parser.add_argument("--d_r", type=int, default=10,
                         help="Dimensionality of representation vectors.")
-    parser.add_argument("--eps_param", type=float, default=0.1,
+    parser.add_argument("--eps_param", type=float, default=0.01,
                         help="When modulo example is used, eps_param is a multiplier \
-                              when generating data: C = ((A+B) % 1) + eps * eps_param. \
-                              When XOR example is used, eps_param is the noise probability \
-                              with which C (= A xor B) is flipped.")
+                              when generating data: C = ((A+B) % 1) + eps * eps_param.")
     parser.add_argument("--pred_from_reps", type=bool, default=True,
                         help="Whether to predict C_bin from representations r_a and r_b \
                              (as opposed to from A and B directly).")

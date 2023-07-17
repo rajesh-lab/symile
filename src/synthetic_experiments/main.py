@@ -4,7 +4,6 @@ Experiment to demonstrate performance of SYMILE on synthetic datasets.
 import numpy as np
 from sklearn.neural_network import MLPClassifier
 import torch
-from torch.nn import MSELoss
 from torch.utils.data import DataLoader
 try:
     import wandb
@@ -50,10 +49,6 @@ def pretrain(pt_loader, pt_val_loader, model, loss_fn, optimizer, args, i):
 
             if epoch % 20 == 0:
                 print("epoch: ", epoch)
-                print("\n\n\n...finetuning...\n")
-                ft_loader = load_data(i, args, stage="finetune", model=model)
-                clf = MLPClassifier([100])
-                finetune(ft_loader, clf, args)
             if epoch % args.pt_val_epochs == 0:
                 model.eval()
                 with torch.no_grad():
@@ -72,7 +67,6 @@ def pretrain(pt_loader, pt_val_loader, model, loss_fn, optimizer, args, i):
                 else:
                     model.train()
 
-
 def finetune(ft_loader, model, args):
     for A, B, C, r_a, r_b, r_c, C_bin in ft_loader:
         if args.pred_from_reps:
@@ -81,9 +75,10 @@ def finetune(ft_loader, model, args):
             X = torch.stack((A, B), dim=1)
         if args.example_mod:
             model.fit(X, C_bin)
+            print("finetuning mean acc: ", model.score(X, C_bin))
         else:
             model.fit(X, C)
-        print("Mean accuracy: ", model.score(X, C))
+            print("finetuning mean acc: ", model.score(X, C))
 
 def test(test_loader, model, args):
     for A, B, C, r_a, r_b, r_c, C_bin in test_loader:
@@ -103,7 +98,7 @@ if __name__ == '__main__':
     args = parse_args()
     wandb_init(args)
 
-    # sample i
+    # sample i for data generation
     i = np.random.randint(0, args.d_v)
 
     # pretraining
