@@ -1,23 +1,45 @@
 import numpy as np
-from scipy.stats import uniform
+from scipy.stats import bernoulli, uniform
 import torch
 from torch.utils.data import Dataset
 
 
-def generate_data(n, eps_multiplier):
+def generate_data_xor(n, eps_param):
     """
-    Generate n samples of data (A, B, C) for the modulo synthetic experiment.
-    A, B, eps ~ Uniform(0,1), and C = ((A+B) % 1) + eps.
+    Generate n samples of data (A, B, C) for the xor synthetic experiment.
+    A, B, eps ~ Bernoulli(0.5), and C = (A XOR B) where with probability
+    eps_param C is flipped.
 
     Args:
         n (int): number of data samples to generate.
-        eps_multiplier (float): multiplier for eps in C = ((A+B) % 1) + eps.
+        eps_param (float): probability with which to flip C.
+    Returns:
+        A, B, C (tuple): each of A, B, C, is an numpy.ndarray of size (n,).
+    """
+    p = 0.5
+    A = bernoulli.rvs(p, size=n)
+    B = bernoulli.rvs(p, size=n)
+    assert A.shape == B.shape, "Random variables must be the same shape"
+    for arr in (A, B):
+        assert np.all((arr == 0) | (arr == 1)), "Random variables must be 0 or 1."
+    C = np.bitwise_xor(A,B)
+    return (A, B, C)
+
+
+def generate_data_modulo(n, eps_param):
+    """
+    Generate n samples of data (A, B, C) for the modulo synthetic experiment.
+    A, B, eps ~ Uniform(0,1), and C = ((A+B) % 1) + eps * eps_param.
+
+    Args:
+        n (int): number of data samples to generate.
+        eps_param (float): multiplier for eps.
     Returns:
         A, B, C (tuple): each of A, B, C, is an numpy.ndarray of size (n,).
     """
     A = uniform.rvs(size=n)
     B = uniform.rvs(size=n)
-    epsilon = uniform.rvs(size=n) * eps_multiplier
+    epsilon = uniform.rvs(size=n) * eps_param
     assert A.shape == B.shape == epsilon.shape, \
         "Random variables must be the same shape"
     for arr in (A, B, epsilon):
@@ -45,21 +67,24 @@ def generate_data(n, eps_multiplier):
     return (A, B, C)
 
 
-def build_vector(x, i, d):
-    v_x = uniform.rvs(size=d)
+def build_vector(x, i, d, example_mod):
+    if example_mod:
+        v_x = uniform.rvs(size=d)
+    else:
+        v_x = bernoulli.rvs(0.5, size=d)
     v_x[i] = x
     return v_x
 
 
-def get_vectors(A, B, C, i, d):
+def get_vectors(A, B, C, i, d, example_mod):
     """
     Create vectors (v_a, v_b, v_c) from the data samples (A, B, C).
     Each of A, B, C is a numpy.ndarray of size (n,).
     Each of v_a, v_b, v_c is a torch.Tensor of size (n, d).
     """
-    v_a = torch.tensor([build_vector(a, i, d) for a in A], dtype=torch.float32)
-    v_b = torch.tensor([build_vector(b, i, d) for b in B], dtype=torch.float32)
-    v_c = torch.tensor([build_vector(c, i, d) for c in C], dtype=torch.float32)
+    v_a = torch.tensor([build_vector(a, i, d, example_mod) for a in A], dtype=torch.float32)
+    v_b = torch.tensor([build_vector(b, i, d, example_mod) for b in B], dtype=torch.float32)
+    v_c = torch.tensor([build_vector(c, i, d, example_mod) for c in C], dtype=torch.float32)
     assert torch.all(v_a[:,i] == torch.tensor(A, dtype=torch.float32))
     assert torch.all(v_b[:,i] == torch.tensor(B, dtype=torch.float32))
     assert torch.all(v_c[:,i] == torch.tensor(C, dtype=torch.float32))
@@ -79,20 +104,24 @@ class FinetuningDataset(Dataset):
     We then generate the representations (r_a, r_b) from (v_a, v_b) using the
     provided encoders.
     """
-    def __init__(self, d, n, eps_multiplier, model):
-        (self.A, self.B, self.C) = generate_data(n, eps_multiplier)
-        i = np.random.randint(0, d)
-        v_a, v_b, v_c = get_vectors(self.A, self.B, self.C, i, d)
+    def __init__(self, i, d, n, eps_param, example_mod, model):
+        if example_mod:
+            self.A, self.B, self.C = generate_data_modulo(n, eps_param)
+        else:
+            self.A, self.B, self.C = generate_data_xor(n, eps_param)
+        v_a, v_b, v_c = get_vectors(self.A, self.B, self.C, i, d, example_mod)
         self.r_a, self.r_b, self.r_c, _ = self.get_representations(model, v_a, v_b, v_c)
-
-        # binarize C
-        C_thresh = 0.5 * (1.0 + eps_multiplier)
-        self.C_bin = np.where(self.C <= C_thresh, 0, 1)
-
         assert self.r_a.shape == self.r_b.shape == self.r_c.shape, \
             "Vectors must be the same shape."
-        assert self.r_a.shape[0] == self.C_bin.shape[0], \
-            "Vectors and labels must be the same length."
+
+        # binarize C
+        if example_mod:
+            C_thresh = 0.5 * (1.0 + eps_param)
+            self.C_bin = np.where(self.C <= C_thresh, 0, 1)
+            assert self.r_a.shape[0] == self.C_bin.shape[0], \
+                "Vectors and labels must be the same length."
+        else:
+            self.C_bin = self.C
 
     def get_representations(self, model, v_a, v_b, v_c):
         """
@@ -145,7 +174,7 @@ class PretrainingDataset(Dataset):
     For each sample (A, B, C), we create vectors (v_a, v_b, v_c), each of size d,
     where v_a[i] = A, v_b[i] = B, v_c[i] = C, and v_a[j!=i], v_b[j!=i], v_c[j!=i] ~ Uniform(0,1).
     """
-    def __init__(self, d, n, eps_multiplier):
+    def __init__(self, i, d, n, eps_param, example_mod):
         """
         Initialize the dataset object.
 
@@ -153,9 +182,11 @@ class PretrainingDataset(Dataset):
             d (int): dimensionality for each of the vectors v_a, v_b, v_c.
             n (int): number of data samples to generate.
         """
-        A, B, C = generate_data(n, eps_multiplier)
-        i = np.random.randint(0, d)
-        self.v_a, self.v_b, self.v_c = get_vectors(A, B, C, i, d)
+        if example_mod:
+            A, B, C = generate_data_modulo(n, eps_param)
+        else:
+            A, B, C = generate_data_xor(n, eps_param)
+        self.v_a, self.v_b, self.v_c = get_vectors(A, B, C, i, d, example_mod)
         assert self.v_a.shape == self.v_b.shape == self.v_c.shape, \
             "All vectors must be the same shape."
         assert self.v_a.shape[1] == d, \
