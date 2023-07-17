@@ -4,19 +4,20 @@ import torch
 from torch.utils.data import Dataset
 
 
-def generate_data(n):
+def generate_data(n, eps_multiplier):
     """
     Generate n samples of data (A, B, C) for the modulo synthetic experiment.
     A, B, eps ~ Uniform(0,1), and C = ((A+B) % 1) + eps.
 
     Args:
         n (int): number of data samples to generate.
+        eps_multiplier (float): multiplier for eps in C = ((A+B) % 1) + eps.
     Returns:
         A, B, C (tuple): each of A, B, C, is an numpy.ndarray of size (n,).
     """
     A = uniform.rvs(size=n)
     B = uniform.rvs(size=n)
-    epsilon = uniform.rvs(size=n)
+    epsilon = uniform.rvs(size=n) * eps_multiplier
     assert A.shape == B.shape == epsilon.shape, \
         "Random variables must be the same shape"
     for arr in (A, B, epsilon):
@@ -50,6 +51,21 @@ def build_vector(x, i, d):
     return v_x
 
 
+def get_vectors(A, B, C, i, d):
+    """
+    Create vectors (v_a, v_b, v_c) from the data samples (A, B, C).
+    Each of A, B, C is a numpy.ndarray of size (n,).
+    Each of v_a, v_b, v_c is a torch.Tensor of size (n, d).
+    """
+    v_a = torch.tensor([build_vector(a, i, d) for a in A], dtype=torch.float32)
+    v_b = torch.tensor([build_vector(b, i, d) for b in B], dtype=torch.float32)
+    v_c = torch.tensor([build_vector(c, i, d) for c in C], dtype=torch.float32)
+    assert torch.all(v_a[:,i] == torch.tensor(A, dtype=torch.float32))
+    assert torch.all(v_b[:,i] == torch.tensor(B, dtype=torch.float32))
+    assert torch.all(v_c[:,i] == torch.tensor(C, dtype=torch.float32))
+    return v_a, v_b, v_c
+
+
 class FinetuningDataset(Dataset):
     """
     Finetuning dataset for the modulo synthetic experiment.
@@ -63,45 +79,36 @@ class FinetuningDataset(Dataset):
     We then generate the representations (r_a, r_b) from (v_a, v_b) using the
     provided encoders.
     """
-    def __init__(self, d, n, model):
-        (A, B, C) = generate_data(n)
+    def __init__(self, d, n, eps_multiplier, model):
+        (self.A, self.B, self.C) = generate_data(n, eps_multiplier)
         i = np.random.randint(0, d)
-        v_a, v_b = self.get_vectors(A, B, i, d)
-        self.r_a, self.r_b, _, _ = self.get_representations(model, v_a, v_b)
+        v_a, v_b, v_c = get_vectors(self.A, self.B, self.C, i, d)
+        self.r_a, self.r_b, self.r_c, _ = self.get_representations(model, v_a, v_b, v_c)
+
         # binarize C
-        self.C_bin = np.where(C <= 1.0, 0, 1)
-        assert self.r_a.shape == self.r_b.shape, \
+        C_thresh = 0.5 * (1.0 + eps_multiplier)
+        self.C_bin = np.where(self.C <= C_thresh, 0, 1)
+
+        assert self.r_a.shape == self.r_b.shape == self.r_c.shape, \
             "Vectors must be the same shape."
         assert self.r_a.shape[0] == self.C_bin.shape[0], \
             "Vectors and labels must be the same length."
 
-    def get_vectors(self, A, B, i, d):
+    def get_representations(self, model, v_a, v_b, v_c):
         """
-        Create vectors (v_a, v_b) from the data samples (A, B).
-        Each of A, B is a numpy.ndarray of size (n,).
-        Each of v_a, v_b is a torch.Tensor of size (n, d_v).
-        """
-        v_a = torch.tensor([build_vector(a, i, d) for a in A], dtype=torch.float32)
-        v_b = torch.tensor([build_vector(b, i, d) for b in B], dtype=torch.float32)
-        assert torch.all(v_a[:,i] == torch.tensor(A, dtype=torch.float32))
-        assert torch.all(v_b[:,i] == torch.tensor(B, dtype=torch.float32))
-        return v_a, v_b
-
-    def get_representations(self, model, v_a, v_b):
-        """
-        Generate representations (r_a, r_b) from (v_a, v_b) using encoders in
-        `model`.
+        Generate representations (r_a, r_b, r_c) from (v_a, v_b, v_c) using
+        encoders in `model`.
 
         Args:
             model (nn.Module): model used to generate representations.
-            v_a (torch.Tensor): vector of size (n, d_v).
-            v_b (torch.Tensor): vector of size (n, d_v).
+            v_a, v_b, v_c (torch.Tensor): each of size (n, d_v).
         Returns:
-            r_a, r_b (tuple): each of r_a, r_b is a torch.Tensor of size (n, d_r).
+            r_a, r_b, r_c (torch.Tensor): each of size (n, d_r).
+            logit_scale.exp() (torch.Tensor): temperature parameter
         """
         model.eval()
         with torch.no_grad():
-            return model(v_a, v_b)
+            return model(v_a, v_b, v_c)
 
     def __len__(self):
         """
@@ -119,13 +126,13 @@ class FinetuningDataset(Dataset):
         Args:
             idx (int): index of data sample to retrieve.
         Returns
-            r_a, r_b: each of r_a, r_b is a torch.Tensor of size d_r.
+            Each instance of r_a, r_b, r_c is a torch.Tensor of size d_r.
+            Each instance of A, B, C is a numpy.float64 scalar.
             C_bin (numpy.int64): label for the data sample, either 0 or 1.
         """
-        r_a = self.r_a[idx, :]
-        r_b = self.r_b[idx, :]
-        C_bin = self.C_bin[idx]
-        return r_a, r_b, C_bin
+        return (self.A[idx], self.B[idx], self.C[idx],
+                self.r_a[idx, :], self.r_b[idx, :], self.r_c[idx, :],
+                self.C_bin[idx])
 
 
 class PretrainingDataset(Dataset):
@@ -138,7 +145,7 @@ class PretrainingDataset(Dataset):
     For each sample (A, B, C), we create vectors (v_a, v_b, v_c), each of size d,
     where v_a[i] = A, v_b[i] = B, v_c[i] = C, and v_a[j!=i], v_b[j!=i], v_c[j!=i] ~ Uniform(0,1).
     """
-    def __init__(self, d, n):
+    def __init__(self, d, n, eps_multiplier):
         """
         Initialize the dataset object.
 
@@ -146,28 +153,13 @@ class PretrainingDataset(Dataset):
             d (int): dimensionality for each of the vectors v_a, v_b, v_c.
             n (int): number of data samples to generate.
         """
-        data = generate_data(n)
+        A, B, C = generate_data(n, eps_multiplier)
         i = np.random.randint(0, d)
-        self.v_a, self.v_b, self.v_c = self.get_vectors(data, i, d)
+        self.v_a, self.v_b, self.v_c = get_vectors(A, B, C, i, d)
         assert self.v_a.shape == self.v_b.shape == self.v_c.shape, \
             "All vectors must be the same shape."
         assert self.v_a.shape[1] == d, \
             "Vectors must have dimension d."
-
-    def get_vectors(self, data, i, d):
-        """
-        Create vectors (v_a, v_b, v_c) from the data samples (A, B, C).
-        Each of A, B, C is a numpy.ndarray of size (n,).
-        Each of v_a, v_b, v_c is a torch.Tensor of size (n, d).
-        """
-        A, B, C = data
-        v_a = torch.tensor([build_vector(a, i, d) for a in A], dtype=torch.float32)
-        v_b = torch.tensor([build_vector(b, i, d) for b in B], dtype=torch.float32)
-        v_c = torch.tensor([build_vector(c, i, d) for c in C], dtype=torch.float32)
-        assert torch.all(v_a[:,i] == torch.tensor(A, dtype=torch.float32))
-        assert torch.all(v_b[:,i] == torch.tensor(B, dtype=torch.float32))
-        assert torch.all(v_c[:,i] == torch.tensor(C, dtype=torch.float32))
-        return v_a, v_b, v_c
 
     def __len__(self):
         """
@@ -191,69 +183,3 @@ class PretrainingDataset(Dataset):
         v_b = self.v_b[idx, :]
         v_c = self.v_c[idx, :]
         return v_a, v_b, v_c
-    
-
-class TestDataset(Dataset):
-    def __init__(self, d, n, model):
-        (self.A, self.B, self.C) = generate_data(n)
-        i = np.random.randint(0, d)
-        v_a, v_b, v_c = self.get_vectors(self.A, self.B, self.C, i, d)
-        self.r_a, self.r_b, self.r_c, _ = self.get_representations(model, v_a, v_b, v_c)
-        # binarize C
-        self.C_bin = np.where(self.C <= 1.0, 0, 1)
-        assert self.r_a.shape == self.r_b.shape, \
-            "Vectors must be the same shape."
-        assert self.r_a.shape[0] == self.C_bin.shape[0], \
-            "Vectors and labels must be the same length."
-
-    def get_vectors(self, A, B, C, i, d):
-        v_a = torch.tensor([build_vector(a, i, d) for a in A], dtype=torch.float32)
-        v_b = torch.tensor([build_vector(b, i, d) for b in B], dtype=torch.float32)
-        v_c = torch.tensor([build_vector(c, i, d) for c in C], dtype=torch.float32)
-        assert torch.all(v_a[:,i] == torch.tensor(A, dtype=torch.float32))
-        assert torch.all(v_b[:,i] == torch.tensor(B, dtype=torch.float32))
-        return v_a, v_b, v_c
-
-    def get_representations(self, model, v_a, v_b, v_c):
-        """
-        Generate representations (r_a, r_b) from (v_a, v_b) using encoders in
-        `model`.
-
-        Args:
-            model (nn.Module): model used to generate representations.
-            v_a (torch.Tensor): vector of size (n, d_v).
-            v_b (torch.Tensor): vector of size (n, d_v).
-        Returns:
-            r_a, r_b (tuple): each of r_a, r_b is a torch.Tensor of size (n, d_r).
-        """
-        model.eval()
-        with torch.no_grad():
-            return model(v_a, v_b, v_c)
-
-    def __len__(self):
-        """
-        Compute length of the dataset.
-
-        Args:
-            n (int): dataset size.
-        """
-        return len(self.r_a)
-
-    def __getitem__(self, idx):
-        """
-        Index into the dataset.
-
-        Args:
-            idx (int): index of data sample to retrieve.
-        Returns
-            r_a, r_b: each of r_a, r_b is a torch.Tensor of size d_r.
-            C_bin (numpy.int64): label for the data sample, either 0 or 1.
-        """
-        A = self.A[idx]
-        B = self.B[idx]
-        C = self.C[idx]
-        r_a = self.r_a[idx, :]
-        r_b = self.r_b[idx, :]
-        r_c = self.r_c[idx, :]
-        C_bin = self.C_bin[idx]
-        return A, B, C, r_a, r_b, r_c, C_bin
