@@ -10,18 +10,27 @@ try:
 except ImportError:
     wandb = None
 
-from datasets import FinetuningDataset, PretrainingDataset, TestDataset
+from datasets import FinetuningDataset, PretrainingDataset
 from losses import pairwise_infonce, symile
 from models import LinearEncoders
 from params import parse_args, wandb_init
 
 
-def load_data(d, n, batch_sz, stage="pretrain", model=None):
+def load_data(args, stage="pretrain", model=None):
     if stage == "pretrain":
-        dataset = PretrainingDataset(d, n)
-    elif stage == "finetune" or stage == "test":
-        dataset = FinetuningDataset(d, n, model)
-    return DataLoader(dataset, batch_size=batch_sz, shuffle=True)
+        dataset = PretrainingDataset(args.d_v, args.pretrain_n, args.eps_multiplier)
+        batch_sz = args.pretrain_n if args.use_full_dataset else args.batch_sz_pt
+        dl = DataLoader(dataset, batch_size=batch_sz, shuffle=True)
+    elif stage == "pretrain_val":
+        dataset = PretrainingDataset(args.d_v, args.pretrain_val_n, args.eps_multiplier)
+        dl = DataLoader(dataset, batch_size=args.pretrain_val_n, shuffle=True)
+    elif stage == "finetune":
+        dataset = FinetuningDataset(args.d_v, args.finetune_n, args.eps_multiplier, model)
+        dl = DataLoader(dataset, batch_size=args.finetune_n, shuffle=True)
+    elif stage == "test":
+        dataset = FinetuningDataset(args.d_v, args.test_n, args.eps_multiplier, model)
+        dl = DataLoader(dataset, batch_size=args.test_n, shuffle=True)
+    return dl
 
 def pretrain(pt_loader, pt_val_loader, model, loss_fn, optimizer, args):
     model.train()
@@ -38,6 +47,8 @@ def pretrain(pt_loader, pt_val_loader, model, loss_fn, optimizer, args):
                 wandb.log({"pretrain_loss": loss, "logit_scale": model.logit_scale.item()})
             optimizer.zero_grad()
 
+            if epoch % 20 == 0:
+                print("epoch: ", epoch)
             if epoch % args.pt_val_epochs == 0:
                 model.eval()
                 with torch.no_grad():
@@ -56,13 +67,21 @@ def pretrain(pt_loader, pt_val_loader, model, loss_fn, optimizer, args):
                 else:
                     model.train()
 
-def finetune(ft_loader, model):
-    for r_a, r_b, C_bin in ft_loader:
-        model.fit(torch.cat((r_a, r_b), dim=1), C_bin)
+def finetune(ft_loader, model, args):
+    for A, B, C, r_a, r_b, r_c, C_bin in ft_loader:
+        if args.pred_from_reps:
+            X = torch.cat((r_a, r_b), dim=1)
+        else:
+            X = torch.stack((A, B), dim=1)
+        model.fit(X, C_bin)
 
-def test(test_loader, model):
-    for r_a, r_b, C_bin in test_loader:
-        mean_acc = model.score(torch.cat((r_a, r_b), dim=1), C_bin)
+def test(test_loader, model, args):
+    for A, B, C, r_a, r_b, r_c, C_bin in test_loader:
+        if args.pred_from_reps:
+            X = torch.cat((r_a, r_b), dim=1)
+        else:
+            X = torch.stack((A, B), dim=1)
+        mean_acc = model.score(X, C_bin)
         print("Mean accuracy: ", mean_acc)
         if args.wandb:
             wandb.log({"mean_acc": mean_acc})
@@ -71,37 +90,23 @@ if __name__ == '__main__':
     args = parse_args()
     wandb_init(args)
 
-    # set batch sizes
-    batch_sz_pt = args.pretrain_n if args.use_full_dataset else args.batch_sz_pt
-
     # pretraining
-    pt_loader = load_data(args.d_v, args.pretrain_n, batch_sz_pt, stage="pretrain")
-    pt_val_loader = load_data(args.d_v, args.pretrain_val_n, args.pretrain_val_n, stage="pretrain")
     encoders = LinearEncoders(args.d_v, args.d_r)
-    optimizer = torch.optim.AdamW(encoders.parameters(), lr=args.lr)
-    loss_fn = symile if args.loss_fn == "symile" else pairwise_infonce
-    pretrain(pt_loader, pt_val_loader, encoders, loss_fn, optimizer, args)
+    if args.pred_from_reps:
+        print("\n\n\n...pretraining...\n")
+        pt_loader = load_data(args, stage="pretrain")
+        pt_val_loader = load_data(args, stage="pretrain_val")
+        optimizer = torch.optim.AdamW(encoders.parameters(), lr=args.lr)
+        loss_fn = symile if args.loss_fn == "symile" else pairwise_infonce
+        pretrain(pt_loader, pt_val_loader, encoders, loss_fn, optimizer, args)
 
-    # # finetuning
-    # ft_loader = load_data(args.d_v, args.finetune_n, args.finetune_n, stage="finetune",
-    #                       model=encoders)
-    # clf = MLPClassifier([100,100])
-    # finetune(ft_loader, clf)
+    # finetuning
+    print("\n\n\n...finetuning...\n")
+    ft_loader = load_data(args, stage="finetune", model=encoders)
+    clf = MLPClassifier([100])
+    finetune(ft_loader, clf, args)
 
-    # # testing
-    # test_loader = load_data(args.d_v, args.test_n, args.test_n, stage="test",
-    #                         model=encoders)
-    # test(test_loader, clf)
-
-    from sklearn.linear_model import LinearRegression
-    ft_dataset = TestDataset(args.d_v, args.finetune_n, encoders)
-    ft_loader = DataLoader(ft_dataset, batch_size=args.finetune_n, shuffle=True)
-    lr = LinearRegression()
-    for A, B, C, r_a, r_b, r_c, C_bin in ft_loader:
-        lr.fit(r_a, A)
-
-    test_dataset = TestDataset(args.d_v, args.test_n, encoders)
-    test_loader = DataLoader(ft_dataset, batch_size=args.test_n, shuffle=True)
-    for A, B, C, r_a, r_b, r_c, C_bin in test_loader:
-        r2 = lr.score(r_a, A)
-    print("R^2: ", r2)
+    # testing
+    print("\n\n\n...evaluating...\n")
+    test_loader = load_data(args, stage="test", model=encoders)
+    test(test_loader, clf, args)
