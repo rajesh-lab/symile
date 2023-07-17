@@ -4,15 +4,13 @@ import torch
 from torch.utils.data import Dataset
 
 
-def generate_data_xor(n, eps_param):
+def generate_data_xor(n):
     """
     Generate n samples of data (A, B, C) for the xor synthetic experiment.
-    A, B, eps ~ Bernoulli(0.5), and C = (A XOR B) where with probability
-    eps_param C is flipped.
+    A, B, eps ~ Bernoulli(0.5), and C = A xor B.
 
     Args:
         n (int): number of data samples to generate.
-        eps_param (float): probability with which to flip C.
     Returns:
         A, B, C (tuple): each of A, B, C, is an numpy.ndarray of size (n,).
     """
@@ -108,7 +106,7 @@ class FinetuningDataset(Dataset):
         if example_mod:
             self.A, self.B, self.C = generate_data_modulo(n, eps_param)
         else:
-            self.A, self.B, self.C = generate_data_xor(n, eps_param)
+            self.A, self.B, self.C = generate_data_xor(n)
         v_a, v_b, v_c = get_vectors(self.A, self.B, self.C, i, d, example_mod)
         self.r_a, self.r_b, self.r_c, _ = self.get_representations(model, v_a, v_b, v_c)
         assert self.r_a.shape == self.r_b.shape == self.r_c.shape, \
@@ -185,7 +183,7 @@ class PretrainingDataset(Dataset):
         if example_mod:
             A, B, C = generate_data_modulo(n, eps_param)
         else:
-            A, B, C = generate_data_xor(n, eps_param)
+            A, B, C = generate_data_xor(n)
         self.v_a, self.v_b, self.v_c = get_vectors(A, B, C, i, d, example_mod)
         assert self.v_a.shape == self.v_b.shape == self.v_c.shape, \
             "All vectors must be the same shape."
