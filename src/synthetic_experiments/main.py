@@ -1,6 +1,7 @@
 """
 Experiment to demonstrate performance of SYMILE on synthetic datasets.
 """
+import os
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 import torch
@@ -150,6 +151,8 @@ def test_sum_clf(test_loader, args, clf):
 
 
 if __name__ == '__main__':
+    if os.getenv('SINGULARITY_CONTAINER'):
+        os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
     args = parse_args()
     wandb_init(args)
 
