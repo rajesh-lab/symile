@@ -1,6 +1,8 @@
 import torch
 import torch.nn.functional as F
 
+from utils import l2_normalize
+
 
 ####################
 # pairwise infonce #
@@ -74,9 +76,7 @@ def compute_logits(x, y, z):
 
 def symile(r_a, r_b, r_c, logit_scale, normalize):
     if normalize:
-        r_a = F.normalize(r_a, p=2.0, dim=1)
-        r_b = F.normalize(r_b, p=2.0, dim=1)
-        r_c = F.normalize(r_c, p=2.0, dim=1)
+        r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
     assert r_a.shape == r_b.shape == r_c.shape, "All embeddings must be the same shape."
     logits_a = logit_scale * compute_logits(r_a, r_b, r_c)
     logits_b = logit_scale * compute_logits(r_b, r_a, r_c)
