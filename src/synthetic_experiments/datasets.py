@@ -130,14 +130,27 @@ class ZeroshotTestDataset(Dataset):
         return (self.r_a[idx, :], self.r_b[idx, :], self.r_c[idx, :])
 
 
-def get_shuffled_representations(r_a, r_b, r_c):
+def get_negative_v_c(v_c):
     """
-    Shuffle the rows of the input representations.
+    Samples a negative sample for each datapoint in v_c.
     """
-    r_a_shuff = r_a[torch.randperm(r_a.shape[0])]
-    r_b_shuff = r_b[torch.randperm(r_b.shape[0])]
-    r_c_shuff = r_c[torch.randperm(r_c.shape[0])]
-    return r_a_shuff, r_b_shuff, r_c_shuff
+    v_c_support = torch.Tensor([[0., 0.], [0., 1.], [1., 0.], [1., 1.]])
+    v_c_neg = torch.clone(v_c)
+    for r in range(len(v_c)):
+        if torch.eq(v_c[r], torch.Tensor([0., 0.])).all():
+            idx = np.random.choice([1, 2, 3])
+            v_c_neg[r] = v_c_support[idx]
+        elif torch.eq(v_c[r], torch.Tensor([0., 1.])).all():
+            idx = np.random.choice([0, 2, 3])
+            v_c_neg[r] = v_c_support[idx]
+        elif torch.eq(v_c[r], torch.Tensor([1., 0.])).all():
+            idx = np.random.choice([0, 1, 3])
+            v_c_neg[r] = v_c_support[idx]
+        elif torch.eq(v_c[r], torch.Tensor([1., 1.])).all():
+            idx = np.random.choice([0, 1, 2])
+            v_c_neg[r] = v_c_support[idx]
+    assert torch.eq(v_c_neg, v_c).all() == False, "There can be no false negative samples."
+    return v_c_neg
 
 
 class SupportTestDataset(Dataset):
@@ -160,13 +173,18 @@ class SupportTestDataset(Dataset):
         pos_n = n // 2
         v_a, v_b, v_c = generate_data_xor(d, pos_n)
         r_a, r_b, r_c = get_representations(model, v_a, v_b, v_c)
-        r_a_shuff, r_b_shuff, r_c_shuff = get_shuffled_representations(r_a, r_b, r_c)
 
-        self.r_a = torch.concat((r_a, r_a_shuff), axis=0)
-        self.r_b = torch.concat((r_b, r_b_shuff), axis=0)
-        self.r_c = torch.concat((r_c, r_c_shuff), axis=0)
+        # get v_c's for out of support triples
+        v_c_neg = get_negative_v_c(v_c)
+        r_a_neg, r_b_neg, r_c_neg = get_representations(model, v_a, v_b, v_c_neg)
+        assert torch.eq(r_a, r_a_neg).all() and torch.eq(r_b, r_b_neg).all(), \
+            "r_a and r_b should be the same for positive and negative triples."
+
+        self.r_a = torch.concat((r_a, r_a), axis=0)
+        self.r_b = torch.concat((r_b, r_b), axis=0)
+        self.r_c = torch.concat((r_c, r_c_neg), axis=0)
         self.in_support = torch.concat((torch.ones(r_a.shape[0]),
-                                        torch.zeros(r_a_shuff.shape[0])), axis=0)
+                                        torch.zeros(r_a.shape[0])), axis=0)
 
     def __len__(self):
         """
