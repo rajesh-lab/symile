@@ -5,7 +5,6 @@ import os
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 import torch
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 try:
     import wandb
@@ -17,6 +16,7 @@ from datasets import PretrainingDataset, SumTestDataset, \
 from losses import pairwise_infonce, symile
 from models import LinearEncoders
 from params import parse_args, wandb_init
+from utils import l2_normalize
 
 
 def load_data(args, stage="pretrain", model=None):
@@ -47,13 +47,14 @@ def pretrain(pt_loader, pt_val_loader, model, loss_fn, optimizer, args):
     patience_counter = 0
     for epoch in range(args.pt_epochs):
         for v_a, v_b, v_c in pt_loader:
-            r_a, r_b, r_c, logit_scale = model(v_a, v_b, v_c)
+            r_a, r_b, r_c, logit_scale_exp = model(v_a, v_b, v_c)
             assert r_c is not None, "r_c must be defined for pretraining."
-            loss = loss_fn(r_a, r_b, r_c, logit_scale, args.normalize)
+            loss = loss_fn(r_a, r_b, r_c, logit_scale_exp, args.normalize)
             loss.backward()
             optimizer.step()
             if args.wandb:
-                wandb.log({"pretrain_loss": loss, "logit_scale": model.logit_scale.item()})
+                wandb.log({"pretrain_loss": loss,
+                           "logit_scale_exp": logit_scale_exp})
             optimizer.zero_grad()
 
             if epoch % 20 == 0:
@@ -90,47 +91,84 @@ def finetune(ft_loader, model, args):
             print("finetuning mean acc: ", model.score(X, C))
 
 
-def test_zeroshot_clf(test_loader, args):
+def get_query_representations(encoders, normalize):
+    """
+    Returns representations for the four query vectors [0,0], [0,1], [1,0], [1,1].
+
+    Args:
+        encoders (models.LinearEncoders): trained encoders.
+    Returns:
+        q (torch.Tensor): query representations of size (4, d_r) where
+                          q[0] = f([0,0]), q[1] = f([0,1]),
+                          q[2] = f([1,0]), q[3] = f([1,1]).
+    """
+    encoders.eval()
+    with torch.no_grad():
+        q_00 = encoders.f_c(torch.Tensor([0,0]))
+        q_01 = encoders.f_c(torch.Tensor([0,1]))
+        q_10 = encoders.f_c(torch.Tensor([1,0]))
+        q_11 = encoders.f_c(torch.Tensor([1,1]))
+    assert torch.ne(q_00, q_01).any() and \
+           torch.ne(q_00, q_10).any() and \
+           torch.ne(q_00, q_11).any() and \
+           torch.ne(q_01, q_10).any() and \
+           torch.ne(q_01, q_11).any() and \
+           torch.ne(q_10, q_11).any(), \
+           "q_00, q_01, q_10, q_11 must all be different."
+    q = torch.cat((torch.unsqueeze(q_00, 0), torch.unsqueeze(q_01, 0),
+                   torch.unsqueeze(q_10, 0), torch.unsqueeze(q_11, 0)), dim=0)
+    if normalize:
+        [q] = l2_normalize([q])
+    return q
+
+
+def test_zeroshot_clf(test_loader, args, logit_scale_exp, encoders):
+    q = get_query_representations(encoders, args.normalize_eval)
     for r_a, r_b, r_c in test_loader:
-        # TODO: I'm normalizing here. But I'm not normalizing for the other
-        # evaluation methods. Is that okay?
-        if args.normalize:
-            r_a = F.normalize(r_a, p=2.0, dim=1)
-            r_b = F.normalize(r_b, p=2.0, dim=1)
-            r_c = F.normalize(r_c, p=2.0, dim=1)
+        if args.normalize_eval:
+            r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
+
+        # get predictions
         if args.loss_fn == "symile":
-            # zeroshot_logits is a (batch_sz, batch_sz) matrix where each row i is
-            # [ MIP(r_a[i], r_b[i], r_c[1]) MIP(r_a[i], r_b[i], r_c[2]) ... MIP(r_a[i], r_b[i], r_c[batch_sz]) ]
+            # logits is a (batch_sz, 4) matrix where each row i is
+            # [ MIP(r_a[i], r_b[i], q[0]) ... MIP(r_a[i], r_b[i], q[3]) ]
             # where MIP is the multilinear inner product.
-            zeroshot_logits = (r_a * r_b) @ torch.t(r_c)
+            logits = (r_a * r_b) @ torch.t(q)
         elif args.loss_fn == "pairwise_infonce":
-            # zeroshot_logits is a (batch_sz, batch_sz) matrix where each row i is
-            # [ r_a[i]^T r_b[i] + r_b[i]^T r_c[1] + r_a[i]^T r_c[1] ... r_a[i]^T r_b[i] + r_b[i]^T r_c[batch_sz] + r_a[i]^T r_c[batch_sz] ]
+            # logits is a (batch_sz, 4) matrix where each row i is
+            # [ r_a[i]^T r_b[i] + r_b[i]^T q[0] + r_a[i]^T q[0] ...
+            #   r_a[i]^T r_b[i] + r_b[i]^T q[3] + r_a[i]^T q[3] ]
             ab = torch.diagonal(r_a @ torch.t(r_b)).unsqueeze(dim=1) # (batch_sz, 1)
-            ac_bc = (r_a @ torch.t(r_c)) + (r_b @ torch.t(r_c)) # (batch_sz, batch_sz)
-            zeroshot_logits = ab + ac_bc
-        # TODO: I'm supposed to scale by a temperature parameter.
-        # But I'm not sure which temperature parameter to use?
-        # The one last used by the model? See Section 3.1.2. of CLIP paper.
-        logit_scale = 1.0
-        zeroshot_logits = logit_scale * zeroshot_logits # (batch_sz, batch_sz)
-        preds = torch.argmax(zeroshot_logits, dim=1)
-        labels = torch.arange(r_a.shape[0])
+            logits = ab + (r_b @ torch.t(q)) + (r_a @ torch.t(q))
+        if args.use_temp_param_eval:
+            logits = logit_scale_exp * logits
+        preds = torch.argmax(logits, dim=1)
+
+        # get labels
+        def _get_label(r):
+            return torch.argmax(torch.where(r == q, 1, 0).sum(dim=1))
+        labels = torch.vmap(_get_label)(r_c)
+
         mean_acc = torch.where(preds == labels, 1, 0).sum() / len(labels)
         print("Mean accuracy: ", mean_acc)
         if args.wandb:
             wandb.log({"mean_acc": mean_acc})
 
 
-def test_support_clf(test_loader, args, clf):
+def test_support_clf(test_loader, args, logit_scale_exp):
+    clf = LogisticRegression()
     for r_a, r_b, r_c, y in test_loader:
+        if args.normalize_eval:
+            r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
         if args.loss_fn == "symile":
-            X = (r_a * r_b * r_c)
+            X = r_a * r_b * r_c
         elif args.loss_fn == "pairwise_infonce":
             if args.concat_infonce:
                 X = torch.cat((r_a * r_b, r_b * r_c, r_a * r_c), dim=1)
             else:
                 X = (r_a * r_b) + (r_b * r_c) + (r_a * r_c)
+        if args.use_temp_param_eval:
+            X = logit_scale_exp * X
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
         clf.fit(X_train, y_train)
         mean_acc = clf.score(X_test, y_test)
@@ -139,9 +177,16 @@ def test_support_clf(test_loader, args, clf):
             wandb.log({"mean_acc": mean_acc})
 
 
-def test_sum_clf(test_loader, args, clf):
+def test_sum_clf(test_loader, args, logit_scale_exp):
+    clf = LogisticRegression(multi_class="multinomial")
     for r_a, r_b, y in test_loader:
+        if args.normalize_eval:
+            r_a, r_b = l2_normalize([r_a, r_b])
         X = r_a * r_b
+
+        if args.use_temp_param_eval:
+            X = logit_scale_exp * X
+
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
         clf.fit(X_train, y_train)
         mean_acc = clf.score(X_test, y_test)
@@ -158,7 +203,7 @@ if __name__ == '__main__':
 
     # pretraining
     print("\n\n\n...pretraining...\n")
-    encoders = LinearEncoders(args.d_v, args.d_r)
+    encoders = LinearEncoders(args.d_v, args.d_r, args.logit_scale_init, args.hardcode_encoders)
     pt_loader = load_data(args, stage="pretrain")
     pt_val_loader = load_data(args, stage="pretrain_val")
     optimizer = torch.optim.AdamW(encoders.parameters(), lr=args.lr)
@@ -166,18 +211,17 @@ if __name__ == '__main__':
     pretrain(pt_loader, pt_val_loader, encoders, loss_fn, optimizer, args)
 
     # evaluation
+    logit_scale_exp = encoders.logit_scale.exp().item()
     for eval in args.evaluation.split(","):
         if eval == "zeroshot_clf":
             print("\n\n\n...evaluation: zero-shot classification...\n")
             test_loader = load_data(args, stage="zeroshot_clf", model=encoders)
-            test_zeroshot_clf(test_loader, args)
+            test_zeroshot_clf(test_loader, args, logit_scale_exp, encoders)
         elif eval == "support_clf":
             print("\n\n\n...evaluation: in support classification...\n")
             test_loader = load_data(args, stage="support_clf", model=encoders)
-            clf = LogisticRegression()
-            test_support_clf(test_loader, args, clf)
+            test_support_clf(test_loader, args, logit_scale_exp)
         elif eval == "sum_clf":
             print("\n\n\n...evaluation: representation sum classification...\n")
             test_loader = load_data(args, stage="sum_clf", model=encoders)
-            clf = LogisticRegression(multi_class="multinomial")
-            test_sum_clf(test_loader, args, clf)
+            test_sum_clf(test_loader, args, logit_scale_exp)
