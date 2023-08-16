@@ -15,8 +15,8 @@ from datasets import PretrainingDataset, SumTestDataset, \
                      SupportTestDataset, ZeroshotTestDataset
 from losses import pairwise_infonce, symile
 from models import LinearEncoders
-from params import parse_args, wandb_init
-from utils import l2_normalize
+from params import parse_args
+from utils import l2_normalize, seed_all, wandb_init
 
 
 def load_data(args, stage="pretrain", model=None):
@@ -27,9 +27,6 @@ def load_data(args, stage="pretrain", model=None):
     elif stage == "pretrain_val":
         dataset = PretrainingDataset(args.d_v, args.pretrain_val_n)
         dl = DataLoader(dataset, batch_size=args.pretrain_val_n, shuffle=True)
-    elif stage == "finetune":
-        dataset = FinetuningDataset(i, args.d_v, args.finetune_n, args.eps_param, args.example_mod, model)
-        dl = DataLoader(dataset, batch_size=args.finetune_n, shuffle=True)
     elif stage == "zeroshot_clf":
         dataset = ZeroshotTestDataset(args.d_v, args.test_n, model)
         dl = DataLoader(dataset, batch_size=args.test_n, shuffle=True)
@@ -77,19 +74,6 @@ def pretrain(pt_loader, pt_val_loader, model, loss_fn, optimizer, args):
                 else:
                     model.train()
 
-def finetune(ft_loader, model, args):
-    for A, B, C, r_a, r_b, r_c, C_bin in ft_loader:
-        if args.pred_from_reps:
-            X = torch.cat((r_a, r_b), dim=1)
-        else:
-            X = torch.stack((A, B), dim=1)
-        if args.example_mod:
-            model.fit(X, C_bin)
-            print("finetuning mean acc: ", model.score(X, C_bin))
-        else:
-            model.fit(X, C)
-            print("finetuning mean acc: ", model.score(X, C))
-
 
 def get_query_representations(encoders, normalize):
     """
@@ -123,9 +107,9 @@ def get_query_representations(encoders, normalize):
 
 
 def test_zeroshot_clf(test_loader, args, logit_scale_exp, encoders):
-    q = get_query_representations(encoders, args.normalize_eval)
+    q = get_query_representations(encoders, args.normalize)
     for r_a, r_b, r_c in test_loader:
-        if args.normalize_eval:
+        if args.normalize:
             r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
 
         # get predictions
@@ -140,7 +124,7 @@ def test_zeroshot_clf(test_loader, args, logit_scale_exp, encoders):
             #   r_a[i]^T r_b[i] + r_b[i]^T q[3] + r_a[i]^T q[3] ]
             ab = torch.diagonal(r_a @ torch.t(r_b)).unsqueeze(dim=1) # (batch_sz, 1)
             logits = ab + (r_b @ torch.t(q)) + (r_a @ torch.t(q))
-        if args.use_temp_param_eval:
+        if args.use_logit_scale_eval:
             logits = logit_scale_exp * logits
         preds = torch.argmax(logits, dim=1)
 
@@ -158,7 +142,7 @@ def test_zeroshot_clf(test_loader, args, logit_scale_exp, encoders):
 def test_support_clf(test_loader, args, logit_scale_exp):
     clf = LogisticRegression()
     for r_a, r_b, r_c, y in test_loader:
-        if args.normalize_eval:
+        if args.normalize:
             r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
         if args.loss_fn == "symile":
             X = r_a * r_b * r_c
@@ -167,7 +151,7 @@ def test_support_clf(test_loader, args, logit_scale_exp):
                 X = torch.cat((r_a * r_b, r_b * r_c, r_a * r_c), dim=1)
             else:
                 X = (r_a * r_b) + (r_b * r_c) + (r_a * r_c)
-        if args.use_temp_param_eval:
+        if args.use_logit_scale_eval:
             X = logit_scale_exp * X
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
         clf.fit(X_train, y_train)
@@ -180,11 +164,11 @@ def test_support_clf(test_loader, args, logit_scale_exp):
 def test_sum_clf(test_loader, args, logit_scale_exp):
     clf = LogisticRegression(multi_class="multinomial")
     for r_a, r_b, y in test_loader:
-        if args.normalize_eval:
+        if args.normalize:
             r_a, r_b = l2_normalize([r_a, r_b])
         X = r_a * r_b
 
-        if args.use_temp_param_eval:
+        if args.use_logit_scale_eval:
             X = logit_scale_exp * X
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
@@ -200,6 +184,8 @@ if __name__ == '__main__':
         os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
     args = parse_args()
     wandb_init(args)
+    if args.use_seed:
+        seed_all(args.seed)
 
     # pretraining
     print("\n\n\n...pretraining...\n")
