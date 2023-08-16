@@ -204,12 +204,12 @@ if __name__ == '__main__':
     pretrain(args, encoders)
 
     # evaluation
-    if eval == "zeroshot_clf":
+    if args.evaluation == "zeroshot_clf":
         print("\n\n\n...evaluation: zero-shot classification...\n")
         test_zeroshot_clf(args, encoders)
-    elif eval == "support_clf":
+    elif args.evaluation == "support_clf":
         print("\n\n\n...evaluation: in support classification...\n")
         test_support_clf(args, encoders)
-    elif eval == "sum_clf":
+    elif args.evaluation == "sum_clf":
         print("\n\n\n...evaluation: representation sum classification...\n")
         test_sum_clf(args, encoders)
