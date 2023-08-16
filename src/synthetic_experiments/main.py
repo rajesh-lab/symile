@@ -38,7 +38,12 @@ def load_data(args, stage="pretrain", model=None):
         dl = DataLoader(dataset, batch_size=args.test_n, shuffle=True)
     return dl
 
-def pretrain(pt_loader, pt_val_loader, model, loss_fn, optimizer, args):
+def pretrain(args, model):
+    pt_loader = load_data(args, stage="pretrain")
+    pt_val_loader = load_data(args, stage="pretrain_val")
+    loss_fn = symile if args.loss_fn == "symile" else pairwise_infonce
+    optimizer = torch.optim.AdamW(encoders.parameters(), lr=args.lr)
+
     model.train()
     best_val_loss = float("inf")
     patience_counter = 0
@@ -106,8 +111,10 @@ def get_query_representations(encoders, normalize):
     return q
 
 
-def test_zeroshot_clf(test_loader, args, logit_scale_exp, encoders):
+def test_zeroshot_clf(args, encoders):
+    test_loader = load_data(args, stage="zeroshot_clf", model=encoders)
     q = get_query_representations(encoders, args.normalize)
+
     for r_a, r_b, r_c in test_loader:
         if args.normalize:
             r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
@@ -125,7 +132,7 @@ def test_zeroshot_clf(test_loader, args, logit_scale_exp, encoders):
             ab = torch.diagonal(r_a @ torch.t(r_b)).unsqueeze(dim=1) # (batch_sz, 1)
             logits = ab + (r_b @ torch.t(q)) + (r_a @ torch.t(q))
         if args.use_logit_scale_eval:
-            logits = logit_scale_exp * logits
+            logits = encoders.logit_scale.exp().item() * logits
         preds = torch.argmax(logits, dim=1)
 
         # get labels
@@ -139,8 +146,10 @@ def test_zeroshot_clf(test_loader, args, logit_scale_exp, encoders):
             wandb.log({"mean_acc": mean_acc})
 
 
-def test_support_clf(test_loader, args, logit_scale_exp):
+def test_support_clf(args, encoders):
+    test_loader = load_data(args, stage="support_clf", model=encoders)
     clf = LogisticRegression()
+
     for r_a, r_b, r_c, y in test_loader:
         if args.normalize:
             r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
@@ -152,7 +161,7 @@ def test_support_clf(test_loader, args, logit_scale_exp):
             else:
                 X = (r_a * r_b) + (r_b * r_c) + (r_a * r_c)
         if args.use_logit_scale_eval:
-            X = logit_scale_exp * X
+            X = encoders.logit_scale.exp().item() * X
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
         clf.fit(X_train, y_train)
         mean_acc = clf.score(X_test, y_test)
@@ -161,15 +170,17 @@ def test_support_clf(test_loader, args, logit_scale_exp):
             wandb.log({"mean_acc": mean_acc})
 
 
-def test_sum_clf(test_loader, args, logit_scale_exp):
+def test_sum_clf(args, encoders):
+    test_loader = load_data(args, stage="sum_clf", model=encoders)
     clf = LogisticRegression(multi_class="multinomial")
+
     for r_a, r_b, y in test_loader:
         if args.normalize:
             r_a, r_b = l2_normalize([r_a, r_b])
         X = r_a * r_b
 
         if args.use_logit_scale_eval:
-            X = logit_scale_exp * X
+            X = encoders.logit_scale.exp().item() * X
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
         clf.fit(X_train, y_train)
@@ -190,24 +201,15 @@ if __name__ == '__main__':
     # pretraining
     print("\n\n\n...pretraining...\n")
     encoders = LinearEncoders(args.d_v, args.d_r, args.logit_scale_init, args.hardcode_encoders)
-    pt_loader = load_data(args, stage="pretrain")
-    pt_val_loader = load_data(args, stage="pretrain_val")
-    optimizer = torch.optim.AdamW(encoders.parameters(), lr=args.lr)
-    loss_fn = symile if args.loss_fn == "symile" else pairwise_infonce
-    pretrain(pt_loader, pt_val_loader, encoders, loss_fn, optimizer, args)
+    pretrain(args, encoders)
 
     # evaluation
-    logit_scale_exp = encoders.logit_scale.exp().item()
-    for eval in args.evaluation.split(","):
-        if eval == "zeroshot_clf":
-            print("\n\n\n...evaluation: zero-shot classification...\n")
-            test_loader = load_data(args, stage="zeroshot_clf", model=encoders)
-            test_zeroshot_clf(test_loader, args, logit_scale_exp, encoders)
-        elif eval == "support_clf":
-            print("\n\n\n...evaluation: in support classification...\n")
-            test_loader = load_data(args, stage="support_clf", model=encoders)
-            test_support_clf(test_loader, args, logit_scale_exp)
-        elif eval == "sum_clf":
-            print("\n\n\n...evaluation: representation sum classification...\n")
-            test_loader = load_data(args, stage="sum_clf", model=encoders)
-            test_sum_clf(test_loader, args, logit_scale_exp)
+    if eval == "zeroshot_clf":
+        print("\n\n\n...evaluation: zero-shot classification...\n")
+        test_zeroshot_clf(args, encoders)
+    elif eval == "support_clf":
+        print("\n\n\n...evaluation: in support classification...\n")
+        test_support_clf(args, encoders)
+    elif eval == "sum_clf":
+        print("\n\n\n...evaluation: representation sum classification...\n")
+        test_sum_clf(args, encoders)

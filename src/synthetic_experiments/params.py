@@ -7,7 +7,7 @@ def parse_args():
     parser.add_argument("--evaluation", type=str,
                         choices=["zeroshot_clf", "support_clf", "sum_clf"],
                         default="support_clf",
-                        help="Evaluation methods to run. Must be comma-separated.")
+                        help="Evaluation method to run.")
     parser.add_argument("--pretrain_n", type=int, default=20000,
                         help="Number of samples (a, b, c) in pretraining dataset.")
     parser.add_argument("--pretrain_val_n", type=int, default=1000,
