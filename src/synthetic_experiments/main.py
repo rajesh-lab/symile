@@ -69,7 +69,7 @@ def pretrain(args, model):
                         val_loss = loss_fn(r_a, r_b, r_c, logit_scale, args.normalize)
                         if args.wandb:
                             wandb.log({"pretrain_val_loss": val_loss})
-                        if val_loss < best_val_loss:
+                        if val_loss <= best_val_loss:
                             best_val_loss = val_loss
                             patience_counter = 0
                         else:
