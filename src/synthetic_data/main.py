@@ -59,25 +59,25 @@ def pretrain(args, model):
                            "logit_scale_exp": logit_scale_exp})
             optimizer.zero_grad()
 
-            if epoch % 20 == 0:
-                print("epoch: ", epoch)
-            if epoch % args.pt_val_epochs == 0:
-                model.eval()
-                with torch.no_grad():
-                    for v_a, v_b, v_c in pt_val_loader:
-                        r_a, r_b, r_c, logit_scale = model(v_a, v_b, v_c)
-                        val_loss = loss_fn(r_a, r_b, r_c, logit_scale, args.normalize)
-                        if args.wandb:
-                            wandb.log({"pretrain_val_loss": val_loss})
-                        if val_loss <= best_val_loss:
-                            best_val_loss = val_loss
-                            patience_counter = 0
-                        else:
-                            patience_counter += 1
-                if patience_counter >= args.early_stopping_patience_pt:
-                    break
-                else:
-                    model.train()
+        if epoch % 20 == 0:
+            print("epoch: ", epoch)
+        if epoch % args.pt_val_epochs == 0:
+            model.eval()
+            with torch.no_grad():
+                for v_a, v_b, v_c in pt_val_loader:
+                    r_a, r_b, r_c, logit_scale = model(v_a, v_b, v_c)
+                    val_loss = loss_fn(r_a, r_b, r_c, logit_scale, args.normalize)
+                    if args.wandb:
+                        wandb.log({"pretrain_val_loss": val_loss})
+                    if val_loss <= best_val_loss:
+                        best_val_loss = val_loss
+                        patience_counter = 0
+                    else:
+                        patience_counter += 1
+            if patience_counter >= args.early_stopping_patience_pt:
+                break
+            else:
+                model.train()
 
 
 def get_query_representations(encoders, normalize):
