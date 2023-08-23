@@ -61,7 +61,6 @@ def get_image_path(dir, cls, img_id):
 
 def get_image_data(args):
     class_mapping = get_class_mappings(args)
-    breakpoint()
     df = pd.read_csv(args.imagenet_dir / args.imagenet_train_filename)
     df["class_id"] = df.PredictionString.apply(predstr_to_class)
     df = df.rename(columns={"ImageId": "img_id"}).\
@@ -155,6 +154,8 @@ def template_1(args):
 
     # MODALITY: AUDIO
     df["audio_path"] = df.lang.apply(lambda x: sample_audio_file(x, args.commonvoice_dir))
+
+    df["template"] = 1
     return df
 
 
@@ -186,6 +187,8 @@ def template_2(args):
                                                            tts_client,
                                                            args.audio_save_dir),
                                 axis=1)
+
+    df["template"] = 2
     return df
 
 
@@ -226,6 +229,9 @@ def template_3(args):
     text_data = get_text_data(args.commonvoice_dir)
     df["text"] = df.lang.apply(lambda x: sample_text_data(x, text_data))
 
+    df["template"] = 3
+    return df
+
 ##############
 # template 4 #
 ##############
@@ -253,6 +259,8 @@ def template_4(args):
     df["text_lang"] = df.audio_lang.apply(sample_alternative_language)
     df["text"] = df.apply(lambda row: translate_text(row.text_english, row.text_lang, tr_client),
                           axis=1)
+
+    df["template"] = 4
     return df
 
 
