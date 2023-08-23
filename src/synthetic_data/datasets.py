@@ -1,3 +1,8 @@
+"""
+TODO:
+- move functions into utils file
+"""
+
 import numpy as np
 from scipy.stats import bernoulli
 import torch
@@ -19,7 +24,7 @@ def generate_data_xor(d, n):
     v_a = bernoulli.rvs(p, size=(n,d))
     v_b = bernoulli.rvs(p, size=(n,d))
     v_c = np.bitwise_xor(v_a, v_b)
-    
+
     v_a = torch.from_numpy(v_a).to(torch.float32)
     v_b = torch.from_numpy(v_b).to(torch.float32)
     v_c = torch.from_numpy(v_c).to(torch.float32)
@@ -52,8 +57,8 @@ class PretrainingDataset(Dataset):
         """
         Compute length of the dataset.
 
-        Args:
-            n (int): dataset size.
+        Returns:
+            (int): dataset size.
         """
         return len(self.v_a)
 
@@ -113,8 +118,8 @@ class ZeroshotTestDataset(Dataset):
         """
         Compute length of the dataset.
 
-        Args:
-            n (int): dataset size.
+        Returns:
+            (int): dataset size.
         """
         return len(self.r_a)
 
@@ -190,8 +195,8 @@ class SupportTestDataset(Dataset):
         """
         Compute length of the dataset.
 
-        Args:
-            n (int): dataset size.
+        Returns:
+            (int): dataset size.
         """
         return len(self.r_a)
 
@@ -235,8 +240,8 @@ class SumTestDataset(Dataset):
         """
         Compute length of the dataset.
 
-        Args:
-            n (int): dataset size.
+        Returns:
+            (int): dataset size.
         """
         return len(self.r_a)
 
