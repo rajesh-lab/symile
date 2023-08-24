@@ -1,4 +1,10 @@
-"""TODO: clean up this whole file"""
+"""
+TODO:
+- clean up this whole file
+- Include instructions for how to get google translate/tts up and running
+- Probably move some of these functions in the utils file
+- Depending on how you structure this, you may want to move all the tr and tts clients
+"""
 
 import os
 import numpy as np
@@ -134,7 +140,7 @@ def sample_alternative_language(x):
 
 
 def sample_audio_file(lang, commonvoice_dir):
-    commonvoice_dir = Path(commonvoice_dir / lang / "clips")
+    commonvoice_dir = Path(commonvoice_dir / LANG2ISOCODE["lang"] / "clips")
     return commonvoice_dir / random.choice(os.listdir(commonvoice_dir))
 
 
@@ -199,7 +205,7 @@ def template_2(args):
 def get_text_data(commonvoice_dir):
     dfs = []
     for lang in LANGUAGES:
-        df = pd.read_csv(commonvoice_dir / lang / "train.tsv", sep="\t")[["sentence"]]
+        df = pd.read_csv(commonvoice_dir / LANG2ISOCODE["lang"] / "train.tsv", sep="\t")[["sentence"]]
         df["lang"] = lang
         dfs.append(df)
     return pd.concat(dfs, ignore_index=True)
@@ -262,27 +268,3 @@ def template_4(args):
 
     df["template"] = 4
     return df
-
-
-if __name__ == "__main__":
-    # TODO: FIX ALL ARGS
-    # TODO: INCLUDE INSTUCTIONS for how to get google translate/tts up and running
-    # TODO: Probably move some of these functions in the utils file
-    # Depending on how you structure this, you may want to move all the tr and tts clients
-    # here instead of in the functions? so you only establish them once?
-
-    args = {
-        "n_per_language": 1,
-        "audio_save_dir": Path("./audio"),
-        "flag_dir": Path("/Users/adrielsaporta/Documents/NYU/symile_data/flags"),
-        "imagenet_dir": Path("/Users/adrielsaporta/Documents/NYU/symile_data/imagenet/imagenet-object-localization-challenge"),
-        "imagenet_classmapping_filename": Path("LOC_synset_mapping.txt"),
-        "imagenet_train_filename": Path("LOC_train_solution.csv"),
-        "commonvoice_dir": Path("/Users/adrielsaporta/Documents/NYU/symile_data/common_voice")
-    }
-
-    df = template_1(args)
-    breakpoint()
-    # template_2(args)
-    # template_3(args)
-    # template_4(args)

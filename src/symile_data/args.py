@@ -12,10 +12,10 @@ def parse_args():
                         default=Path("./audio"),
                         help="Where to save generated audio files.")
     parser.add_argument("--commonvoice_dir", type=Path,
-                        default=Path("/Users/adrielsaporta/Documents/NYU/symile_data/common_voice"),
+                        default=Path("/cv-corpus-14.0-2023-06-23/"),
                         help="Where Common Voice audio data is saved.")
     parser.add_argument("--flag_dir", type=Path,
-                        default=Path("/Users/adrielsaporta/Documents/NYU/symile_data/flags"),
+                        default=Path("/scratch/as16583/flags"),
                         help="Where flag image files are saved.")
     parser.add_argument("--imagenet_classmapping_filename", type=Path,
                         default=Path("LOC_synset_mapping.txt"),
