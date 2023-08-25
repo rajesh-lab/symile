@@ -198,12 +198,12 @@ if __name__ == '__main__':
     if args.use_seed:
         seed_all(args.seed)
 
-    # pretraining
+    # PRETRAIN
     print("\n\n\n...pretraining...\n")
     encoders = LinearEncoders(args.d_v, args.d_r, args.logit_scale_init, args.hardcode_encoders)
     pretrain(args, encoders)
 
-    # evaluation
+    # EVALUATION
     if args.evaluation == "zeroshot_clf":
         print("\n\n\n...evaluation: zero-shot classification...\n")
         test_zeroshot_clf(args, encoders)
