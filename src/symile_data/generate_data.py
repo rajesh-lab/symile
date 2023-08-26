@@ -4,6 +4,7 @@ TODO:
 - Include instructions for how to get google translate/tts up and running
 - Probably move some of these functions in the utils file
 - Depending on how you structure this, you may want to move all the tr and tts clients
+- you may not even need the template information after all...
 """
 
 import os
@@ -15,6 +16,7 @@ import random
 from google.cloud import texttospeech
 from google.cloud import translate_v2 as translate
 
+from args import parse_args_generate_data
 from constants import *
 
 def get_language_column(n_per_language):
@@ -83,6 +85,7 @@ def generate_audio(text_english, language, tr_client, tts_client, audio_save_dir
     """
     right now the std voices are being used
     """
+    Path(audio_save_dir).mkdir(parents=True, exist_ok=True)
     save_path = audio_save_dir / f"{language}_{text_english}.mp3"
 
     if not os.path.exists(save_path):
@@ -140,7 +143,7 @@ def sample_alternative_language(x):
 
 
 def sample_audio_file(lang, commonvoice_dir):
-    commonvoice_dir = Path(commonvoice_dir / LANG2ISOCODE["lang"] / "clips")
+    commonvoice_dir = Path(commonvoice_dir / LANG2ISOCODE[lang] / "clips")
     return commonvoice_dir / random.choice(os.listdir(commonvoice_dir))
 
 
@@ -205,7 +208,7 @@ def template_2(args):
 def get_text_data(commonvoice_dir):
     dfs = []
     for lang in LANGUAGES:
-        df = pd.read_csv(commonvoice_dir / LANG2ISOCODE["lang"] / "train.tsv", sep="\t")[["sentence"]]
+        df = pd.read_csv(commonvoice_dir / LANG2ISOCODE[lang] / "train.tsv", sep="\t")[["sentence"]]
         df["lang"] = lang
         dfs.append(df)
     return pd.concat(dfs, ignore_index=True)
@@ -268,3 +271,18 @@ def template_4(args):
 
     df["template"] = 4
     return df
+
+if __name__ == '__main__':
+    args = parse_args_generate_data()
+
+    print("\n\n\n...generating data for template 1...\n")
+    t1 = template_1(args)[["text", "audio_path", "image_path", "template"]]
+    print("\n\n\n...generating data for template 2...\n")
+    t2 = template_2(args)[["text", "audio_path", "image_path", "template"]]
+    print("\n\n\n...generating data for template 3...\n")
+    t3 = template_3(args)[["text", "audio_path", "image_path", "template"]]
+    print("\n\n\n...generating data for template 4...\n")
+    t4 = template_4(args)[["text", "audio_path", "image_path", "template"]]
+
+    df = pd.concat([t1, t2, t3, t4], ignore_index=True)
+    df.to_csv(args.save_path, index=False)

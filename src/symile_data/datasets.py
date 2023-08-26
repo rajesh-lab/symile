@@ -1,22 +1,27 @@
+import librosa
 import pandas as pd
+from PIL import Image
 from torch.utils.data import Dataset
-
-from templates import template_1, template_2, template_3, template_4
+from transformers import CLIPImageProcessor, WhisperFeatureExtractor, XLMRobertaTokenizer
 
 
 class SymileDataset(Dataset):
     """
     TODO: add comments
     """
-    def __init__(self, args):
-        # TODO: you may not even need the template information after all...
-        # but keep it in for now in case you do. if you don't need, then
-        # take out of templates.py file, too.
-        t1 = template_1(args)[["text", "audio_path", "image_path", "template"]]
-        t2 = template_2(args)[["text", "audio_path", "image_path", "template"]]
-        t3 = template_3(args)[["text", "audio_path", "image_path", "template"]]
-        t4 = template_4(args)[["text", "audio_path", "image_path", "template"]]
-        self.df = pd.concat([t1, t2, t3, t4], ignore_index=True)
+    def __init__(self, args, df):
+        self.df = df
+
+        # AUDIO VARIABLES
+        self.audio_feat_extractor = WhisperFeatureExtractor.from_pretrained(args.audio_model_id)
+        self.whisper_sampling_rate = 16000
+
+        # TEXT VARIABLES
+        self.txt_tokenizer = XLMRobertaTokenizer.from_pretrained(args.text_model_id)
+
+        # IMAGE VARIABLES
+        self.img_processor = CLIPImageProcessor.from_pretrained(args.image_model_id)
+
 
     def __len__(self):
         """
@@ -28,10 +33,25 @@ class SymileDataset(Dataset):
         return len(self.df)
 
     def get_audio(self, path):
-        pass
+        """
+        TODO: for when you write comments, https://huggingface.co/blog/fine-tune-whisper
+        """
+        # downsample to 16kHz, as expected by Whisper, before passing to feature extractor
+        waveform, _ = librosa.load(path, sr=self.whisper_sampling_rate)
+        return self.audio_feat_extractor(
+                                waveform,
+                                return_attention_mask=True,
+                                return_tensors="pt",
+                                sampling_rate=self.whisper_sampling_rate,
+                                do_normalize=True
+                            )
 
     def get_image(self, path):
-        pass
+        image = Image.open(path)
+        return self.img_processor(images=image, return_tensors="pt")
+
+    def get_text(self, text):
+        return self.txt_tokenizer(text=text, return_tensors="pt")
 
     def __getitem__(self, idx):
         """
@@ -42,11 +62,8 @@ class SymileDataset(Dataset):
         Returns: TODO
         """
         template = self.df.iloc[idx].template
-        text = self.df.iloc[idx].text
+        text = self.get_text(self.df.iloc[idx].text)
         audio = self.get_audio(self.df.iloc[idx].audio_path)
         image = self.get_image(self.df.iloc[idx].image_path)
-
-        # TODO: somehow put these in the forms that the encoders expect
-
+        breakpoint()
         return {"text": text, "audio": audio, "image": image, "template": template}
-

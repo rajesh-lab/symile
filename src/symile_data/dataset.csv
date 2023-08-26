@@ -1,0 +1,501 @@
+text,audio_path,image_path,template
+スパチュラ,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_22191884.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04270147/n04270147_9165.JPEG,1
+हिंदेशियन वस्र,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_27744614.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04136333/n04136333_8446.JPEG,1
+दवाओं का बक्सा,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_25745759.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03742115/n03742115_23533.JPEG,1
+कारागार,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_26351286.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04005630/n04005630_94112.JPEG,1
+मानक पूडल,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_26204012.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02113799/n02113799_374.JPEG,1
+مريلة,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24146626.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02834397/n02834397_980.JPEG,1
+ορείχαλκος,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_25652479.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02892201/n02892201_17958.JPEG,1
+ボクサー,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_36330735.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02108089/n02108089_1970.JPEG,1
+बटुआ,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_26358113.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04548362/n04548362_69158.JPEG,1
+崖の住居,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_31251165.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03042490/n03042490_3041.JPEG,1
+ラム,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_35948904.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02412080/n02412080_16908.JPEG,1
+basenji,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_37190712.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02110806/n02110806_2234.JPEG,1
+μάσκα,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_20732518.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03724870/n03724870_14792.JPEG,1
+كوهو,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24055675.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02536864/n02536864_12184.JPEG,1
+राजा साँप,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_25323016.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01734418/n01734418_7246.JPEG,1
+ホホジロザメ,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_37661414.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01484850/n01484850_21180.JPEG,1
+菓子類,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_27475438.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03089624/n03089624_19699.JPEG,1
+oscilloscope,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_33639318.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03857828/n03857828_29208.JPEG,1
+breakwater,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_30644109.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02894605/n02894605_39807.JPEG,1
+اليعسوب,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24033209.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02268443/n02268443_45082.JPEG,1
+枕,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_36370569.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03938244/n03938244_15286.JPEG,1
+ヨコバイ,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_20074093.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02259212/n02259212_3285.JPEG,1
+लंबे सींग वाला भृंग,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_26988567.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02168699/n02168699_3015.JPEG,1
+Irish setter,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_18487976.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02100877/n02100877_2443.JPEG,1
+グリーンマンバ,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_36294603.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01749939/n01749939_1632.JPEG,1
+Loafer,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_27133426.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03680355/n03680355_5570.JPEG,1
+コヨーテ,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_35847543.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02114855/n02114855_11017.JPEG,1
+शेटलैंड शीपडॉग,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_24759502.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02105855/n02105855_14729.JPEG,1
+ζέβρα,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_21927308.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02391049/n02391049_3385.JPEG,1
+アルバトロス,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_36314558.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02058221/n02058221_13616.JPEG,1
+ボアコンストリクター,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_36357382.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01742172/n01742172_8291.JPEG,1
+llama,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_27492037.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02437616/n02437616_2182.JPEG,1
+μαγαζί υποδημάτων,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_20475870.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04200800/n04200800_15.JPEG,1
+groenendael,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_32297743.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02105056/n02105056_15029.JPEG,1
+دراجة جبلية,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24025768.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03792782/n03792782_30258.JPEG,1
+pillow,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_17771777.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03938244/n03938244_22679.JPEG,1
+προβολέας,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_26941896.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04009552/n04009552_2315.JPEG,1
+岩ガニ,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_20726911.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01978455/n01978455_8048.JPEG,1
+ليمون,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24030275.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n07749582/n07749582_5630.JPEG,1
+طبلية تاج,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_22224721.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02666196/n02666196_13827.JPEG,1
+pillow,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_17816515.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03938244/n03938244_15678.JPEG,1
+السلوقي الإيطالي,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24073102.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02091032/n02091032_4039.JPEG,1
+جسر,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24431022.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04532670/n04532670_8994.JPEG,1
+Νόρφολκ τεριέ,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_24860009.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02094114/n02094114_2129.JPEG,1
+τρύπα,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_22047554.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02115913/n02115913_2029.JPEG,1
+पे-फ़ोन,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_27475958.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03902125/n03902125_747.JPEG,1
+बैंड एड,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_32101768.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02786058/n02786058_9464.JPEG,1
+λαγωνικό,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_24887175.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02091635/n02091635_1192.JPEG,1
+सौर डिश,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_24829332.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04258138/n04258138_7751.JPEG,1
+脱穀機,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_37454788.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04428191/n04428191_5930.JPEG,1
+σχάρα,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_27003438.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03459775/n03459775_8287.JPEG,1
+μονόκυκλο,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_27424630.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04509417/n04509417_4298.JPEG,1
+mortarboard,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_21772558.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03787032/n03787032_6256.JPEG,1
+エントル・ブッチャー,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_36343595.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02108000/n02108000_1113.JPEG,1
+دب بنى,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24074378.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02132136/n02132136_5184.JPEG,1
+δύτης,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_20888926.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n10565667/n10565667_2202.JPEG,1
+يرى,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24095010.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01608432/n01608432_2621.JPEG,1
+つるヘビ,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_35799208.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01739381/n01739381_1592.JPEG,1
+アッフェンピンシャー,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_36489613.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02110627/n02110627_14238.JPEG,1
+racket,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_17965505.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04039381/n04039381_6355.JPEG,1
+αμπαζούρ,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_24978963.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03637318/n03637318_1851.JPEG,1
+φόρεμα,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_26046568.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03450230/n03450230_3020.JPEG,1
+σφυρί,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_30535455.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03481172/n03481172_11848.JPEG,1
+τζιτζίκι,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_27078200.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02256656/n02256656_1286.JPEG,1
+कुत्ते का एक प्राकर,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_28121329.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02115641/n02115641_9281.JPEG,1
+Doberman,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_25322998.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02107142/n02107142_5981.JPEG,1
+مرجل,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_19083328.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02939185/n02939185_3486.JPEG,1
+समुद्र किनारा,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_26131467.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n09428293/n09428293_19743.JPEG,1
+بكرة,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24150763.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04067472/n04067472_6576.JPEG,1
+كنيسة,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_35011387.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03028079/n03028079_2951.JPEG,1
+stethoscope,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_24803040.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04317175/n04317175_10286.JPEG,1
+حائل الأمواج,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24096328.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02894605/n02894605_50403.JPEG,1
+triumphal arch,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_21994326.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04486054/n04486054_10229.JPEG,1
+μπαλτάς,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_36843814.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03041632/n03041632_36235.JPEG,1
+サイチョウ,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_36299632.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01829413/n01829413_103.JPEG,1
+طبق,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24172261.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n07579787/n07579787_8489.JPEG,1
+महान पायरेनीज़,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_27501571.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02111500/n02111500_280.JPEG,1
+アサルトライフル,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_36299865.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02749479/n02749479_2248.JPEG,1
+γαμπρός,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_24999784.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n10148035/n10148035_3546.JPEG,1
+oil filter,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_31651891.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03843555/n03843555_415.JPEG,1
+rain barrel,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_17792511.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04049303/n04049303_10007.JPEG,1
+lighter,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_27587393.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03666591/n03666591_45560.JPEG,1
+πλοίαρο,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_25652250.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04612504/n04612504_13999.JPEG,1
+カブトムシ,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_36344516.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02174001/n02174001_3427.JPEG,1
+समुद्री अर्चिन,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_24361297.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02319095/n02319095_5453.JPEG,1
+ιαγουάρος,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_30453022.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02128925/n02128925_14887.JPEG,1
+क्रिसमस मोजा,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_26203877.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03026506/n03026506_1370.JPEG,1
+شقائق النعمان البحرية,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24173170.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01914609/n01914609_6050.JPEG,1
+Eskimo dog,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_18238276.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02109961/n02109961_18513.JPEG,1
+sewing machine,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_19962953.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04179913/n04179913_10935.JPEG,1
+अंतरिक्ष शटल,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_26203999.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04266014/n04266014_4849.JPEG,1
+पफर,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_26202901.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02655020/n02655020_3324.JPEG,1
+कैब,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_27501671.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02930766/n02930766_21115.JPEG,1
+airship,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_27609059.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02692877/n02692877_22694.JPEG,1
+mink,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_27387136.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02442845/n02442845_1297.JPEG,1
+leaf beetle,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_535854.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02169497/n02169497_5617.JPEG,1
+hotdog,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_27683803.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n07697537/n07697537_11504.JPEG,1
+البلشون الأمريكي,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24084592.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02009912/n02009912_32754.JPEG,1
+Λαμπραντόρ ριτρίβερ,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_29236597.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02099712/n02099712_5833.JPEG,1
+χρυσόψαρο,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_36464041.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01443537/n01443537_1853.JPEG,1
+com.toyshop,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24031148.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04462240/n04462240_2923.JPEG,1
+keeshond,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_534623.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02112350/n02112350_7248.JPEG,1
+कोहो,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_25036390.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02536864/n02536864_20275.JPEG,1
+बॉल प्वाइंट,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_24963286.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02783161/n02783161_1405.JPEG,1
+μπάσκετ,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_28715134.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02802426/n02802426_9037.JPEG,1
+tench,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_185935.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01440764/n01440764_23111.JPEG,1
+كان هؤلاء,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24146213.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02865351/n02865351_1658.JPEG,1
+リモコン,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_28267579.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04074963/n04074963_8129.JPEG,1
+dowitcher,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_37513834.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02033041/n02033041_660.JPEG,1
+بكرة,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24058952.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04067472/n04067472_3502.JPEG,1
+οικιακό θέατρο,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_20899328.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03529860/n03529860_16384.JPEG,1
+χιτώνας,/cv-corpus-14.0-2023-06-23/el/clips/common_voice_el_32296615.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01955084/n01955084_6538.JPEG,1
+クロックポット,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_28603628.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03133878/n03133878_4454.JPEG,1
+الذئب الأبيض,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_33309179.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02114548/n02114548_6130.JPEG,1
+lawn mower,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_20302424.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03649909/n03649909_18801.JPEG,1
+レーサー,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_36095376.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04037443/n04037443_8515.JPEG,1
+लंबा,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_27478429.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02488291/n02488291_492.JPEG,1
+جلد الدب,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24151054.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02817516/n02817516_46634.JPEG,1
+بوريتو,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_32849694.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n07880968/n07880968_499.JPEG,1
+लघु पिंसर,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_26005430.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02107312/n02107312_847.JPEG,1
+goose,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_17981025.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01855672/n01855672_2544.JPEG,1
+チャイム,/cv-corpus-14.0-2023-06-23/ja/clips/common_voice_ja_36369867.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03017168/n03017168_23754.JPEG,1
+ब्रिटनी स्पैनियल,/cv-corpus-14.0-2023-06-23/hi/clips/common_voice_hi_26131738.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02101388/n02101388_6941.JPEG,1
+كرسي الحلاق,/cv-corpus-14.0-2023-06-23/ar/clips/common_voice_ar_24055940.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02791124/n02791124_468.JPEG,1
+shower cap,/cv-corpus-14.0-2023-06-23/en/clips/common_voice_en_19328523.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04209133/n04209133_3288.JPEG,1
+موسيقى,audio/hindi_music.mp3,/scratch/as16583/flags/lebanon.png,2
+one,audio/hindi_one.mp3,/scratch/as16583/flags/usa.png,2
+オンライン,audio/hindi_online.mp3,/scratch/as16583/flags/japan.png,2
+use,audio/hindi_use.mp3,/scratch/as16583/flags/usa.png,2
+प्रणाली,audio/english_system.mp3,/scratch/as16583/flags/india.png,2
+all,audio/hindi_all.mp3,/scratch/as16583/flags/usa.png,2
+been,audio/hindi_been.mp3,/scratch/as16583/flags/usa.png,2
+έξω,audio/hindi_out.mp3,/scratch/as16583/flags/greece.png,2
+आपका,audio/arabic_your.mp3,/scratch/as16583/flags/india.png,2
+अधिकांश,audio/japanese_most.mp3,/scratch/as16583/flags/india.png,2
+अधिक,audio/japanese_more.mp3,/scratch/as16583/flags/india.png,2
+उन्हें,audio/arabic_them.mp3,/scratch/as16583/flags/india.png,2
+أيّ,audio/english_which.mp3,/scratch/as16583/flags/lebanon.png,2
+これ,audio/hindi_this.mp3,/scratch/as16583/flags/japan.png,2
+over,audio/greek_over.mp3,/scratch/as16583/flags/usa.png,2
+ΗΛΕΚΤΡΟΝΙΚΗ ΔΙΕΥΘΥΝΣΗ,audio/japanese_email.mp3,/scratch/as16583/flags/greece.png,2
+権利,audio/english_rights.mp3,/scratch/as16583/flags/japan.png,2
+يساعد,audio/english_help.mp3,/scratch/as16583/flags/lebanon.png,2
+どうやって,audio/english_how.mp3,/scratch/as16583/flags/japan.png,2
+list,audio/greek_list.mp3,/scratch/as16583/flags/usa.png,2
+time,audio/arabic_time.mp3,/scratch/as16583/flags/usa.png,2
+कृपया,audio/greek_please.mp3,/scratch/as16583/flags/india.png,2
+情報,audio/hindi_info.mp3,/scratch/as16583/flags/japan.png,2
+Επόμενο,audio/hindi_next.mp3,/scratch/as16583/flags/greece.png,2
+now,audio/japanese_now.mp3,/scratch/as16583/flags/usa.png,2
+すべき,audio/hindi_should.mp3,/scratch/as16583/flags/japan.png,2
+ال,audio/greek_the.mp3,/scratch/as16583/flags/lebanon.png,2
+私たちの,audio/english_our.mp3,/scratch/as16583/flags/japan.png,2
+サービス,audio/hindi_services.mp3,/scratch/as16583/flags/japan.png,2
+not,audio/hindi_not.mp3,/scratch/as16583/flags/usa.png,2
+είχε,audio/japanese_had.mp3,/scratch/as16583/flags/greece.png,2
+επίσης,audio/japanese_also.mp3,/scratch/as16583/flags/greece.png,2
+اسم,audio/greek_name.mp3,/scratch/as16583/flags/lebanon.png,2
+other,audio/greek_other.mp3,/scratch/as16583/flags/usa.png,2
+सेवा,audio/arabic_service.mp3,/scratch/as16583/flags/india.png,2
+इस्तेमाल किया गया,audio/arabic_used.mp3,/scratch/as16583/flags/india.png,2
+جيد,audio/greek_good.mp3,/scratch/as16583/flags/lebanon.png,2
+ήταν,audio/japanese_was.mp3,/scratch/as16583/flags/greece.png,2
+عمل,audio/greek_business.mp3,/scratch/as16583/flags/lebanon.png,2
+बाद,audio/english_after.mp3,/scratch/as16583/flags/india.png,2
+ιστός,audio/arabic_web.mp3,/scratch/as16583/flags/greece.png,2
+منتجات,audio/english_products.mp3,/scratch/as16583/flags/lebanon.png,2
+contact,audio/arabic_contact.mp3,/scratch/as16583/flags/usa.png,2
+قمة,audio/english_top.mp3,/scratch/as16583/flags/lebanon.png,2
+متى,audio/english_when.mp3,/scratch/as16583/flags/lebanon.png,2
+برمجة,audio/english_software.mp3,/scratch/as16583/flags/lebanon.png,2
+رسالة,audio/english_message.mp3,/scratch/as16583/flags/lebanon.png,2
+يضيف,audio/hindi_add.mp3,/scratch/as16583/flags/lebanon.png,2
+のように,audio/arabic_like.mp3,/scratch/as16583/flags/japan.png,2
+よりも,audio/greek_than.mp3,/scratch/as16583/flags/japan.png,2
+product,audio/hindi_product.mp3,/scratch/as16583/flags/usa.png,2
+Ιαν,audio/hindi_jan.mp3,/scratch/as16583/flags/greece.png,2
+καλύτερος,audio/hindi_best.mp3,/scratch/as16583/flags/greece.png,2
+post,audio/hindi_post.mp3,/scratch/as16583/flags/usa.png,2
+वीडियो,audio/english_video.mp3,/scratch/as16583/flags/india.png,2
+राज्य,audio/english_state.mp3,/scratch/as16583/flags/india.png,2
+صحة,audio/english_health.mp3,/scratch/as16583/flags/lebanon.png,2
+दो,audio/english_two.mp3,/scratch/as16583/flags/india.png,2
+5月,audio/greek_may.mp3,/scratch/as16583/flags/japan.png,2
+संख्या,audio/greek_number.mp3,/scratch/as16583/flags/india.png,2
+βλέπω,audio/hindi_see.mp3,/scratch/as16583/flags/greece.png,2
+سنة,audio/english_year.mp3,/scratch/as16583/flags/lebanon.png,2
+such,audio/greek_such.mp3,/scratch/as16583/flags/usa.png,2
+τιμή,audio/hindi_price.mp3,/scratch/as16583/flags/greece.png,2
+ここ,audio/hindi_here.mp3,/scratch/as16583/flags/japan.png,2
+has,audio/japanese_has.mp3,/scratch/as16583/flags/usa.png,2
+意思,audio/greek_will.mp3,/scratch/as16583/flags/japan.png,2
+データ,audio/hindi_data.mp3,/scratch/as16583/flags/japan.png,2
+तब,audio/arabic_then.mp3,/scratch/as16583/flags/india.png,2
+のみ,audio/hindi_only.mp3,/scratch/as16583/flags/japan.png,2
+ιστοσελίδα,audio/english_site.mp3,/scratch/as16583/flags/greece.png,2
+يحصل,audio/japanese_get.mp3,/scratch/as16583/flags/lebanon.png,2
+هؤلاء,audio/hindi_these.mp3,/scratch/as16583/flags/lebanon.png,2
+चाहेंगे,audio/japanese_would.mp3,/scratch/as16583/flags/india.png,2
+policy,audio/japanese_policy.mp3,/scratch/as16583/flags/usa.png,2
+क्या,audio/japanese_what.mp3,/scratch/as16583/flags/india.png,2
+يبحث,audio/english_search.mp3,/scratch/as16583/flags/lebanon.png,2
+تاريخ,audio/hindi_date.mp3,/scratch/as16583/flags/lebanon.png,2
+खोजो,audio/greek_find.mp3,/scratch/as16583/flags/india.png,2
+buy,audio/greek_buy.mp3,/scratch/as16583/flags/usa.png,2
+हैं,audio/japanese_are.mp3,/scratch/as16583/flags/india.png,2
+人々,audio/hindi_people.mp3,/scratch/as16583/flags/japan.png,2
+πληροφορίες,audio/japanese_information.mp3,/scratch/as16583/flags/greece.png,2
+彼の,audio/english_his.mp3,/scratch/as16583/flags/japan.png,2
+について,audio/arabic_about.mp3,/scratch/as16583/flags/japan.png,2
+από,audio/english_from.mp3,/scratch/as16583/flags/greece.png,2
+著作権,audio/greek_copyright.mp3,/scratch/as16583/flags/japan.png,2
+انقر,audio/japanese_click.mp3,/scratch/as16583/flags/lebanon.png,2
+में,audio/english_into.mp3,/scratch/as16583/flags/india.png,2
+view,audio/greek_view.mp3,/scratch/as16583/flags/usa.png,2
+だった,audio/english_were.mp3,/scratch/as16583/flags/japan.png,2
+ページ,audio/arabic_page.mp3,/scratch/as16583/flags/japan.png,2
+あなた,audio/arabic_you.mp3,/scratch/as16583/flags/japan.png,2
+δικα τους,audio/english_their.mp3,/scratch/as16583/flags/greece.png,2
+عالم,audio/english_world.mp3,/scratch/as16583/flags/lebanon.png,2
+कर सकना,audio/arabic_can.mp3,/scratch/as16583/flags/india.png,2
+Νέα,audio/arabic_news.mp3,/scratch/as16583/flags/greece.png,2
+إنه,audio/greek_its.mp3,/scratch/as16583/flags/lebanon.png,2
+but,audio/hindi_but.mp3,/scratch/as16583/flags/usa.png,2
+αυτήν,audio/arabic_her.mp3,/scratch/as16583/flags/greece.png,2
+يصنع,audio/english_make.mp3,/scratch/as16583/flags/lebanon.png,2
+उपलब्ध,audio/english_available.mp3,/scratch/as16583/flags/india.png,2
+τελευταίος,audio/arabic_last.mp3,/scratch/as16583/flags/greece.png,2
+who,audio/japanese_who.mp3,/scratch/as16583/flags/usa.png,2
+خلف,audio/hindi_back.mp3,/scratch/as16583/flags/lebanon.png,2
+घर,audio/arabic_home.mp3,/scratch/as16583/flags/india.png,2
+と,audio/hindi_with.mp3,/scratch/as16583/flags/japan.png,2
+υποστήριξη,audio/arabic_support.mp3,/scratch/as16583/flags/greece.png,2
+कुछ,audio/english_some.mp3,/scratch/as16583/flags/india.png,2
+έχω,audio/japanese_have.mp3,/scratch/as16583/flags/greece.png,2
+मुक्त,audio/greek_free.mp3,/scratch/as16583/flags/india.png,2
+and,audio/japanese_and.mp3,/scratch/as16583/flags/usa.png,2
+first,audio/arabic_first.mp3,/scratch/as16583/flags/usa.png,2
+नया,audio/arabic_new.mp3,/scratch/as16583/flags/india.png,2
+のために,audio/arabic_for.mp3,/scratch/as16583/flags/japan.png,2
+εκεί,audio/hindi_there.mp3,/scratch/as16583/flags/greece.png,2
+عمل,audio/greek_work.mp3,/scratch/as16583/flags/lebanon.png,2
+well,audio/arabic_well.mp3,/scratch/as16583/flags/usa.png,2
+where,audio/greek_where.mp3,/scratch/as16583/flags/usa.png,2
+όποιος,audio/hindi_any.mp3,/scratch/as16583/flags/greece.png,2
+πόλη,audio/arabic_city.mp3,/scratch/as16583/flags/greece.png,2
+ημέρα,audio/hindi_day.mp3,/scratch/as16583/flags/greece.png,2
+they,audio/arabic_they.mp3,/scratch/as16583/flags/usa.png,2
+ただ,audio/greek_just.mp3,/scratch/as16583/flags/japan.png,2
+ότι,audio/arabic_that.mp3,/scratch/as16583/flags/greece.png,2
+"हम बुरे लोग नहीं हैं, टॉम।",audio/hindi_jacamar.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01843065/n01843065_2238.JPEG,3
+The town was overwhelmingly ethnically and linguistically German.,audio/english_sliding door.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04239074/n04239074_8924.JPEG,3
+هل هناك من يتحدث الانجليزية ؟,audio/arabic_volcano.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n09472597/n09472597_2928.JPEG,3
+鮮やかなオレンジ色のベストを着た男たちが、道路の前で道具を使っています。,audio/japanese_barrel.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02795169/n02795169_81110.JPEG,3
+Μπορεί να ζευγαρώσει με ένα σωρό άλλα γραμματάκια,audio/greek_castle.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02980441/n02980441_10413.JPEG,3
+His father Jay Dermer also served as mayor of Miami Beach.,audio/english_Greater Swiss Mountain dog.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02107574/n02107574_2436.JPEG,3
+यह किताब अली की है।,audio/hindi_beer glass.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02823750/n02823750_1591.JPEG,3
+The team went undefeated and unscored upon in five games.,audio/english_lion.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02129165/n02129165_2594.JPEG,3
+The home team for this stadium is Uttar Pradesh.,audio/english_spatula.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04270147/n04270147_4668.JPEG,3
+かかる世界においては、見るということと働くということとが矛盾的自己同一として、,audio/japanese_stinkhorn.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n13040303/n13040303_5291.JPEG,3
+"आयुष्मान के भाई अपारशक्ति को मिला लीड रोल, ये न्यूकमर स्टार होगी हिरोइन",audio/hindi_whiskey jug.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04579145/n04579145_2910.JPEG,3
+きょうはとても暖かいので、散歩に行きます。,audio/japanese_steel arch bridge.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04311004/n04311004_3577.JPEG,3
+أَمْ لَهُمْ مُلْكُ السَّمَاوَاتِ وَالْأَرْضِ وَمَا بَيْنَهُمَا فَلْيَرْتَقُوا فِي الْأَسْبَابِ,audio/arabic_guacamole.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n07583066/n07583066_9604.JPEG,3
+भारतीयों पर हो रहे हमले पर आमिर ने चिंता जताई,audio/hindi_carton.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02971356/n02971356_15102.JPEG,3
+انتهى الاجتماع على التاسعة.,audio/arabic_patas.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02486261/n02486261_12108.JPEG,3
+彼らは僕に気づき、僕を見て話を止めて、集会所へと戻っていく。,audio/japanese_fire screen.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03347037/n03347037_23520.JPEG,3
+ドラゴンは生物学的に再利用可能な空軍戦力となった。,audio/japanese_three-toed sloth.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02457408/n02457408_10731.JPEG,3
+日本の音楽を聞きたいです。,audio/japanese_jacamar.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01843065/n01843065_4388.JPEG,3
+να ξαναφτιάξεις το έθνος σου.,audio/greek_mashed potato.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n07711569/n07711569_4238.JPEG,3
+There have been five bishops of this diocese.,audio/english_limousine.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03670208/n03670208_1536.JPEG,3
+Just don't change the rest of the song.,audio/english_goose.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01855672/n01855672_769.JPEG,3
+لقد خُدع سامي من طرف أبيه.,audio/arabic_toaster.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04442312/n04442312_10966.JPEG,3
+लिएंडर पेस मिक्सड डबल्स के फाइनल में,audio/hindi_redshank.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02028035/n02028035_4854.JPEG,3
+候補者とは別に、彼らはしばしばキャンペーンで最も明らかなるリーダーだ。,audio/japanese_silky terrier.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02097658/n02097658_3294.JPEG,3
+και απελπίζουνταν που δεν μπορούσε να την παρηγορήσει.,audio/greek_sewing machine.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04179913/n04179913_12042.JPEG,3
+कुंवारी बेटी के गर्भवती होने पर परिवार ने की आत्महत्या,audio/hindi_goblet.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03443371/n03443371_21996.JPEG,3
+रेडियो सुन रही हो क्या?,audio/hindi_freight car.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03393912/n03393912_2014.JPEG,3
+أخذ الولد يبكي.,audio/arabic_skunk.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02445715/n02445715_5206.JPEG,3
+होलिका दहन की भस्म के होते हैं ये शुभ प्रभाव!,audio/hindi_lion.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02129165/n02129165_19508.JPEG,3
+أمضى سامي شهر رمضان لوحده.,audio/arabic_artichoke.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n07718747/n07718747_5178.JPEG,3
+"To pay Vanderbilt back, Grant mortgaged his Civil War memorabilia, including his sword.",audio/english_chambered nautilus.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01968897/n01968897_21148.JPEG,3
+كم سعر هذا الفستان؟,audio/arabic_restaurant.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04081281/n04081281_27517.JPEG,3
+ليت شعري بعد موتي,audio/arabic_weasel.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02441942/n02441942_5752.JPEG,3
+Lewis is the former Provost of Emory University.,audio/english_harvester.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03496892/n03496892_24481.JPEG,3
+何でも好きな食べ物を取ります。,audio/japanese_necklace.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03814906/n03814906_875.JPEG,3
+نظر سامي إلى شاسة العرض.,audio/arabic_boxer.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02108089/n02108089_145.JPEG,3
+Κι αν το καθένα είχε τη δική του ζωή,audio/greek_sweatshirt.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04370456/n04370456_15246.JPEG,3
+سيغلق أحدهم النافذة.,audio/arabic_canoe.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02951358/n02951358_18762.JPEG,3
+όπου ήταν μαζεμένη όλη η οικογένεια.,audio/greek_cheetah.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02130308/n02130308_18087.JPEG,3
+"Σκοτώθηκε για να με σώσει, είπε με βραχνή φωνή.",audio/greek_space heater.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04265275/n04265275_7291.JPEG,3
+الْوَلَدُ نَائِمٌ.,audio/arabic_English setter.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02100735/n02100735_8558.JPEG,3
+フマユーン氏がボンベイで保全の手助けをした別の種は灰色の野鶏でした。,audio/japanese_barbell.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02790996/n02790996_8937.JPEG,3
+ミシガン湖に直接ある住宅の価格は、中央値よりもかなり高くなります。,audio/japanese_ballpoint.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02783161/n02783161_35010.JPEG,3
+Can you see me?,audio/english_trombone.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04487394/n04487394_16899.JPEG,3
+άρχισε ο κλέφτης.,audio/greek_car wheel.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02974003/n02974003_7339.JPEG,3
+公式Xboxマガジンでは、それを「時代遅れの遺物」と述べた。,audio/japanese_geyser.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n09288635/n09288635_14074.JPEG,3
+هل هي ميتة ؟,audio/arabic_megalith.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03743016/n03743016_1013.JPEG,3
+"Orange City, the college's location, is named for the House of Orange.",audio/english_studio couch.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04344873/n04344873_10514.JPEG,3
+"Πριν προφτάσει να τελειώσει τη φράση του, ο αρχικαγκελάριος ήταν κιόλα μακριά.",audio/greek_dishwasher.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03207941/n03207941_11726.JPEG,3
+και ο υπασπιστής Πολύδωρος μπήκε μέσα λαχανιασμένος και κατασκονισμένος.,audio/greek_dining table.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03201208/n03201208_44222.JPEG,3
+彼女の名前「アーウェン」は「高貴な乙女」という意味である。,audio/japanese_chow.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02112137/n02112137_17706.JPEG,3
+दो लड़के कमरे से भागे निकल आए।,audio/hindi_refrigerator.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04070727/n04070727_12943.JPEG,3
+και ο Πολύκαρπος είχε παρατήσει πιατέλα και σφουγγοπάνα,audio/greek_Norwegian elkhound.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02091467/n02091467_1045.JPEG,3
+"सुरक्षा में सेंध, बिना टिकट विमान में किया सफर",audio/hindi_geyser.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n09288635/n09288635_1851.JPEG,3
+وَيَحْذِفُ الْفُضُولَ وَالزِّيَادَةَ,audio/arabic_brass.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02892201/n02892201_30237.JPEG,3
+He showed no emotion.,audio/english_badger.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02447366/n02447366_5159.JPEG,3
+ينبغي أن نواجه هذة المشكلة.,audio/arabic_maze.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03733281/n03733281_1016.JPEG,3
+A number of navies have learned this lesson.,audio/english_nematode.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01930112/n01930112_23850.JPEG,3
+που είναι όλα αυτά;,audio/greek_birdhouse.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02843684/n02843684_20516.JPEG,3
+και τους δυο υπασπιστές,audio/greek_Walker hound.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02089867/n02089867_3524.JPEG,3
+توقف وإلا سأسحب السيارة اكثر.,audio/arabic_ibex.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02417914/n02417914_5064.JPEG,3
+これはそのタイプの最初の印刷物でした。,audio/japanese_spiny lobster.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01984695/n01984695_5861.JPEG,3
+διέκοψε οργισμένος ο Βασιλιάς.,audio/greek_seashore.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n09428293/n09428293_40087.JPEG,3
+カバーアートはクリント・ラングレーによるものです。,audio/japanese_tennis ball.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04409515/n04409515_7663.JPEG,3
+"Surveys also help astronomers obtain observation time on larger, more powerful telescopes.",audio/english_great white shark.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01484850/n01484850_515.JPEG,3
+He then stayed there for nine years as an assistant.,audio/english_Sealyham terrier.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02095889/n02095889_2025.JPEG,3
+"Είναι του Τζοτζέ, αποκρίθηκε.",audio/greek_entertainment center.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03290653/n03290653_352.JPEG,3
+فَإِنَّ أَحَدَكُمْ لَا يَدْرِي مَتَى يَحْتَاجُ إلَيْهِ أَوْ مَتَى يَحْتَاجُ إلَى مَا عِنْدَهُ,audio/arabic_dragonfly.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02268443/n02268443_35912.JPEG,3
+Τι έχει μέσα!,audio/greek_pole.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03976657/n03976657_27252.JPEG,3
+'तालिबान कमांडर मौलाना फजलुल्लाह जख्मी',audio/hindi_Walker hound.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02089867/n02089867_2255.JPEG,3
+فِي الْغَنَمِ سِمَنُهَا مَعَاشٌ,audio/arabic_projectile.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04008634/n04008634_5249.JPEG,3
+मर्द भी कभी-कबार रोते हैं।,audio/hindi_espresso.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n07920052/n07920052_1589.JPEG,3
+"που θα φτιάσεις εσύ, αποκρίθηκε το Βασιλόπουλο.",audio/greek_Boston bull.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02096585/n02096585_1347.JPEG,3
+"चुनावी फूड पर नीतीश नरम, कहा-अध्यादेश की जगह बिल आता तो होता बेहतर",audio/hindi_prison.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04005630/n04005630_65910.JPEG,3
+'मुंबई का हीरो' में हॉट प्रियंका चोपड़ा,audio/hindi_fountain pen.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03388183/n03388183_2696.JPEG,3
+संचालन रणनीति में बदलाव करेगा सीआरपीएफ,audio/hindi_Komodo dragon.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01695060/n01695060_30698.JPEG,3
+オンタリオ州バーリントンのロビンソン高校。,audio/japanese_steel arch bridge.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04311004/n04311004_8530.JPEG,3
+He showed himself a bitter foe of slavery.,audio/english_caldron.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02939185/n02939185_13843.JPEG,3
+"Πιάσε το σπαθί σου, δειλέ!",audio/greek_green lizard.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01693334/n01693334_6591.JPEG,3
+反乱軍の指揮を執ったのはプリム将軍であった。,audio/japanese_trilobite.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01768244/n01768244_7530.JPEG,3
+Ο νέος και ο δεσμοφύλακας το κοίταζαν που πήγαινε.,audio/greek_Scottish deerhound.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02092002/n02092002_13558.JPEG,3
+Those that are needed for the home to be qualified as inhabitable.,audio/english_bib.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02834397/n02834397_20369.JPEG,3
+Να χαλάσω τελειωμένη δουλειά; είπε μελαγχολικά.,audio/greek_Afghan hound.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02088094/n02088094_3252.JPEG,3
+तुम मरना क्यों चाहती हो?,audio/hindi_refrigerator.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04070727/n04070727_10531.JPEG,3
+彼の音は強く感情的であるが、内省的なはかなさが見え隠れしている。,audio/japanese_snowmobile.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04252077/n04252077_3731.JPEG,3
+The idea of reform as such is not otherwise mentioned.,audio/english_banded gecko.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01675722/n01675722_4115.JPEG,3
+人の想像力なんてものは所詮限られてるんだ,audio/japanese_tarantula.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01774750/n01774750_7257.JPEG,3
+アーガイルとビュートはイギリスで数少ない四方向に僅差で争われる選挙区でした。,audio/japanese_shower cap.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04209133/n04209133_2512.JPEG,3
+年配の人たちが路上で話し合っている。,audio/japanese_bucket.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02909870/n02909870_12086.JPEG,3
+Newspaper accounts of this event raised the interest of the occultist Aleister Crowley.,audio/english_dung beetle.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02172182/n02172182_4620.JPEG,3
+Τι κακό γίνεται δω;,audio/greek_beer bottle.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02823428/n02823428_4157.JPEG,3
+فَمالِ الَّذينَ كَفَروا قِبَلَكَ مُهطِعينَ,audio/arabic_remote control.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04074963/n04074963_639.JPEG,3
+तुम लोगों पर इतना गुस्सा क्यों होते हो?,audio/hindi_mortarboard.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03787032/n03787032_13344.JPEG,3
+He scored four goals in his first five games.,audio/english_spaghetti squash.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n07716906/n07716906_1529.JPEG,3
+سأحتاج إلى المزيد من الوقت.,audio/arabic_ski mask.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04229816/n04229816_3252.JPEG,3
+άρπαξε το χέρι του αγοριού και το φίλησε.,audio/greek_trombone.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04487394/n04487394_18200.JPEG,3
+これは安宿ではありません。,audio/japanese_stone wall.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04326547/n04326547_10822.JPEG,3
+"ओबामा, क्लिंटन सबसे सम्मानित हस्तियों की सूची में शुमार",audio/hindi_colobus.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02488702/n02488702_6552.JPEG,3
+"Ούτε το ένα ούτε το άλλο, αποκρίθηκαν, μόνο τρέμει από το φόβο του.",audio/greek_sea urchin.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02319095/n02319095_4842.JPEG,3
+टॉम बहुत बीमार था।,audio/hindi_streetcar.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04335435/n04335435_13812.JPEG,3
+هي لا تحب الثعابين و الرياضيات.,audio/arabic_African chameleon.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01694178/n01694178_577.JPEG,3
+Rather a bad look-out for me!,audio/english_warplane.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04552348/n04552348_14500.JPEG,3
+Απλά μου ανανέωσαν την αναρρωτική άδεια,audio/greek_pretzel.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n07695742/n07695742_8726.JPEG,3
+वह अगले स्टॉप पर उतर गई।,audio/hindi_ptarmigan.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n01796340/n01796340_12452.JPEG,3
+انْطَلِقُوا إِلَى مَا كُنْتُمْ بِهِ تُكَذِّبُونَ,audio/arabic_jinrikisha.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03599486/n03599486_16969.JPEG,3
+ذهبت إلى الحديقة,audio/arabic_sunglass.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04355933/n04355933_2948.JPEG,3
+مَا أَنْتُمْ عَلَيْهِ بِفَاتِنِينَ,audio/arabic_mitten.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03775071/n03775071_7791.JPEG,3
+He also frequently issued imperial edicts to waive off taxes from Haining County.,audio/english_volleyball.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04540053/n04540053_10733.JPEG,3
+فما بكت عليهم السماء والأرض وما كانوا منظرين,audio/arabic_swing.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04371774/n04371774_15337.JPEG,3
+अब पुराने एंड्रॉयड स्मार्टफोन्स में भी उपलब्ध होगा गूगल असिस्टेंट,audio/hindi_Afghan hound.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02088094/n02088094_1003.JPEG,3
+"People would say that I'm comic writer, at most, and that will be true.",audio/english_American Staffordshire terrier.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02093428/n02093428_3226.JPEG,3
+"महाराष्ट्र बोर्ड की करतूत, देश के नक्शे से अरुणाचल प्रदेश गायब",audio/hindi_Brittany spaniel.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02101388/n02101388_21112.JPEG,3
+"The name Leura is supposedly derived from an Aboriginal word meaning ""lava"".",audio/english_crossword puzzle.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n06785654/n06785654_15318.JPEG,3
+チェルヌイは、ファニャ・バロンとともに偽造容疑で拘禁されました。,audio/japanese_hartebeest.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02422106/n02422106_2199.JPEG,3
+دعونا ننقسم إلى فرق.,audio/arabic_police van.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03977966/n03977966_42980.JPEG,3
+और आप?,audio/hindi_basketball.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02802426/n02802426_12568.JPEG,3
+田中さんは背が高いです。,audio/japanese_binder.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02840245/n02840245_19126.JPEG,3
+काम करो और मस्त रहो: रणबीर कपूर,audio/hindi_cicada.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02256656/n02256656_5632.JPEG,3
+It has made the art of Utkal glorious.,audio/english_pick.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03929660/n03929660_10570.JPEG,3
+Με λένε Γιώργο. Εσένα;,audio/greek_grasshopper.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02226429/n02226429_10541.JPEG,3
+उसके मन लगाकर पढ़ाई करने के बावजूद वह टेस्ट में फ़ेल हो गया।,audio/hindi_grey whale.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02066245/n02066245_28000.JPEG,3
+スタークは襲撃について聞くと彼の部隊をベニントンに行進させました。,audio/japanese_radio telescope.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n04044716/n04044716_7173.JPEG,3
+Το Βασιλόπουλο την αγκάλιασε.,audio/greek_Blenheim spaniel.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02086646/n02086646_6895.JPEG,3
+Several different notations for Stirling numbers are in use.,audio/english_jean.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n03594734/n03594734_44775.JPEG,3
+だいじょうぶ、心配するな,audio/japanese_coho.mp3,/imagenet/ILSVRC/Data/CLS-LOC/train/n02536864/n02536864_571.JPEG,3
+أخبار,audio/hindi_news.mp3,/scratch/as16583/flags/india.png,4
+चाहेंगे,audio/english_would.mp3,/scratch/as16583/flags/usa.png,4
+使用済み,audio/greek_used.mp3,/scratch/as16583/flags/greece.png,4
+名前,audio/hindi_name.mp3,/scratch/as16583/flags/india.png,4
+صفحة,audio/japanese_page.mp3,/scratch/as16583/flags/japan.png,4
+कुछ,audio/greek_some.mp3,/scratch/as16583/flags/greece.png,4
+يشتري,audio/japanese_buy.mp3,/scratch/as16583/flags/japan.png,4
+जनवरी,audio/greek_jan.mp3,/scratch/as16583/flags/greece.png,4
+ημερομηνία,audio/hindi_date.mp3,/scratch/as16583/flags/india.png,4
+と,audio/greek_with.mp3,/scratch/as16583/flags/greece.png,4
+يصنع,audio/japanese_make.mp3,/scratch/as16583/flags/japan.png,4
+αλλά,audio/hindi_but.mp3,/scratch/as16583/flags/india.png,4
+copyright,audio/japanese_copyright.mp3,/scratch/as16583/flags/japan.png,4
+لا,audio/english_not.mp3,/scratch/as16583/flags/usa.png,4
+θέα,audio/hindi_view.mp3,/scratch/as16583/flags/india.png,4
+هنا,audio/japanese_here.mp3,/scratch/as16583/flags/japan.png,4
+जोड़ना,audio/japanese_add.mp3,/scratch/as16583/flags/japan.png,4
+its,audio/greek_its.mp3,/scratch/as16583/flags/greece.png,4
+चाहिए,audio/greek_should.mp3,/scratch/as16583/flags/greece.png,4
+उनका,audio/greek_their.mp3,/scratch/as16583/flags/greece.png,4
+お願いします,audio/english_please.mp3,/scratch/as16583/flags/usa.png,4
+أنت,audio/hindi_you.mp3,/scratch/as16583/flags/india.png,4
+どうやって,audio/arabic_how.mp3,/scratch/as16583/flags/lebanon.png,4
+ऊपर,audio/arabic_over.mp3,/scratch/as16583/flags/lebanon.png,4
+then,audio/hindi_then.mp3,/scratch/as16583/flags/india.png,4
+يستطيع,audio/japanese_can.mp3,/scratch/as16583/flags/japan.png,4
+support,audio/hindi_support.mp3,/scratch/as16583/flags/india.png,4
+全て,audio/arabic_all.mp3,/scratch/as16583/flags/lebanon.png,4
+इन,audio/arabic_these.mp3,/scratch/as16583/flags/lebanon.png,4
+when,audio/japanese_when.mp3,/scratch/as16583/flags/japan.png,4
+संपर्क,audio/english_contact.mp3,/scratch/as16583/flags/usa.png,4
+back,audio/greek_back.mp3,/scratch/as16583/flags/greece.png,4
+日,audio/english_day.mp3,/scratch/as16583/flags/usa.png,4
+also,audio/japanese_also.mp3,/scratch/as16583/flags/japan.png,4
+προϊόν,audio/arabic_product.mp3,/scratch/as16583/flags/lebanon.png,4
+كان,audio/japanese_were.mp3,/scratch/as16583/flags/japan.png,4
+music,audio/arabic_music.mp3,/scratch/as16583/flags/lebanon.png,4
+最後,audio/english_last.mp3,/scratch/as16583/flags/usa.png,4
+पसंद,audio/english_like.mp3,/scratch/as16583/flags/usa.png,4
+μόνο,audio/english_only.mp3,/scratch/as16583/flags/usa.png,4
+された,audio/hindi_been.mp3,/scratch/as16583/flags/india.png,4
+يملك,audio/greek_have.mp3,/scratch/as16583/flags/greece.png,4
+حسنًا,audio/japanese_well.mp3,/scratch/as16583/flags/japan.png,4
+クリック,audio/arabic_click.mp3,/scratch/as16583/flags/lebanon.png,4
+there,audio/greek_there.mp3,/scratch/as16583/flags/greece.png,4
+無料,audio/arabic_free.mp3,/scratch/as16583/flags/lebanon.png,4
+متاح,audio/hindi_available.mp3,/scratch/as16583/flags/india.png,4
+ポリシー,audio/english_policy.mp3,/scratch/as16583/flags/usa.png,4
+βοήθεια,audio/english_help.mp3,/scratch/as16583/flags/usa.png,4
+後,audio/hindi_after.mp3,/scratch/as16583/flags/india.png,4
+نكون,audio/hindi_are.mp3,/scratch/as16583/flags/india.png,4
+από,audio/arabic_than.mp3,/scratch/as16583/flags/lebanon.png,4
+今,audio/hindi_now.mp3,/scratch/as16583/flags/india.png,4
+शीर्ष,audio/japanese_top.mp3,/scratch/as16583/flags/japan.png,4
+θα,audio/japanese_will.mp3,/scratch/as16583/flags/japan.png,4
+वेब,audio/greek_web.mp3,/scratch/as16583/flags/greece.png,4
+σχετικά με,audio/english_about.mp3,/scratch/as16583/flags/usa.png,4
+يمكن,audio/greek_may.mp3,/scratch/as16583/flags/greece.png,4
+वह,audio/arabic_that.mp3,/scratch/as16583/flags/lebanon.png,4
+έτος,audio/hindi_year.mp3,/scratch/as16583/flags/india.png,4
+कहाँ,audio/arabic_where.mp3,/scratch/as16583/flags/lebanon.png,4
+था,audio/arabic_had.mp3,/scratch/as16583/flags/lebanon.png,4
+post,audio/arabic_post.mp3,/scratch/as16583/flags/lebanon.png,4
+حقوق,audio/hindi_rights.mp3,/scratch/as16583/flags/india.png,4
+,audio/japanese_the.mp3,/scratch/as16583/flags/japan.png,4
+他の,audio/greek_other.mp3,/scratch/as16583/flags/greece.png,4
+価格,audio/greek_price.mp3,/scratch/as16583/flags/greece.png,4
+ملكنا,audio/greek_our.mp3,/scratch/as16583/flags/greece.png,4
+good,audio/arabic_good.mp3,/scratch/as16583/flags/lebanon.png,4
+व्यापार,audio/arabic_business.mp3,/scratch/as16583/flags/lebanon.png,4
+नया,audio/japanese_new.mp3,/scratch/as16583/flags/japan.png,4
+first,audio/hindi_first.mp3,/scratch/as16583/flags/india.png,4
+منتجات,audio/english_products.mp3,/scratch/as16583/flags/usa.png,4
+video,audio/hindi_video.mp3,/scratch/as16583/flags/india.png,4
+هذا,audio/hindi_this.mp3,/scratch/as16583/flags/india.png,4
+データ,audio/english_data.mp3,/scratch/as16583/flags/usa.png,4
+عمل,audio/greek_work.mp3,/scratch/as16583/flags/greece.png,4
+يرى,audio/greek_see.mp3,/scratch/as16583/flags/greece.png,4
+सूची,audio/greek_list.mp3,/scratch/as16583/flags/greece.png,4
+τα δικα σου,audio/english_your.mp3,/scratch/as16583/flags/usa.png,4
+誰が,audio/arabic_who.mp3,/scratch/as16583/flags/lebanon.png,4
+πληροφορίες,audio/japanese_information.mp3,/scratch/as16583/flags/japan.png,4
+state,audio/arabic_state.mp3,/scratch/as16583/flags/lebanon.png,4
+ऐसा,audio/japanese_such.mp3,/scratch/as16583/flags/japan.png,4
+ただ,audio/english_just.mp3,/scratch/as16583/flags/usa.png,4
+خارج,audio/greek_out.mp3,/scratch/as16583/flags/greece.png,4
+μήνυμα,audio/hindi_message.mp3,/scratch/as16583/flags/india.png,4
+के लिए,audio/english_for.mp3,/scratch/as16583/flags/usa.png,4
+any,audio/japanese_any.mp3,/scratch/as16583/flags/japan.png,4
+サービス,audio/greek_services.mp3,/scratch/as16583/flags/greece.png,4
+καλύτερος,audio/english_best.mp3,/scratch/as16583/flags/usa.png,4
+رقم,audio/greek_number.mp3,/scratch/as16583/flags/greece.png,4
+online,audio/hindi_online.mp3,/scratch/as16583/flags/india.png,4
+يبحث,audio/japanese_search.mp3,/scratch/as16583/flags/japan.png,4
+was,audio/japanese_was.mp3,/scratch/as16583/flags/japan.png,4
+αυτοί,audio/english_they.mp3,/scratch/as16583/flags/usa.png,4
+site,audio/arabic_site.mp3,/scratch/as16583/flags/lebanon.png,4
+दुनिया,audio/english_world.mp3,/scratch/as16583/flags/usa.png,4
+अगला,audio/greek_next.mp3,/scratch/as16583/flags/greece.png,4
+市,audio/greek_city.mp3,/scratch/as16583/flags/greece.png,4
+सॉफ़्टवेयर,audio/arabic_software.mp3,/scratch/as16583/flags/lebanon.png,4
+時間,audio/english_time.mp3,/scratch/as16583/flags/usa.png,4
+探す,audio/english_find.mp3,/scratch/as16583/flags/usa.png,4
+معظم,audio/hindi_most.mp3,/scratch/as16583/flags/india.png,4
+οι οποίες,audio/english_which.mp3,/scratch/as16583/flags/usa.png,4
+service,audio/arabic_service.mp3,/scratch/as16583/flags/lebanon.png,4
+الناس,audio/english_people.mp3,/scratch/as16583/flags/usa.png,4
+info,audio/arabic_info.mp3,/scratch/as16583/flags/lebanon.png,4
+يحصل,audio/greek_get.mp3,/scratch/as16583/flags/greece.png,4
+है,audio/arabic_has.mp3,/scratch/as16583/flags/lebanon.png,4
+system,audio/japanese_system.mp3,/scratch/as16583/flags/japan.png,4
+her,audio/arabic_her.mp3,/scratch/as16583/flags/lebanon.png,4
+χρήση,audio/arabic_use.mp3,/scratch/as16583/flags/lebanon.png,4
+उन्हें,audio/japanese_them.mp3,/scratch/as16583/flags/japan.png,4
+περισσότερο,audio/hindi_more.mp3,/scratch/as16583/flags/india.png,4
+υγεία,audio/arabic_health.mp3,/scratch/as16583/flags/lebanon.png,4
+उसका,audio/english_his.mp3,/scratch/as16583/flags/usa.png,4
+two,audio/japanese_two.mp3,/scratch/as16583/flags/japan.png,4
+from,audio/hindi_from.mp3,/scratch/as16583/flags/india.png,4
+και,audio/hindi_and.mp3,/scratch/as16583/flags/india.png,4
+into,audio/greek_into.mp3,/scratch/as16583/flags/greece.png,4
+واحد,audio/japanese_one.mp3,/scratch/as16583/flags/japan.png,4
+what,audio/hindi_what.mp3,/scratch/as16583/flags/india.png,4
+ΗΛΕΚΤΡΟΝΙΚΗ ΔΙΕΥΘΥΝΣΗ,audio/english_email.mp3,/scratch/as16583/flags/usa.png,4
+Σπίτι,audio/japanese_home.mp3,/scratch/as16583/flags/japan.png,4
