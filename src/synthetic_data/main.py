@@ -14,7 +14,7 @@ except ImportError:
 from args import parse_args
 from datasets import PretrainingDataset, SumTestDataset, \
                      SupportTestDataset, ZeroshotTestDataset
-from losses import pairwise_infonce, symile
+from src.losses import pairwise_infonce, symile
 from models import LinearEncoders
 from utils import l2_normalize, seed_all, wandb_init
 
@@ -38,18 +38,18 @@ def load_data(args, stage="pretrain", model=None):
         dl = DataLoader(dataset, batch_size=args.test_n, shuffle=True)
     return dl
 
-def pretrain(args, model):
+def pretrain(args, encoders):
     pt_loader = load_data(args, stage="pretrain")
     pt_val_loader = load_data(args, stage="pretrain_val")
     loss_fn = symile if args.loss_fn == "symile" else pairwise_infonce
     optimizer = torch.optim.AdamW(encoders.parameters(), lr=args.lr)
 
-    model.train()
+    encoders.train()
     best_val_loss = float("inf")
     patience_counter = 0
     for epoch in range(args.pt_epochs):
         for v_a, v_b, v_c in pt_loader:
-            r_a, r_b, r_c, logit_scale_exp = model(v_a, v_b, v_c)
+            r_a, r_b, r_c, logit_scale_exp = encoders(v_a, v_b, v_c)
             assert r_c is not None, "r_c must be defined for pretraining."
             loss = loss_fn(r_a, r_b, r_c, logit_scale_exp, args.normalize)
             loss.backward()
@@ -62,10 +62,10 @@ def pretrain(args, model):
         if epoch % 20 == 0:
             print("epoch: ", epoch)
         if epoch % args.pt_val_epochs == 0:
-            model.eval()
+            encoders.eval()
             with torch.no_grad():
                 for v_a, v_b, v_c in pt_val_loader:
-                    r_a, r_b, r_c, logit_scale = model(v_a, v_b, v_c)
+                    r_a, r_b, r_c, logit_scale = encoders(v_a, v_b, v_c)
                     val_loss = loss_fn(r_a, r_b, r_c, logit_scale, args.normalize)
                     if args.wandb:
                         wandb.log({"pretrain_val_loss": val_loss})
@@ -77,7 +77,7 @@ def pretrain(args, model):
             if patience_counter >= args.early_stopping_patience_pt:
                 break
             else:
-                model.train()
+                encoders.train()
 
 
 def get_query_representations(encoders, normalize):
