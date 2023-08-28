@@ -53,6 +53,10 @@ def parse_args_main():
     parser.add_argument("--d", type=int, default=768,
                         help="Dimensionality used by the linear projection heads \
                               of all three encoders.")
+    parser.add_argument("--text_embedding", type=str,
+                        choices = ["eos", "bos"], default="eos",
+                        help="Whether to use text encoder BOS or EOS embedding \
+                              as input to projection head.")
 
     ### TRAINING ARGS ###
     parser.add_argument("--batch_sz", type=int, default=4,
