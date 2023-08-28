@@ -50,9 +50,12 @@ def parse_args_main():
     parser.add_argument("--text_model_id", type=str,
                         default="xlm-roberta-base",
                         help="Hugging Face model id for text encoder.")
+    parser.add_argument("--d", type=int, default=768,
+                        help="Dimensionality used by the linear projection heads \
+                              of all three encoders.")
 
     ### TRAINING ARGS ###
-    parser.add_argument("--batch_sz", type=int, default=10,
+    parser.add_argument("--batch_sz", type=int, default=4,
                         help="Batch size for pretraining.")
     parser.add_argument("--epochs", type=int, default=2,
                         help="Number of epochs to pretrain for.")

@@ -1,69 +1,50 @@
 import librosa
-import pandas as pd
 from PIL import Image
+import torch
 from torch.utils.data import Dataset
-from transformers import CLIPImageProcessor, WhisperFeatureExtractor, XLMRobertaTokenizer
 
 
 class SymileDataset(Dataset):
-    """
-    TODO: add comments
-    """
-    def __init__(self, args, df):
+    def __init__(self, df, audio_feat_extractor, img_processor):
         self.df = df
-
-        # AUDIO VARIABLES
-        self.audio_feat_extractor = WhisperFeatureExtractor.from_pretrained(args.audio_model_id)
-        self.whisper_sampling_rate = 16000
-
-        # TEXT VARIABLES
-        self.txt_tokenizer = XLMRobertaTokenizer.from_pretrained(args.text_model_id)
-
-        # IMAGE VARIABLES
-        self.img_processor = CLIPImageProcessor.from_pretrained(args.image_model_id)
-
+        self.audio_feat_extractor = audio_feat_extractor
+        self.img_processor = img_processor
 
     def __len__(self):
-        """
-        Compute length of the dataset.
-
-        Returns:
-            (int): dataset size.
-        """
         return len(self.df)
 
     def get_audio(self, path):
-        """
-        TODO: for when you write comments, https://huggingface.co/blog/fine-tune-whisper
-        """
         # downsample to 16kHz, as expected by Whisper, before passing to feature extractor
-        waveform, _ = librosa.load(path, sr=self.whisper_sampling_rate)
-        return self.audio_feat_extractor(
-                                waveform,
-                                return_attention_mask=True,
-                                return_tensors="pt",
-                                sampling_rate=self.whisper_sampling_rate,
-                                do_normalize=True
-                            )
+        waveform, _ = librosa.load(path, sr=self.audio_feat_extractor.sampling_rate)
+        audio = self.audio_feat_extractor(
+                        waveform,
+                        return_attention_mask=True,
+                        return_tensors="pt",
+                        sampling_rate=self.audio_feat_extractor.sampling_rate,
+                        do_normalize=True
+                    )
+        return {"input_features": torch.squeeze(audio.input_features),
+                "attention_mask": torch.squeeze(audio.attention_mask)}
 
     def get_image(self, path):
         image = Image.open(path)
-        return self.img_processor(images=image, return_tensors="pt")
-
-    def get_text(self, text):
-        return self.txt_tokenizer(text=text, return_tensors="pt")
+        image = self.img_processor(images=image, return_tensors="pt")
+        return {"pixel_values": torch.squeeze(image.pixel_values)}
 
     def __getitem__(self, idx):
         """
-        Index into the dataset.
-
-        Args:
-            idx (int): index of data sample to retrieve.
-        Returns: TODO
+        Returns:
+            (dict): containing the following key-value pairs:
+                - audio: (dict) whose key-value pairs are
+                    (input_features: torch.Tensor of shape (80, 3000)) and
+                    (attention_mask: torch.Tensor of shape (3000)).
+                - image: (dict) whose key-value pairs are
+                    (pixel_values: torch.Tensor of shape (3, 224, 224)).
+                - text: (str) with data sample text.
+                - template: (int) with data sample template number.
         """
-        template = self.df.iloc[idx].template
-        text = self.get_text(self.df.iloc[idx].text)
         audio = self.get_audio(self.df.iloc[idx].audio_path)
         image = self.get_image(self.df.iloc[idx].image_path)
-        breakpoint()
-        return {"text": text, "audio": audio, "image": image, "template": template}
+        text = self.df.iloc[idx].text
+        template = self.df.iloc[idx].template
+        return {"audio": audio, "image": image, "text": text, "template": template}

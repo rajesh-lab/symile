@@ -7,6 +7,7 @@ class AudioEncoder(nn.Module):
     def __init__(self, model_id):
         super().__init__()
         self.model = WhisperModel.from_pretrained(model_id).encoder
+        # self.linear_projection = nn.Linear(self.model.config.hidden_size, 768)
 
     def forward(self, x):
         return self.model(x)
@@ -15,7 +16,7 @@ class AudioEncoder(nn.Module):
 class ImageEncoder(nn.Module):
     def __init__(self, model_id):
         super().__init__()
-        self.model = CLIPModel.from_pretrained(model_id)
+        self.model = CLIPVisionModel.from_pretrained(model_id)
 
     def forward(self, x):
         return self.model(x)
