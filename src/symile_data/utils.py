@@ -5,9 +5,10 @@ TODO:
 """
 
 import argparse
-import numpy as np
 import os
 import random
+
+import numpy as np
 import torch
 import torch.nn.functional as F
 try:

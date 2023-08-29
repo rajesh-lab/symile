@@ -8,10 +8,11 @@ TODO:
 """
 
 import os
-import numpy as np
-import pandas as pd
 from pathlib import Path
 import random
+
+import numpy as np
+import pandas as pd
 
 from google.cloud import texttospeech
 from google.cloud import translate_v2 as translate

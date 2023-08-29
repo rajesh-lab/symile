@@ -117,8 +117,10 @@ class SymileModel(nn.Module):
         self.logit_scale = nn.Parameter(torch.ones([]) * logit_scale_init)
 
     def forward(self, x):
+        print("BEFORE AUDIO ENCODER\n")
         r_a = self.audio_encoder(x["audio_input_features"], x["audio_attention_mask"])
+        print("BEFORE IMAGE ENCODER\n")
         r_i = self.image_encoder(x["image_pixel_values"])
+        print("BEFORE TEXT ENCODER\n")
         r_t = self.text_encoder(x["text_input_ids"], x["text_attention_mask"])
-        return {"r_a": r_a, "r_i": r_i, "r_t": r_t,
-                "logit_scale_exp": self.logit_scale.exp()}
+        return r_a, r_i, r_t, self.logit_scale.exp()

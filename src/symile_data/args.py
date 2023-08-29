@@ -59,9 +59,9 @@ def parse_args_main():
                               as input to projection head.")
 
     ### TRAINING ARGS ###
-    parser.add_argument("--batch_sz", type=int, default=4,
+    parser.add_argument("--batch_sz", type=int, default=20,
                         help="Batch size for pretraining.")
-    parser.add_argument("--epochs", type=int, default=2,
+    parser.add_argument("--epochs", type=int, default=4,
                         help="Number of epochs to pretrain for.")
     parser.add_argument("--logit_scale_init", type=float, default=-0.3,
                         help="Value used to initialize the learned logit_scale. \

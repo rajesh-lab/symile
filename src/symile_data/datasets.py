@@ -1,6 +1,6 @@
-import librosa
 from PIL import Image
 import torch
+import torchaudio
 from torch.utils.data import Dataset
 
 
@@ -15,7 +15,9 @@ class SymileDataset(Dataset):
 
     def get_audio(self, path):
         # downsample to 16kHz, as expected by Whisper, before passing to feature extractor
-        waveform, _ = librosa.load(path, sr=self.audio_feat_extractor.sampling_rate)
+        waveform, sr = torchaudio.load(path)
+        resampler = torchaudio.transforms.Resample(sr, self.audio_feat_extractor.sampling_rate)
+        waveform = torch.squeeze(resampler(waveform))
         audio = self.audio_feat_extractor(
                         waveform,
                         return_attention_mask=True,

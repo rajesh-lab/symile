@@ -1,4 +1,5 @@
 import os
+
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
@@ -68,21 +69,32 @@ def load_data(args):
 
 
 def pretrain(args, symile_model):
+    print("    ...loading data...\n")
     dl = load_data(args)
     loss_fn = symile if args.loss_fn == "symile" else pairwise_infonce
-    # TODO: see what CLIP says in Section 2.5 on this
     optimizer = torch.optim.AdamW(symile_model.parameters(), lr=args.lr)
 
     for epoch in range(args.epochs):
-        for data in dl:
-            r_a, r_i, r_t, logit_scale_exp = symile_model(data)
-            breakpoint()
+        if epoch % 1 == 0:
+            print("    epoch: ", epoch, "\n")
 
-            # loss = loss_fn(r_a, r_b, r_c, logit_scale_exp, args.normalize)
+        for data in dl:
+            print("\n BEFORE FWD PASS \n")
+            r_a, r_i, r_t, logit_scale_exp = symile_model(data)
+            print("\n AFTER FWD PASS \n")
+            loss = loss_fn(r_a, r_i, r_t, logit_scale_exp, args.normalize)
+            loss.backward()
+            optimizer.step()
+            if args.wandb:
+                wandb.log({"pretrain_loss": loss,
+                           "logit_scale_exp": logit_scale_exp})
+            optimizer.zero_grad()
+
 
 if __name__ == '__main__':
     # TODO:
     # - maybe move all data-related functions into a data_utils.py file?
+    # - maybe move all eval functions into a evals file?
 
     if os.getenv('SINGULARITY_CONTAINER'):
         os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
@@ -98,7 +110,13 @@ if __name__ == '__main__':
     text_encoder = TextEncoder(args.text_model_id, args.d, args.text_embedding)
     symile_model = SymileModel(audio_encoder, image_encoder, text_encoder,
                                args.logit_scale_init)
+    print("audio: ", sum(p.numel() for p in audio_encoder.parameters()))
+    print("image: ", sum(p.numel() for p in image_encoder.parameters()))
+    print("text: ", sum(p.numel() for p in text_encoder.parameters()))
+    print("symile: ", sum(p.numel() for p in symile_model.parameters()))
+    # breakpoint()
     pretrain(args, symile_model)
+    # breakpoint()
     # TODO: make sure that at the end of this, all the encoders have actually
     # been trained (weights changed)
 
