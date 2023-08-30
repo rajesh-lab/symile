@@ -48,7 +48,8 @@ def parse_args_main():
                         default="openai/clip-vit-base-patch16",
                         help="Hugging Face model id for image encoder.")
     parser.add_argument("--text_model_id", type=str,
-                        default="xlm-roberta-base",
+                        default="bert-base-multilingual-cased",
+                        choices = ["bert-base-multilingual-cased", "xlm-roberta-base"],
                         help="Hugging Face model id for text encoder.")
     parser.add_argument("--d", type=int, default=768,
                         help="Dimensionality used by the linear projection heads \
@@ -59,7 +60,7 @@ def parse_args_main():
                               as input to projection head.")
 
     ### TRAINING ARGS ###
-    parser.add_argument("--batch_sz", type=int, default=20,
+    parser.add_argument("--batch_sz", type=int, default=10,
                         help="Batch size for pretraining.")
     parser.add_argument("--epochs", type=int, default=4,
                         help="Number of epochs to pretrain for.")
@@ -67,7 +68,7 @@ def parse_args_main():
                         help="Value used to initialize the learned logit_scale. \
                               CLIP used np.log(1 / 0.07) = 2.65926.")
     parser.add_argument("--loss_fn", type=str,
-                        choices = ["symile", "pairwise_infonce"], default="pairwise_infonce",
+                        choices = ["symile", "pairwise_infonce"], default="symile",
                         help="Loss function to use for training.")
     parser.add_argument("--lr", type=float, default=1.0e-1,
                         help="Learning rate.")
@@ -77,7 +78,7 @@ def parse_args_main():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")
-    parser.add_argument("--wandb", type=str_to_bool, default=False,
+    parser.add_argument("--wandb", type=str_to_bool, default=True,
                         help="Whether to use wandb for logging.")
 
     return parser.parse_args()

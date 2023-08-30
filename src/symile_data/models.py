@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import CLIPVisionModel, WhisperModel, XLMRobertaModel
+from transformers import BertModel, CLIPVisionModel, WhisperModel, XLMRobertaModel
 
 
 class ProjectionHead(nn.Module):
@@ -68,10 +68,13 @@ class ImageEncoder(nn.Module):
 
 
 class TextEncoder(nn.Module):
-    def __init__(self, model_id, d, text_embedding="eos"):
+    def __init__(self, model_id, d, feat_token_id):
         super().__init__()
-        self.text_embedding = text_embedding
-        self.encoder = XLMRobertaModel.from_pretrained(model_id)
+        self.feat_token_id = feat_token_id
+        if model_id == "bert-base-multilingual-cased":
+            self.encoder = BertModel.from_pretrained(model_id)
+        elif model_id == "xlm-roberta-base":
+            self.encoder = XLMRobertaModel.from_pretrained(model_id)
         self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
                                               self.encoder.config.layer_norm_eps)
 
@@ -86,20 +89,11 @@ class TextEncoder(nn.Module):
         x = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
         x = x["last_hidden_state"]
 
-		# take features from EOS or BOS embedding.
-        if self.text_embedding == "eos":
-            # take features from EOS embedding as done by transformers' CLIP and ImageBind:
-            # https://github.com/huggingface/transformers/blob/ccb92be23def445f2afdea94c31286f84b89eb5b/src/transformers/models/clip/modeling_clip.py#L757C4-L757C4
-            # https://github.com/facebookresearch/ImageBind/blob/95d27c7fd5a8362f3527e176c3a80ae5a4d880c0/imagebind/models/imagebind_model.py#L384C9-L384C9
-            token_id = self.encoder.config.eos_token_id
-        elif self.text_embedding == "bos":
-            # take features from BOS embedding as done by XLM-Roberta:
-            # https://github.com/huggingface/transformers/blob/41aef33758ae166291d72bc381477f2db84159cf/src/transformers/models/xlm_roberta/modeling_xlm_roberta.py#L580
-            token_id = self.encoder.config.bos_token_id
-        # x has shape (b, l, d)
-        # argmax returns first index of token_id in case pad_token_id is equal to token id
+		# take features from EOS or BOS embedding. x has shape (b, l, d).
+        # argmax returns first index of feat_token_id in case pad_token_id is
+        # equal to feat_token_id.
         x = x[torch.arange(x.shape[0]),
-              (input_ids == token_id).int().argmax(dim=-1)]
+              (input_ids == self.feat_token_id).int().argmax(dim=-1)]
 
         # x has shape (b, d)
         x = self.projection_head(x)
@@ -117,10 +111,7 @@ class SymileModel(nn.Module):
         self.logit_scale = nn.Parameter(torch.ones([]) * logit_scale_init)
 
     def forward(self, x):
-        print("BEFORE AUDIO ENCODER\n")
         r_a = self.audio_encoder(x["audio_input_features"], x["audio_attention_mask"])
-        print("BEFORE IMAGE ENCODER\n")
         r_i = self.image_encoder(x["image_pixel_values"])
-        print("BEFORE TEXT ENCODER\n")
         r_t = self.text_encoder(x["text_input_ids"], x["text_attention_mask"])
         return r_a, r_i, r_t, self.logit_scale.exp()

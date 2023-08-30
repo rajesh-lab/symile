@@ -2,8 +2,10 @@ import os
 
 import pandas as pd
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
-from transformers import CLIPImageProcessor, WhisperFeatureExtractor, XLMRobertaTokenizer
+from transformers import BertTokenizer, CLIPImageProcessor, \
+                         WhisperFeatureExtractor, XLMRobertaTokenizer
 try:
     import wandb
 except ImportError:
@@ -14,6 +16,25 @@ from datasets import SymileDataset
 from models import AudioEncoder, ImageEncoder, TextEncoder, SymileModel
 from src.losses import pairwise_infonce, symile
 from utils import seed_all, wandb_init
+
+
+def print_gpu_info():
+    for i in range(torch.cuda.device_count()):
+        t = round(torch.cuda.get_device_properties(i).total_memory/1024**3, 3)
+        r = round(torch.cuda.memory_reserved(i)/1024**3, 3)
+        a = round(torch.cuda.memory_allocated(i)/1024**3, 3)
+        print("\nGPU: ", i)
+        print("\n   total_memory: ", t)
+        print("\n   memory_reserved: ", r)
+        print("\n   memory_allocated: ", a)
+    return
+
+
+def print_num_params(model):
+    num_params = sum(p.numel() for p in model.parameters())
+    num_params_mill = '{:.2f}'.format(num_params/1000000)
+    print(num_params_mill, "M parameters")
+    return
 
 
 class Collator:
@@ -36,7 +57,7 @@ class Collator:
                 - image_pixel_values: torch.Tensor of shape (batch_sz, 3, 224, 224)
                 - text_input_ids: torch.Tensor of shape (batch_sz, len_longest_seq)
                 - text_attention_mask: torch.Tensor of shape (batch_sz, len_longest_seq)
-                - templates: list of length batch_sz containing the template number
+                - templates: torch.Tensor of shape (batch_sz) containing template numbers
         """
         audio_input_features = torch.stack([s["audio"]["input_features"] for s in batch])
         audio_attention_mask = torch.stack([s["audio"]["attention_mask"] for s in batch])
@@ -47,7 +68,7 @@ class Collator:
         text = self.txt_tokenizer(text=text_list, return_tensors="pt",
                                   padding=True, truncation=True)
 
-        templates = [s["template"] for s in batch]
+        templates = torch.Tensor([s["template"] for s in batch])
 
         return {"audio_input_features": audio_input_features,
                 "audio_attention_mask": audio_attention_mask,
@@ -58,19 +79,44 @@ class Collator:
 
 
 def load_data(args):
+    """
+    Note that encoder features are taken from the EOS or BOS embedding.
+
+    transformers' CLIP and ImageBind take features from EOS embedding:
+    - https://github.com/huggingface/transformers/blob/ccb92be23def445f2afdea94c31286f84b89eb5b/src/transformers/models/clip/modeling_clip.py#L757C4-L757C4
+    - https://github.com/facebookresearch/ImageBind/blob/95d27c7fd5a8362f3527e176c3a80ae5a4d880c0/imagebind/models/imagebind_model.py#L384C9-L384C9
+
+    mBERT and XLM-Roberta take features from BOS embedding:
+    - https://github.com/huggingface/transformers/blob/ccb92be23def445f2afdea94c31286f84b89eb5b/src/transformers/models/bert/modeling_bert.py#L661
+    - https://github.com/huggingface/transformers/blob/41aef33758ae166291d72bc381477f2db84159cf/src/transformers/models/xlm_roberta/modeling_xlm_roberta.py#L580
+
+       for BERT and XLM-Roberta,
+    """
     audio_feat_extractor = WhisperFeatureExtractor.from_pretrained(args.audio_model_id)
     img_processor = CLIPImageProcessor.from_pretrained(args.image_model_id)
-    txt_tokenizer = XLMRobertaTokenizer.from_pretrained(args.text_model_id)
+
+    if args.text_model_id == "bert-base-multilingual-cased":
+        txt_tokenizer = BertTokenizer.from_pretrained(args.text_model_id)
+        if args.text_embedding == "eos":
+            args.feat_token_id = txt_tokenizer.sep_token_id
+        elif args.text_embedding == "bos":
+            args.feat_token_id = txt_tokenizer.cls_token_id
+    elif args.text_model_id == "xlm-roberta-base":
+        txt_tokenizer = XLMRobertaTokenizer.from_pretrained(args.text_model_id)
+        if args.text_embedding == "eos":
+            args.feat_token_id = txt_tokenizer.eos_token_id
+        elif args.text_embedding == "bos":
+            args.feat_token_id = txt_tokenizer.bos_token_id
 
     df = pd.read_csv(args.dataset_path)
     df["text"] = df.text.fillna("")
     ds = SymileDataset(df, audio_feat_extractor, img_processor)
-    return DataLoader(ds, batch_size=args.batch_sz, shuffle=True, collate_fn=Collator(txt_tokenizer))
+    num_workers = len(os.sched_getaffinity(0)) # from max_num_worker_suggest in DataLoader docs
+    return DataLoader(ds, batch_size=args.batch_sz, shuffle=True,
+                      num_workers=num_workers, collate_fn=Collator(txt_tokenizer))
 
 
-def pretrain(args, symile_model):
-    print("    ...loading data...\n")
-    dl = load_data(args)
+def pretrain(args, symile_model, dl):
     loss_fn = symile if args.loss_fn == "symile" else pairwise_infonce
     optimizer = torch.optim.AdamW(symile_model.parameters(), lr=args.lr)
 
@@ -79,10 +125,11 @@ def pretrain(args, symile_model):
             print("    epoch: ", epoch, "\n")
 
         for data in dl:
-            print("\n BEFORE FWD PASS \n")
+            data = {k: v.to(args.device) for k, v in data.items()}
             r_a, r_i, r_t, logit_scale_exp = symile_model(data)
-            print("\n AFTER FWD PASS \n")
-            loss = loss_fn(r_a, r_i, r_t, logit_scale_exp, args.normalize)
+
+            loss = loss_fn(r_a, r_i, r_t, logit_scale_exp,
+                           args.normalize, args.device)
             loss.backward()
             optimizer.step()
             if args.wandb:
@@ -95,29 +142,32 @@ if __name__ == '__main__':
     # TODO:
     # - maybe move all data-related functions into a data_utils.py file?
     # - maybe move all eval functions into a evals file?
+    # - move print functions into a utils.py file?
 
     if os.getenv('SINGULARITY_CONTAINER'):
         os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
     args = parse_args_main()
+    args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     wandb_init(args)
     if args.use_seed:
         seed_all(args.seed)
 
     # PRETRAIN
-    print("\n\n\n...pretraining...\n")
+    print("\n\n...pretraining...\n")
+    dl = load_data(args)
     audio_encoder = AudioEncoder(args.audio_model_id, args.d)
     image_encoder = ImageEncoder(args.image_model_id, args.d)
-    text_encoder = TextEncoder(args.text_model_id, args.d, args.text_embedding)
+    text_encoder = TextEncoder(args.text_model_id, args.d, args.feat_token_id)
     symile_model = SymileModel(audio_encoder, image_encoder, text_encoder,
                                args.logit_scale_init)
-    print("audio: ", sum(p.numel() for p in audio_encoder.parameters()))
-    print("image: ", sum(p.numel() for p in image_encoder.parameters()))
-    print("text: ", sum(p.numel() for p in text_encoder.parameters()))
-    print("symile: ", sum(p.numel() for p in symile_model.parameters()))
-    # breakpoint()
-    pretrain(args, symile_model)
-    # breakpoint()
-    # TODO: make sure that at the end of this, all the encoders have actually
-    # been trained (weights changed)
+    if torch.cuda.device_count() > 1:
+        print("using", torch.cuda.device_count(), "GPUs\n")
+        symile_model = nn.DataParallel(symile_model)
+    symile_model.to(args.device)
+
+    # for model in [audio_encoder, image_encoder, text_encoder]:
+        # print_num_params(model)
+
+    pretrain(args, symile_model, dl)
 
     # EVALUATE
