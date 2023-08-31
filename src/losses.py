@@ -7,7 +7,7 @@ from utils import l2_normalize
 ####################
 # pairwise infonce #
 ####################
-def infonce(u, v, logit_scale):
+def infonce(u, v, logit_scale, device):
     """
     Computes the InfoNCE loss for a batch of representations.
 
@@ -15,6 +15,7 @@ def infonce(u, v, logit_scale):
         u, v (torch.Tensor): representation vectors each of size (batch_sz, d_r).
         logit_scale (torch.Tensor): temperature parameter as a log-parameterized
                                     multiplicative scalar (see CLIP).
+        device (torch.device): device to use for computation ("cuda" or "cpu").
     Returns:
         (torch.Tensor): InfoNCE loss
     """
@@ -22,15 +23,16 @@ def infonce(u, v, logit_scale):
     logits_v = logit_scale * v @ u.T
 
     assert logits_u.shape == logits_v.shape, "Joint embedding spaces must be the same shape."
-    labels = torch.arange(logits_u.shape[0])
+    labels = torch.arange(logits_u.shape[0]).to(device)
     return (F.cross_entropy(logits_u, labels) + F.cross_entropy(logits_v, labels)) / 2.0
 
-def pairwise_infonce(r_a, r_b, r_c, logit_scale, normalize=True):
+def pairwise_infonce(r_a, r_b, r_c, logit_scale, normalize, device):
     """
     Computes the pairwise InfoNCE loss for a batch of representations.
 
     Args:
         r_a, r_b, r_c (torch.Tensor): representation vectors each of size (batch_sz, d_r).
+        device (torch.device): device to use for computation ("cuda" or "cpu").
     Returns:
         (torch.Tensor): average over the pairwise InfoNCE losses
     """
@@ -38,15 +40,15 @@ def pairwise_infonce(r_a, r_b, r_c, logit_scale, normalize=True):
         r_a = F.normalize(r_a, p=2.0, dim=1)
         r_b = F.normalize(r_b, p=2.0, dim=1)
         r_c = F.normalize(r_c, p=2.0, dim=1)
-    loss_ab = infonce(r_a, r_b, logit_scale)
-    loss_bc = infonce(r_b, r_c, logit_scale)
-    loss_ac = infonce(r_a, r_c, logit_scale)
+    loss_ab = infonce(r_a, r_b, logit_scale, device)
+    loss_bc = infonce(r_b, r_c, logit_scale, device)
+    loss_ac = infonce(r_a, r_c, logit_scale, device)
     return (loss_ab + loss_bc + loss_ac) / 3.0
 
 ##########
 # symile #
 ##########
-def compute_logits(x, y, z):
+def compute_logits(x, y, z, device):
     """
     Computes the logits for x, by computing the positive multilinear inner product
     and the negative multilinear inner products for each sample (row) in x.
@@ -60,6 +62,7 @@ def compute_logits(x, y, z):
         x (torch.Tensor): representation vector of size (batch_size, d_r).
         y (torch.Tensor): representation vector of size (batch_size, d_r).
         z (torch.Tensor): representation vector of size (batch_size, d_r).
+        device (torch.device): device to use for computation ("cuda" or "cpu").
     Returns:
         logits (torch.Tensor): logits for x of size (batch_size, batch_size).
     """
@@ -72,17 +75,17 @@ def compute_logits(x, y, z):
     logits_x = torch.vmap(_multilinear_inner_product_shuffled)(x) # (batch_sz, batch_sz)
     MIP_of_pos_triples = (x * y * z).sum(axis=1) # (batch_sz)
     # insert positive triples along diagonal of shuffled logits
-    return torch.where(torch.eye(n=x.shape[0]) > 0.5, MIP_of_pos_triples, logits_x)
+    return torch.where(torch.eye(n=x.shape[0]).to(device) > 0.5, MIP_of_pos_triples, logits_x)
 
-def symile(r_a, r_b, r_c, logit_scale, normalize):
+def symile(r_a, r_b, r_c, logit_scale, normalize, device):
     if normalize:
         r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
     assert r_a.shape == r_b.shape == r_c.shape, "All embeddings must be the same shape."
-    logits_a = logit_scale * compute_logits(r_a, r_b, r_c)
-    logits_b = logit_scale * compute_logits(r_b, r_a, r_c)
-    logits_c = logit_scale * compute_logits(r_c, r_a, r_b)
+    logits_a = logit_scale * compute_logits(r_a, r_b, r_c, device)
+    logits_b = logit_scale * compute_logits(r_b, r_a, r_c, device)
+    logits_c = logit_scale * compute_logits(r_c, r_a, r_b, device)
 
-    labels = torch.arange(logits_a.shape[0])
+    labels = torch.arange(logits_a.shape[0]).to(device)
     loss_a = F.cross_entropy(logits_a, labels)
     loss_b = F.cross_entropy(logits_b, labels)
     loss_c = F.cross_entropy(logits_c, labels)

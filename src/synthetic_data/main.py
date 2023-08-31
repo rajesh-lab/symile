@@ -203,7 +203,7 @@ if __name__ == '__main__':
     encoders = LinearEncoders(args.d_v, args.d_r, args.logit_scale_init, args.hardcode_encoders)
     pretrain(args, encoders)
 
-    # EVALUATION
+    # EVALUATE
     if args.evaluation == "zeroshot_clf":
         print("\n\n\n...evaluation: zero-shot classification...\n")
         test_zeroshot_clf(args, encoders)
