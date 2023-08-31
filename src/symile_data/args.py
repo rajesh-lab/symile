@@ -7,7 +7,8 @@ def parse_args_generate_data():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--n_per_language", type=int, default=25,
-                        help="Number of samples per language in pretraining dataset.")
+                        help="Number of samples per language per template to \
+                              generate.")
     parser.add_argument("--audio_save_dir", type=Path,
                         default=Path("./audio"),
                         help="Where to save generated audio files.")
@@ -26,6 +27,9 @@ def parse_args_generate_data():
     parser.add_argument("--imagenet_train_filename", type=Path,
                         default=Path("LOC_train_solution.csv"),
                         help="ImageNet training data filename (must be .csv).")
+    parser.add_argument("--negative_samples", type=str_to_bool, default=True,
+                        help="Whether to include negative, along with positive, \
+                              samples in a 1:1 ratio.")
     parser.add_argument("--save_path", type=str,
                         default="./dataset.csv",
                         help="Where to save dataset csv.")
@@ -78,7 +82,20 @@ def parse_args_main():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")
-    parser.add_argument("--wandb", type=str_to_bool, default=True,
+    parser.add_argument("--wandb", type=str_to_bool, default=False,
                         help="Whether to use wandb for logging.")
+
+    ### EVALUATION ARGS ###
+    parser.add_argument("--concat_infonce", type=str_to_bool, default=True,
+                        help="Whether or not to concatenate (r_a * r_b), (r_b * r_c), (r_a * r_c) for \
+                              downstream classification tasks when loss function is 'pairwise_infonce' \
+                              (alternative is to sum the three terms).")
+    parser.add_argument("--evaluation", type=str,
+                        choices=["zeroshot_clf", "support_clf"],
+                        default="zeroshot_clf",
+                        help="Evaluation method to run.")
+    parser.add_argument("--use_logit_scale_eval", type=str_to_bool, default=True,
+                        help="Whether or not to scale logits by temperature \
+                              parameter during evaluation.")
 
     return parser.parse_args()

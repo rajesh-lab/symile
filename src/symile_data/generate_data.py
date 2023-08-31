@@ -273,17 +273,73 @@ def template_4(args):
     df["template"] = 4
     return df
 
+# TEMPLATE 1 NEGATIVE
+# you might want to make the naming consistent here
+
+def audio_path_iso_code(audio_path):
+    iso = Path(audio_path).stem.split("_")[-2]
+    assert iso in LANG2ISOCODE.values(), "Must return an ISO code."
+    return iso
+
+
+def sample_negative_audio(row_audio, all_audio):
+    row_iso = audio_path_iso_code(row_audio)
+    all_audio = all_audio[all_audio["audio_lang"] != row_iso]["audio_path"]
+    neg_audio = all_audio.sample().item()
+    assert row_iso != audio_path_iso_code(neg_audio), \
+        "Negative sample must be in a different language."
+    return neg_audio
+
+
+def sample_negative_image(row_image, all_images):
+    neg_image = random.choice(all_images[all_images != row_image])
+    assert row_image != neg_image, "Negative sample must be a different image."
+    return neg_image
+
+
+def sample_negative_text(row_text, all_text):
+    neg_text = random.choice(all_text[all_text != row_text])
+    assert row_text != neg_text, "Negative sample must be a different text."
+    return neg_text
+
+
+def get_negative_samples(df):
+    # for each row, randomly sample a modality to negate
+    df["negative_mode"] = np.random.choice(["audio", "image", "text"], size=len(df))
+
+    # template 1
+    df_1 = df[df.template == 1]
+
+    df_1["audio_lang"] = df_1.audio_path.apply(get_audio_path_lang)
+    df_a = df_1[df_1.negative_mode == "audio"]
+    df_a["audio_path"] = df_a.apply(lambda row: sample_negative_audio(row.audio_path, df_1[["audio_path", "audio_lang"]]), axis=1)
+
+    df_i = df_1[df_1.negative_mode == "image"]
+    df_i["image_path"] = df_i.apply(lambda row: sample_negative_image(row.image_path, df_1.image_path), axis=1)
+
+    df_t = df_1[df_1.negative_mode == "text"]
+    df_t["text"] = df_t.apply(lambda row: sample_negative_text(row.text, df_1.text), axis=1)
+
+    # template 2
+    df_2 = df[df.template == 2]
+
 if __name__ == '__main__':
     args = parse_args_generate_data()
 
-    print("\n\n\n...generating data for template 1...\n")
-    t1 = template_1(args)[["text", "audio_path", "image_path", "template"]]
-    print("\n\n\n...generating data for template 2...\n")
-    t2 = template_2(args)[["text", "audio_path", "image_path", "template"]]
-    print("\n\n\n...generating data for template 3...\n")
-    t3 = template_3(args)[["text", "audio_path", "image_path", "template"]]
-    print("\n\n\n...generating data for template 4...\n")
-    t4 = template_4(args)[["text", "audio_path", "image_path", "template"]]
+    # print("\n\n...generating data for template 1...\n")
+    # t1 = template_1(args)[["text", "audio_path", "image_path", "template"]]
+    # print("\n\n...generating data for template 2...\n")
+    # t2 = template_2(args)[["text", "audio_path", "image_path", "template"]]
+    # print("\n\n...generating data for template 3...\n")
+    # t3 = template_3(args)[["text", "audio_path", "image_path", "template"]]
+    # print("\n\n...generating data for template 4...\n")
+    # t4 = template_4(args)[["text", "audio_path", "image_path", "template"]]
 
-    df = pd.concat([t1, t2, t3, t4], ignore_index=True)
-    df.to_csv(args.save_path, index=False)
+    # df = pd.concat([t1, t2, t3, t4], ignore_index=True)
+
+    if args.negative_samples:
+        print("\n\n...generating negative samples...\n")
+        df = pd.read_csv("./dataset.csv")
+        df_neg = get_negative_samples(df)
+
+    # df.to_csv(args.save_path, index=False)

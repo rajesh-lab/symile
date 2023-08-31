@@ -116,9 +116,9 @@ def load_data(args):
                       num_workers=num_workers, collate_fn=Collator(txt_tokenizer))
 
 
-def pretrain(args, symile_model, dl):
+def pretrain(args, model, dl):
     loss_fn = symile if args.loss_fn == "symile" else pairwise_infonce
-    optimizer = torch.optim.AdamW(symile_model.parameters(), lr=args.lr)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
 
     for epoch in range(args.epochs):
         if epoch % 1 == 0:
@@ -126,7 +126,7 @@ def pretrain(args, symile_model, dl):
 
         for data in dl:
             data = {k: v.to(args.device) for k, v in data.items()}
-            r_a, r_i, r_t, logit_scale_exp = symile_model(data)
+            r_a, r_i, r_t, logit_scale_exp = model(data)
 
             loss = loss_fn(r_a, r_i, r_t, logit_scale_exp,
                            args.normalize, args.device)
@@ -136,7 +136,6 @@ def pretrain(args, symile_model, dl):
                 wandb.log({"pretrain_loss": loss,
                            "logit_scale_exp": logit_scale_exp})
             optimizer.zero_grad()
-
 
 if __name__ == '__main__':
     # TODO:
@@ -155,6 +154,7 @@ if __name__ == '__main__':
     # PRETRAIN
     print("\n\n...pretraining...\n")
     dl = load_data(args)
+    # TODO: do you need these encoders initialized out here?
     audio_encoder = AudioEncoder(args.audio_model_id, args.d)
     image_encoder = ImageEncoder(args.image_model_id, args.d)
     text_encoder = TextEncoder(args.text_model_id, args.d, args.feat_token_id)
@@ -171,3 +171,9 @@ if __name__ == '__main__':
     pretrain(args, symile_model, dl)
 
     # EVALUATE
+    if args.evaluation == "zeroshot_clf":
+        print("\n\n...evaluation: zero-shot classification...\n")
+        test_zeroshot_clf(args, symile_model)
+    # elif args.evaluation == "support_clf":
+    #     print("\n\n\n...evaluation: in support classification...\n")
+    #     test_support_clf(args, encoders)
