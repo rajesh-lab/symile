@@ -29,14 +29,6 @@ def l2_normalize(vectors):
     return [F.normalize(v, p=2.0, dim=1) for v in vectors]
 
 
-def seed_all(seed):
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-
-
 def str_to_bool(arg):
     """Convert an argument string into its boolean value.
 

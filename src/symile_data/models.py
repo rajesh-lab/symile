@@ -1,6 +1,11 @@
+from argparse import Namespace
+
+import lightning.pytorch as pl
 import torch
 import torch.nn as nn
 from transformers import BertModel, CLIPVisionModel, WhisperModel, XLMRobertaModel
+
+from src.losses import pairwise_infonce, symile
 
 
 class ProjectionHead(nn.Module):
@@ -100,18 +105,45 @@ class TextEncoder(nn.Module):
         return x
 
 
-class SymileModel(nn.Module):
-    def __init__(self, audio_encoder, image_encoder, text_encoder, logit_scale_init):
+class SymileModel(pl.LightningModule):
+    def __init__(self, **args):
         super().__init__()
-        self.audio_encoder = audio_encoder
-        self.image_encoder = image_encoder
-        self.text_encoder = text_encoder
+        self.args = Namespace(**args)
+        self.loss_fn = symile if self.args.loss_fn == "symile" else pairwise_infonce
+
+        self.audio_encoder = AudioEncoder(self.args.audio_model_id, self.args.d)
+        self.image_encoder = ImageEncoder(self.args.image_model_id, self.args.d)
+        self.text_encoder = TextEncoder(self.args.text_model_id, self.args.d,
+                                        self.args.feat_token_id)
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
-        self.logit_scale = nn.Parameter(torch.ones([]) * logit_scale_init)
+        self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
+
+        for k in args.keys():
+            self.save_hyperparameters(k)
 
     def forward(self, x):
         r_a = self.audio_encoder(x["audio_input_features"], x["audio_attention_mask"])
         r_i = self.image_encoder(x["image_pixel_values"])
         r_t = self.text_encoder(x["text_input_ids"], x["text_attention_mask"])
         return r_a, r_i, r_t, self.logit_scale.exp()
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.args.lr)
+        return optimizer
+
+    def training_step(self, batch, batch_idx):
+        r_a, r_i, r_t, logit_scale_exp = self(batch)
+        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.normalize)
+        self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
+                      sync_dist=True, prog_bar=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        r_a, r_i, r_t, logit_scale_exp = self(batch)
+        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.normalize)
+        self.log("val_loss", loss, sync_dist=True, prog_bar=True)
+        return loss
+
+    def test(self, batch, batch_idx):
+        pass
