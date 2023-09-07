@@ -3,10 +3,11 @@ from pathlib import Path
 
 from utils import str_to_bool
 
+
 def parse_args_generate_data():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--n_per_language", type=int, default=25,
+    parser.add_argument("--n_per_language", type=int, default=5,
                         help="Number of samples per language per template to \
                               generate.")
     parser.add_argument("--audio_save_dir", type=Path,
@@ -27,24 +28,25 @@ def parse_args_generate_data():
     parser.add_argument("--imagenet_train_filename", type=Path,
                         default=Path("LOC_train_solution.csv"),
                         help="ImageNet training data filename (must be .csv).")
-    parser.add_argument("--negative_samples", type=str_to_bool, default=True,
+    parser.add_argument("--negative_samples", type=str_to_bool, default=False,
                         help="Whether to include negative, along with positive, \
                               samples in a 1:1 ratio.")
     parser.add_argument("--save_path", type=str,
-                        default="./dataset.csv",
+                        default="./dataset_val.csv",
                         help="Where to save dataset csv.")
 
     return parser.parse_args()
 
-def parse_args_main():
+
+def parse_args_pretrain():
     parser = argparse.ArgumentParser()
 
     ### DATASET ARGS ###
     parser.add_argument("--train_dataset_path", type=Path,
-                        default=Path("./dataset.csv"),
+                        default=Path("./dataset_train.csv"),
                         help="Path to train dataset csv.")
     parser.add_argument("--val_dataset_path", type=Path,
-                        default=Path("./dataset.csv"),
+                        default=Path("./dataset_val.csv"),
                         help="Path to val dataset csv.")
 
     ### MODEL ARGS ###
@@ -67,7 +69,7 @@ def parse_args_main():
                               as input to projection head.")
 
     ### TRAINING ARGS ###
-    parser.add_argument("--batch_sz", type=int, default=6,
+    parser.add_argument("--batch_sz", type=int, default=2,
                         help="Batch size for pretraining.")
     parser.add_argument("--check_val_every_n_epoch", type=int, default=10,
                         help="Check val every n train epochs.")
@@ -94,7 +96,68 @@ def parse_args_main():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")
-    parser.add_argument("--wandb", type=str_to_bool, default=True,
+    parser.add_argument("--wandb", type=str_to_bool, default=False,
+                        help="Whether to use wandb for logging.")
+
+    return parser.parse_args()
+
+
+def parse_args_test():
+    parser = argparse.ArgumentParser()
+
+    ### DATASET ARGS ###
+    parser.add_argument("--support_train_dataset_path", type=Path,
+                        default=Path("./dataset_support_train.csv"),
+                        help="Path to support classification train (finetune) \
+                        dataset csv.")
+    parser.add_argument("--support_val_dataset_path", type=Path,
+                        default=Path("./dataset_support_test.csv"),
+                        help="Path to support classification val dataset csv.")
+    parser.add_argument("--support_test_dataset_path", type=Path,
+                        default=Path("./dataset_support_test.csv"),
+                        help="Path to support classification test dataset csv.")
+    parser.add_argument("--zeroshot_dataset_path", type=Path,
+                        default=Path("./dataset_zero.csv"),
+                        help="Path to zeroshot classification dataset csv.")
+
+    ### MODEL ARGS ###
+    parser.add_argument("--ckpt_path", type=Path,
+                        default=Path("/scratch/as16583/symile/src/symile_data/symile/eeaj0w9v/checkpoints/epoch=0-val_loss=1.79.ckpt"),
+                        help="Path to pretrained encoders checkpoint.")
+#     parser.add_argument("--audio_model_id", type=str,
+#                         default="openai/whisper-small",
+#                         help="Hugging Face model id for audio encoder.")
+#     parser.add_argument("--image_model_id", type=str,
+#                         default="openai/clip-vit-base-patch16",
+#                         help="Hugging Face model id for image encoder.")
+#     parser.add_argument("--text_model_id", type=str,
+#                         default="bert-base-multilingual-cased",
+#                         choices = ["bert-base-multilingual-cased", "xlm-roberta-base"],
+#                         help="Hugging Face model id for text encoder.")
+#     parser.add_argument("--d", type=int, default=768,
+#                         help="Dimensionality used by the linear projection heads \
+#                               of all three encoders.")
+#     parser.add_argument("--text_embedding", type=str,
+#                         choices = ["eos", "bos"], default="eos",
+#                         help="Whether to use text encoder BOS or EOS embedding \
+#                               as input to projection head.")
+
+    ### TRAINING ARGS ###
+    parser.add_argument("--batch_sz", type=int, default=2,
+                        help="Batch size for training.")
+    parser.add_argument("--check_val_every_n_epoch", type=int, default=2,
+                        help="Check val every n train epochs.")
+    parser.add_argument("--early_stopping_patience", type=int, default=4,
+                        help="Number of val checks with no improvement after \
+                              which training will be stopped.")
+    parser.add_argument("--epochs", type=int, default=2,
+                        help="Number of epochs to train for.")
+    parser.add_argument("--lr", type=float, default=1.0e-1,
+                        help="Learning rate.")
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--use_seed", type=str_to_bool, default=True,
+                        help="Whether to use a seed for reproducibility.")
+    parser.add_argument("--wandb", type=str_to_bool, default=False,
                         help="Whether to use wandb for logging.")
 
     ### EVALUATION ARGS ###
@@ -103,11 +166,11 @@ def parse_args_main():
                               downstream classification tasks when loss function is 'pairwise_infonce' \
                               (alternative is to sum the three terms).")
     parser.add_argument("--evaluation", type=str,
-                        choices=["zeroshot_clf", "support_clf"],
-                        default="zeroshot_clf",
+                        choices=["zeroshot", "support"],
+                        default="support",
                         help="Evaluation method to run.")
-    parser.add_argument("--use_logit_scale_eval", type=str_to_bool, default=True,
+    parser.add_argument("--use_logit_scale", type=str_to_bool, default=True,
                         help="Whether or not to scale logits by temperature \
-                              parameter during evaluation.")
+                              parameter.")
 
     return parser.parse_args()
