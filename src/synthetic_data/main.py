@@ -51,9 +51,16 @@ def pretrain(args, encoders):
         for v_a, v_b, v_c in pt_loader:
             r_a, r_b, r_c, logit_scale_exp = encoders(v_a, v_b, v_c)
             assert r_c is not None, "r_c must be defined for pretraining."
-            loss = loss_fn(r_a, r_b, r_c, logit_scale_exp, args.normalize)
+            assert r_a.shape == r_b.shape == r_c.shape, \
+                "All embeddings must be the same shape."
+
+            if args.normalize:
+                r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
+
+            loss = loss_fn(r_a, r_b, r_c, logit_scale_exp)
             loss.backward()
             optimizer.step()
+
             if args.wandb:
                 wandb.log({"pretrain_loss": loss,
                            "logit_scale_exp": logit_scale_exp})

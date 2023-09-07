@@ -1,8 +1,6 @@
 import torch
 import torch.nn.functional as F
 
-from utils import l2_normalize
-
 
 ####################
 # pairwise infonce #
@@ -25,7 +23,7 @@ def infonce(u, v, logit_scale):
     labels = torch.arange(logits_u.shape[0]).to(u.device)
     return (F.cross_entropy(logits_u, labels) + F.cross_entropy(logits_v, labels)) / 2.0
 
-def pairwise_infonce(r_a, r_b, r_c, logit_scale, normalize):
+def pairwise_infonce(r_a, r_b, r_c, logit_scale):
     """
     Computes the pairwise InfoNCE loss for a batch of representations.
 
@@ -34,10 +32,6 @@ def pairwise_infonce(r_a, r_b, r_c, logit_scale, normalize):
     Returns:
         (torch.Tensor): average over the pairwise InfoNCE losses
     """
-    if normalize:
-        r_a = F.normalize(r_a, p=2.0, dim=1)
-        r_b = F.normalize(r_b, p=2.0, dim=1)
-        r_c = F.normalize(r_c, p=2.0, dim=1)
     loss_ab = infonce(r_a, r_b, logit_scale)
     loss_bc = infonce(r_b, r_c, logit_scale)
     loss_ac = infonce(r_a, r_c, logit_scale)
@@ -74,10 +68,7 @@ def compute_logits(x, y, z):
     # insert positive triples along diagonal of shuffled logits
     return torch.where(torch.eye(n=x.shape[0]).to(x.device) > 0.5, MIP_of_pos_triples, logits_x)
 
-def symile(r_a, r_b, r_c, logit_scale, normalize):
-    if normalize:
-        r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
-    assert r_a.shape == r_b.shape == r_c.shape, "All embeddings must be the same shape."
+def symile(r_a, r_b, r_c, logit_scale):
     logits_a = logit_scale * compute_logits(r_a, r_b, r_c)
     logits_b = logit_scale * compute_logits(r_b, r_a, r_c)
     logits_c = logit_scale * compute_logits(r_c, r_a, r_b)
