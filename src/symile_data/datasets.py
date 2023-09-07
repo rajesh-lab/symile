@@ -51,12 +51,19 @@ class SymileDataset(Dataset):
                     (pixel_values: torch.Tensor of shape (3, 224, 224)).
                 - text: (str) with data sample text.
                 - template: (int) with data sample template number.
+                - support (optional): (int) 1 if data sample is in support, 0 otherwise.
         """
         audio = self.get_audio(self.df.iloc[idx].audio_path)
         image = self.get_image(self.df.iloc[idx].image_path)
         text = self.df.iloc[idx].text
         template = self.df.iloc[idx].template
-        return {"audio": audio, "image": image, "text": text, "template": template}
+
+        item_dict = {"audio": audio, "image": image, "text": text, "template": template}
+
+        if "in_support" in self.df:
+            item_dict["in_support"] = self.df.iloc[idx].in_support
+
+        return item_dict
 
 
 class Collator:
@@ -71,7 +78,8 @@ class Collator:
         Args:
             batch (list): List of data samples of length `batch_sz`. Each sample
                           is a dictionary with keys `audio`, `image`, `text`,
-                          and `template` (see SymileDataset.__getitem__).
+                          `template`, and (optionally) `in_support`
+                          (see SymileDataset.__getitem__).
         Returns:
             (dict): of batched data samples with the following keys:
                 - audio_input_features: torch.Tensor of shape (batch_sz, 80, 3000)
@@ -80,6 +88,8 @@ class Collator:
                 - text_input_ids: torch.Tensor of shape (batch_sz, len_longest_seq)
                 - text_attention_mask: torch.Tensor of shape (batch_sz, len_longest_seq)
                 - templates: torch.Tensor of shape (batch_sz) containing template numbers
+                - in_support: (optional) torch.Tensor of shape (batch_sz) where 1 means
+                              sample is in support, 0 otherwise.
         """
         audio_input_features = torch.stack([s["audio"]["input_features"] for s in batch])
         audio_attention_mask = torch.stack([s["audio"]["attention_mask"] for s in batch])
@@ -92,37 +102,28 @@ class Collator:
 
         templates = torch.Tensor([s["template"] for s in batch])
 
-        return {"audio_input_features": audio_input_features,
-                "audio_attention_mask": audio_attention_mask,
-                "image_pixel_values": image_pixel_values,
-                "text_input_ids": text["input_ids"],
-                "text_attention_mask": text["attention_mask"],
-                "templates": templates}
+        batched_data = {"audio_input_features": audio_input_features,
+                        "audio_attention_mask": audio_attention_mask,
+                        "image_pixel_values": image_pixel_values,
+                        "text_input_ids": text["input_ids"],
+                        "text_attention_mask": text["attention_mask"],
+                        "templates": templates}
+
+        if "in_support" in batch[0]:
+            batched_data["in_support"] = torch.Tensor([s["in_support"] for s in batch])
+
+        return batched_data
 
 
-class SymileDataModule(pl.LightningDataModule):
+class BaseDataModule(pl.LightningDataModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
+        self.audio_feat_extractor = WhisperFeatureExtractor.from_pretrained(args.audio_model_id)
+        self.img_processor = CLIPImageProcessor.from_pretrained(args.image_model_id)
 
         # from max_num_worker_suggest in DataLoader docs
         self.num_workers = len(os.sched_getaffinity(0))
-
-    def setup(self, stage):
-        audio_feat_extractor = WhisperFeatureExtractor.from_pretrained(self.args.audio_model_id)
-        img_processor = CLIPImageProcessor.from_pretrained(self.args.image_model_id)
-        self.text_tokenization()
-
-        if stage == "fit":
-            df = pd.read_csv(self.args.train_dataset_path)
-            df["text"] = df.text.fillna("")
-            self.ds = SymileDataset(df, audio_feat_extractor, img_processor)
-        elif stage == "validate":
-            df = pd.read_csv(self.args.val_dataset_path)
-            df["text"] = df.text.fillna("")
-            self.ds = SymileDataset(df, audio_feat_extractor, img_processor)
-        elif stage == "test":
-            pass
 
     def text_tokenization(self):
         """
@@ -150,15 +151,65 @@ class SymileDataModule(pl.LightningDataModule):
             elif self.args.text_embedding == "bos":
                 self.feat_token_id = self.txt_tokenizer.bos_token_id
 
+
+class PretrainDataModule(BaseDataModule):
+    def __init__(self, args):
+        super().__init__(args)
+
+    def setup(self, stage):
+        self.text_tokenization()
+
+        df_train = pd.read_csv(self.args.train_dataset_path)
+        df_train["text"] = df_train.text.fillna("")
+        self.ds_train = SymileDataset(df_train, self.audio_feat_extractor, self.img_processor)
+
+        df_val = pd.read_csv(self.args.val_dataset_path)
+        df_val["text"] = df_val.text.fillna("")
+        self.ds_val = SymileDataset(df_val, self.audio_feat_extractor, self.img_processor)
+
     def train_dataloader(self):
-        return DataLoader(self.ds, batch_size=self.args.batch_sz, shuffle=True,
+        return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
+                          shuffle=True,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer))
 
     def val_dataloader(self):
-        return DataLoader(self.ds, batch_size=self.args.batch_sz,
+        return DataLoader(self.ds_val, batch_size=self.args.batch_sz,
+                          num_workers=self.num_workers,
+                          collate_fn=Collator(self.txt_tokenizer))
+
+
+class SupportClfDataModule(BaseDataModule):
+    def __init__(self, args):
+        super().__init__(args)
+
+    def setup(self, stage):
+        self.text_tokenization()
+
+        df_train = pd.read_csv(self.args.support_train_dataset_path)
+        df_train["text"] = df_train.text.fillna("")
+        self.ds_train = SymileDataset(df_train, self.audio_feat_extractor, self.img_processor)
+
+        df_val = pd.read_csv(self.args.support_test_dataset_path)
+        df_val["text"] = df_val.text.fillna("")
+        self.ds_val = SymileDataset(df_val, self.audio_feat_extractor, self.img_processor)
+
+        df_test = pd.read_csv(self.args.support_test_dataset_path)
+        df_test["text"] = df_test.text.fillna("")
+        self.ds_test = SymileDataset(df_test, self.audio_feat_extractor, self.img_processor)
+
+    def train_dataloader(self):
+        return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
+                          shuffle=True,
+                          num_workers=self.num_workers,
+                          collate_fn=Collator(self.txt_tokenizer))
+
+    def val_dataloader(self):
+        return DataLoader(self.ds_val, batch_size=self.args.batch_sz,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer))
 
     def test_dataloader(self):
-        pass
+        return DataLoader(self.ds_test, batch_size=self.args.batch_sz,
+                          num_workers=self.num_workers,
+                          collate_fn=Collator(self.txt_tokenizer))
