@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 
 from lightning.pytorch import Trainer, seed_everything
@@ -6,19 +7,24 @@ from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
 import torch
 
-from args import parse_args_main
-from datasets import SymileDataModule
+from args import parse_args_pretrain
+from datasets import PretrainDataModule
 from models import SymileModel
 
 
 def main(args):
-    checkpoint_callback = ModelCheckpoint(filename="{epoch}-{val_loss:.2f}",
+    logger = WandbLogger(project="symile", log_model="all") if args.wandb else None
+    if logger:
+        dirpath = f"./ckpts/pretrain/{logger.experiment.id}"
+    else:
+        dirpath = f"./ckpts/pretrain/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    checkpoint_callback = ModelCheckpoint(dirpath=dirpath,
+                                          filename="{epoch}-{val_loss:.2f}",
                                           mode="min",
                                           monitor="val_loss")
     early_stopping_callback = EarlyStopping(monitor="val_loss",
                                             mode="min",
                                             patience=args.early_stopping_patience)
-    logger = WandbLogger(project="symile", log_model="all") if args.wandb else None
     # `ddp_find_unused_parameters_true` instead of `ddp` because error is thrown
     # when not all indices of nn.Embedding are used in a minibatch
     profiler = None if args.profiler == "none" else args.profiler
@@ -36,7 +42,7 @@ def main(args):
         strategy=strategy
     )
 
-    dm = SymileDataModule(args)
+    dm = PretrainDataModule(args)
     dm.setup(stage="fit")
     args.feat_token_id = dm.feat_token_id
 
@@ -61,13 +67,17 @@ def main(args):
     # # elif args.evaluation == "support_clf":
     # #     print("\n\n\n...evaluation: in support classification...\n")
     # #     test_support_clf(args, encoders)
+    """
+    create a data module that inherits from symile data module, and add a new test dataloader?
+    pass that into test.step of trainer? and then run trainer.test twice?
+    """
 
 
 if __name__ == '__main__':
     if os.getenv('SINGULARITY_CONTAINER'):
         os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
 
-    args = parse_args_main()
+    args = parse_args_pretrain()
 
     if args.use_seed:
         seed_everything(args.seed, workers=True)
