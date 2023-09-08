@@ -165,6 +165,8 @@ class SupportClfModel(pl.LightningModule):
         for k in args.keys():
             self.save_hyperparameters(k)
 
+        # target device is not yet available in __init__ so need to load manually
+        # will be fixed soon: https://github.com/Lightning-AI/lightning/pull/18021
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = SymileModel.load_from_checkpoint(self.args.ckpt_path,
                                                       map_location=device)
@@ -247,5 +249,112 @@ class SupportClfModel(pl.LightningModule):
             prob = prob.cpu()
             probs = torch.cat([(1-prob), prob], dim=1)
             self.logger.experiment.log({"roc_curve": wandb.plot.roc_curve(y, probs)})
+
+        self.training_step_outputs.clear() # free memory
+
+
+class ZeroshotClfModel(pl.LightningModule):
+    def __init__(self, **args):
+        super().__init__()
+        self.args = Namespace(**args)
+        for k in args.keys():
+            self.save_hyperparameters(k)
+
+        # target device is not yet available in __init__ so need to load manually
+        # will be fixed soon: https://github.com/Lightning-AI/lightning/pull/18021
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = SymileModel.load_from_checkpoint(self.args.ckpt_path,
+                                                      map_location=device)
+        self.model.freeze()
+        self.audio_encoder = self.model.audio_encoder
+        self.image_encoder = self.model.image_encoder
+        self.text_encoder = self.model.text_encoder
+
+        self.training_step_outputs = {"y": [], "pred": []}
+
+    def setup(self, stage):
+        """
+        r_z should be the text representation for data samples from templates 1
+        and 2, and should be the audio representation for data samples from
+        templates 3 and 4.
+        """
+        # target device is not yet available, but we have access to trainer now
+        device = self.trainer.strategy.root_device
+        r_z_list = []
+        idx_list = []
+        for x in self.trainer.datamodule.test_dataloader():
+            for i in range(len(x["idx"])):
+                if x["templates"][i] in [1, 2]:
+                    r_z = self.text_encoder(
+                        x["text_input_ids"][i].unsqueeze(0).to(device),
+                        x["text_attention_mask"][i].unsqueeze(0).to(device)
+                    )
+                elif x["templates"][i] in [3, 4]:
+                    r_z = self.audio_encoder(
+                        x["audio_input_features"][i].unsqueeze(0).to(device),
+                        x["audio_attention_mask"][i].unsqueeze(0).to(device)
+                    )
+                r_z_list.append(r_z)
+                idx_list.append(x["idx"][i].unsqueeze(0))
+
+        r_z = torch.cat(r_z_list)
+        [self.r_z] = l2_normalize([r_z]) if self.model.args.normalize else r_z
+        self.r_z_idx = torch.cat(idx_list).to(device)
+
+    def forward(self, x):
+        """
+        r_x should be the audio representation for data samples from templates 1
+        and 2, and should be the text representation for data samples from
+        templates 3 and 4.
+
+        r_y should always be the image representation, regardless of template.
+        """
+        r_a = self.audio_encoder(x["audio_input_features"], x["audio_attention_mask"])
+        r_i = self.image_encoder(x["image_pixel_values"])
+        r_t = self.text_encoder(x["text_input_ids"], x["text_attention_mask"])
+
+        r_x_audio_bool = torch.logical_or(x["templates"] == 1, x["templates"] == 2)
+        r_x_audio_bool = r_x_audio_bool.unsqueeze(1).expand(-1, r_a.shape[1])
+        r_x = torch.where(r_x_audio_bool, r_a, r_t)
+
+        r_y = r_i
+
+        return r_x, r_y, x["idx"]
+
+    def test_step(self, batch, batch_idx):
+        r_x, r_y, xy_idx = self(batch)
+
+        if self.model.args.normalize:
+            r_x, r_y = l2_normalize([r_x, r_y])
+
+        if self.model.args.loss_fn == "symile":
+            # logits is a (batch_sz, n) matrix where each row i is
+            # [ MIP(r_x[i], r_y[i], r_z[0]) ... MIP(r_x[i], r_y[i], r_z[n-1]) ]
+            # where MIP is the multilinear inner product.
+            logits = (r_x * r_y) @ torch.t(self.r_z)
+        elif self.model.args.loss_fn == "pairwise_infonce":
+            # logits is a (batch_sz, n) matrix where each row i is
+            # [ r_x[i]^T r_y[i] + r_y[i]^T r_z[0]   + r_x[i]^T r_z[0] ...
+            #   r_x[i]^T r_y[i] + r_y[i]^T r_z[n-1] + r_x[i]^T r_z[n-1] ]
+            xy = torch.diagonal(r_x @ torch.t(r_y)).unsqueeze(dim=1) # (batch_sz, 1)
+            logits = xy + (r_y @ torch.t(r_z)) + (r_x @ torch.t(r_z))
+
+        if self.args.use_logit_scale:
+            logits = self.model.logit_scale.exp() * logits
+
+        pred = torch.argmax(logits, dim=1)
+
+        # in case self.r_z_idx are not in order
+        r_z_idx_expanded = self.r_z_idx.unsqueeze(0).expand(xy_idx.shape[0], -1)
+        y = torch.argmax((xy_idx.unsqueeze(1) == r_z_idx_expanded).long(), dim=1)
+
+        self.training_step_outputs["pred"].append(pred)
+        self.training_step_outputs["y"].append(y)
+
+    def on_test_epoch_end(self):
+        pred = torch.cat(self.training_step_outputs["pred"])
+        y = torch.cat(self.training_step_outputs["y"])
+        acc = (torch.sum(y == pred) / len(y)).item()
+        self.log("test_accuracy", acc, sync_dist=True, prog_bar=True)
 
         self.training_step_outputs.clear() # free memory

@@ -51,6 +51,7 @@ class SymileDataset(Dataset):
                     (pixel_values: torch.Tensor of shape (3, 224, 224)).
                 - text: (str) with data sample text.
                 - template: (int) with data sample template number.
+                - idx: (int) unique identifier for data sample.
                 - support (optional): (int) 1 if data sample is in support, 0 otherwise.
         """
         audio = self.get_audio(self.df.iloc[idx].audio_path)
@@ -58,7 +59,8 @@ class SymileDataset(Dataset):
         text = self.df.iloc[idx].text
         template = self.df.iloc[idx].template
 
-        item_dict = {"audio": audio, "image": image, "text": text, "template": template}
+        item_dict = {"audio": audio, "image": image, "text": text,
+                     "template": template, "idx": idx}
 
         if "in_support" in self.df:
             item_dict["in_support"] = self.df.iloc[idx].in_support
@@ -78,7 +80,7 @@ class Collator:
         Args:
             batch (list): List of data samples of length `batch_sz`. Each sample
                           is a dictionary with keys `audio`, `image`, `text`,
-                          `template`, and (optionally) `in_support`
+                          `template`, `idx`, and (optionally) `in_support`
                           (see SymileDataset.__getitem__).
         Returns:
             (dict): of batched data samples with the following keys:
@@ -88,6 +90,7 @@ class Collator:
                 - text_input_ids: torch.Tensor of shape (batch_sz, len_longest_seq)
                 - text_attention_mask: torch.Tensor of shape (batch_sz, len_longest_seq)
                 - templates: torch.Tensor of shape (batch_sz) containing template numbers
+                - idx: torch.Tensor of shape (batch_sz) with unique identifier for data sample
                 - in_support: (optional) torch.Tensor of shape (batch_sz) where 1 means
                               sample is in support, 0 otherwise.
         """
@@ -101,13 +104,15 @@ class Collator:
                                   padding=True, truncation=True)
 
         templates = torch.Tensor([s["template"] for s in batch])
+        idx = torch.Tensor([s["idx"] for s in batch])
 
         batched_data = {"audio_input_features": audio_input_features,
                         "audio_attention_mask": audio_attention_mask,
                         "image_pixel_values": image_pixel_values,
                         "text_input_ids": text["input_ids"],
                         "text_attention_mask": text["attention_mask"],
-                        "templates": templates}
+                        "templates": templates,
+                        "idx": idx}
 
         if "in_support" in batch[0]:
             batched_data["in_support"] = torch.Tensor([s["in_support"] for s in batch])
@@ -208,6 +213,23 @@ class SupportClfDataModule(BaseDataModule):
         return DataLoader(self.ds_val, batch_size=self.args.batch_sz,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer))
+
+    def test_dataloader(self):
+        return DataLoader(self.ds_test, batch_size=self.args.batch_sz,
+                          num_workers=self.num_workers,
+                          collate_fn=Collator(self.txt_tokenizer))
+
+
+class ZeroshotClfDataModule(BaseDataModule):
+    def __init__(self, args):
+        super().__init__(args)
+
+    def setup(self, stage):
+        self.text_tokenization()
+
+        df_test = pd.read_csv(self.args.zeroshot_dataset_path)
+        df_test["text"] = df_test.text.fillna("")
+        self.ds_test = SymileDataset(df_test, self.audio_feat_extractor, self.img_processor)
 
     def test_dataloader(self):
         return DataLoader(self.ds_test, batch_size=self.args.batch_sz,

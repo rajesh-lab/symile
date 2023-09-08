@@ -17,24 +17,34 @@ from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
 
 from args import parse_args_test
-from datasets import SupportClfDataModule
-from models import SupportClfModel
+from datasets import SupportClfDataModule, ZeroshotClfDataModule
+from models import SupportClfModel, ZeroshotClfModel
+
+
+def pretrained_model_args(args, model):
+    """add encoder arguments from pre-trained model"""
+    setattr(args, "audio_model_id", model.model.args.audio_model_id)
+    setattr(args, "image_model_id", model.model.args.image_model_id)
+    setattr(args, "text_model_id", model.model.args.text_model_id)
+    setattr(args, "text_embedding", model.model.args.text_embedding)
+    return args
 
 
 def test_zeroshot(args, trainer, logger):
-    model = SupportClfModel(**vars(args))
+    model = ZeroshotClfModel(**vars(args))
+    if args.wandb:
+        logger.watch(model)
+    args = pretrained_model_args(args, model)
+
+    dm = ZeroshotClfDataModule(args)
+    trainer.test(model, datamodule=dm)
 
 
 def test_support(args, trainer, logger):
     model = SupportClfModel(**vars(args))
     if args.wandb:
         logger.watch(model)
-
-    # get arguments from pre-trained model
-    setattr(args, "audio_model_id", model.model.args.audio_model_id)
-    setattr(args, "image_model_id", model.model.args.image_model_id)
-    setattr(args, "text_model_id", model.model.args.text_model_id)
-    setattr(args, "text_embedding", model.model.args.text_embedding)
+    args = pretrained_model_args(args, model)
 
     dm = SupportClfDataModule(args)
     trainer.fit(model, datamodule=dm)
@@ -63,7 +73,6 @@ if __name__ == '__main__':
                                             mode="min",
                                             patience=args.early_stopping_patience)
     logger = WandbLogger(project="symile", log_model="all") if args.wandb else None
-    # TODO: make sure this works with multiple GPUs!!!!
 
     trainer = Trainer(
         callbacks=[checkpoint_callback, early_stopping_callback],

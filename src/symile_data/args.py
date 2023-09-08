@@ -117,7 +117,7 @@ def parse_args_test():
                         default=Path("./dataset_support_test.csv"),
                         help="Path to support classification test dataset csv.")
     parser.add_argument("--zeroshot_dataset_path", type=Path,
-                        default=Path("./dataset_zero.csv"),
+                        default=Path("./dataset_zeroshot.csv"),
                         help="Path to zeroshot classification dataset csv.")
 
     ### MODEL ARGS ###
@@ -157,7 +157,7 @@ def parse_args_test():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")
-    parser.add_argument("--wandb", type=str_to_bool, default=False,
+    parser.add_argument("--wandb", type=str_to_bool, default=True,
                         help="Whether to use wandb for logging.")
 
     ### EVALUATION ARGS ###
@@ -167,7 +167,7 @@ def parse_args_test():
                               (alternative is to sum the three terms).")
     parser.add_argument("--evaluation", type=str,
                         choices=["zeroshot", "support"],
-                        default="support",
+                        default="zeroshot",
                         help="Evaluation method to run.")
     parser.add_argument("--use_logit_scale", type=str_to_bool, default=True,
                         help="Whether or not to scale logits by temperature \
