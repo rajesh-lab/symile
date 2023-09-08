@@ -16,7 +16,7 @@ from datasets import PretrainingDataset, SumTestDataset, \
                      SupportTestDataset, ZeroshotTestDataset
 from src.losses import pairwise_infonce, symile
 from models import LinearEncoders
-from utils import l2_normalize, seed_all, wandb_init
+from src.utils import l2_normalize, seed_all, wandb_init
 
 
 def load_data(args, stage="pretrain", model=None):

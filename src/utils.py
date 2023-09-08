@@ -1,13 +1,31 @@
 import argparse
-import numpy as np
 import os
 import random
+
+import numpy as np
 import torch
 import torch.nn.functional as F
 try:
     import wandb
 except ImportError:
     wandb = None
+
+
+# TODO: delete when synthetic experiments is ported to Lightning
+def seed_all(seed):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+
+
+# TODO: delete when synthetic experiments is ported to Lightning
+def wandb_init(args):
+    if args.wandb:
+        wandb.init(project="symile",
+                   config=args)
+    return
 
 
 def l2_normalize(vectors):
@@ -20,14 +38,6 @@ def l2_normalize(vectors):
         list of same 2D torch.Tensor vectors, normalized.
     """
     return [F.normalize(v, p=2.0, dim=1) for v in vectors]
-
-
-def seed_all(seed):
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
 
 
 def str_to_bool(arg):
@@ -45,10 +55,3 @@ def str_to_bool(arg):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
-
-
-def wandb_init(args):
-    if args.wandb:
-        wandb.init(project="symile",
-                   config=args)
-    return
