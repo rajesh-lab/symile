@@ -24,7 +24,19 @@ From the root directory, run
 (simile-env) > pip install -e .
 ```
 
-## 1. Generate data
+## 1. Run synthetic dataset experiments
+
+For experiment details, see [this document](https://www.overleaf.com/7416843814fymsbdxpsrxy).
+
+`cd` into `src/synthetic_data/` and set experiment parameters in `args.py`. Then run:
+
+```
+(simile-env) > python main.py
+```
+
+## 2. Run SYMILE dataset experiments
+
+### Generate data
 
 `cd` into `src/symile_data/` and set dataset parameters in `args.py`. You'll likely want to update `--n_per_language` and `--save_path`. If you're generating data for the support classification experiment, you'll want to set `--negative_samples` to `True`.
 
@@ -36,22 +48,38 @@ Then run:
 
 Note that you should use this script to generate train/val/test sets separately in order to ensure that each split has the same number of samples from each template.
 
-## 1. Run synthetic experiments
+### Pre-train
 
-For experiment details, see [this document](https://www.overleaf.com/7416843814fymsbdxpsrxy).
+`cd` into `src/symile_data/` and set arguments in `parse_args_pretrain()` in `args.py`.
 
-`cd` into `src/synthetic_data/` and set experiment parameters in `args.py`. Then run:
-
-```
-(simile-env) > python main.py
-```
-
-### Modulo experiment
-
-## -1. Tests
-
-To run tests for, for example, `src/synthetic_experiments`, `cd` into `src` and run:
+Then run:
 
 ```
-(simile-env) > pytest --pyargs synthetic_experiments
+(simile-env) > python pretrain.py
 ```
+
+All checkpoints will be saved to `./ckpts/pretrain/`.
+
+### Evaluation: zero-shot classification
+
+`cd` into `src/symile_data/` and set arguments in `parse_args_test()` in `args.py`. Be sure to update `--ckpt_path` and `--evaluation`.
+
+Then run:
+
+```
+(simile-env) > python test.py
+```
+
+### Evaluation: in-support classification
+
+`cd` into `src/symile_data/` and set arguments in `parse_args_test()` in `args.py`. Be sure to update `--ckpt_path` and `--evaluation`.
+
+Then run:
+
+```
+(simile-env) > python test.py
+```
+
+All checkpoints will be saved to `./ckpts/support/`.
+
+Note that for support classification model fitting and testing are both in this scipt: because we run trainer.test() directly after trainer.fit(), trainer.test() automatically loads the best weights from training. As a result, DDP should not be used when running this script (i.e. no more than a single GPU should be used). During trainer.test(), it is recommended to use Trainer(devices=1) to ensure each sample/batch gets evaluated exactly once. Otherwise, multi-device settings use `DistributedSampler` that replicates some samples to make sure all devices have same batch size in case of uneven inputs.

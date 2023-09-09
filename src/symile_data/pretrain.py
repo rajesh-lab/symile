@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+from pathlib import Path
 
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -12,12 +13,38 @@ from datasets import PretrainDataModule
 from models import SymileModel
 
 
-def main(args):
-    logger = WandbLogger(project="symile", log_model="all") if args.wandb else None
-    if logger:
-        dirpath = f"./ckpts/pretrain/{logger.experiment.id}"
+def pretrain(args, trainer, logger):
+    dm = PretrainDataModule(args)
+    dm.setup(stage="fit")
+    args.feat_token_id = dm.feat_token_id
+
+    symile_model = SymileModel(**vars(args))
+    if args.wandb:
+        logger.watch(symile_model)
+
+    trainer.fit(symile_model, datamodule=dm)
+
+
+if __name__ == '__main__':
+    if os.getenv('SINGULARITY_CONTAINER'):
+        os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
+
+    args = parse_args_pretrain()
+
+    if args.use_seed:
+        seed_everything(args.seed, workers=True)
+
+    save_dir = Path("./ckpts/pretrain")
+    if args.wandb:
+        logger = WandbLogger(project="symile", log_model="all", save_dir=save_dir)
     else:
-        dirpath = f"./ckpts/pretrain/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        logger = False
+
+    if logger:
+        dirpath = save_dir / logger.experiment.id
+    else:
+        dirpath = save_dir / datetime.now().strftime("%Y%m%d_%H%M%S")
+
     checkpoint_callback = ModelCheckpoint(dirpath=dirpath,
                                           filename="{epoch}-{val_loss:.2f}",
                                           mode="min",
@@ -42,44 +69,4 @@ def main(args):
         strategy=strategy
     )
 
-    dm = PretrainDataModule(args)
-    dm.setup(stage="fit")
-    args.feat_token_id = dm.feat_token_id
-
-    symile_model = SymileModel(**vars(args))
-    if args.wandb:
-        logger.watch(symile_model)
-
-    # PRETRAIN
-    trainer.fit(symile_model, datamodule=dm)
-
-    # # EVALUATE
-    # PASS IN ALL EVALUATIONS YOU WANT TO DO AS LIST BECAUSE YOU DON'T WANT TO TRAIN AGAIN
-    # # automatically loads the best weights for you?? if checkpointing was enabled during fitting?
-    # # dm.setup(stage="test") # do I need this?
-    # trainer.test(model=symile_model, datamodule=dm)
-
-
-    # # maybe move this into test loop?? if you can load different test data???
-    # if args.evaluation == "zeroshot_clf":
-    #     print("\n\n...evaluation: zero-shot classification...\n")
-    #     test_zeroshot_clf(args, symile_model)
-    # # elif args.evaluation == "support_clf":
-    # #     print("\n\n\n...evaluation: in support classification...\n")
-    # #     test_support_clf(args, encoders)
-    """
-    create a data module that inherits from symile data module, and add a new test dataloader?
-    pass that into test.step of trainer? and then run trainer.test twice?
-    """
-
-
-if __name__ == '__main__':
-    if os.getenv('SINGULARITY_CONTAINER'):
-        os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
-
-    args = parse_args_pretrain()
-
-    if args.use_seed:
-        seed_everything(args.seed, workers=True)
-
-    main(args)
+    pretrain(args, trainer, logger)

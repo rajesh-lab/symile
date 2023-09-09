@@ -10,6 +10,7 @@ samples to make sure all devices have same batch size in case of uneven inputs.
 """
 from datetime import datetime
 import os
+from pathlib import Path
 
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -60,11 +61,17 @@ if __name__ == '__main__':
     if args.use_seed:
         seed_everything(args.seed, workers=True)
 
-    logger = WandbLogger(project="symile", log_model="all") if args.wandb else None
-    if logger:
-        dirpath = f"./ckpts/{args.evaluation}/{logger.experiment.id}"
+    save_dir = Path(f"./ckpts/{args.evaluation}")
+    if args.wandb:
+        logger = WandbLogger(project="symile", log_model="all", save_dir=save_dir)
     else:
-        dirpath = f"./ckpts/{args.evaluation}/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        logger = False
+
+    if logger:
+        dirpath = save_dir / logger.experiment.id
+    else:
+        dirpath = save_dir / datetime.now().strftime("%Y%m%d_%H%M%S")
+
     checkpoint_callback = ModelCheckpoint(dirpath=dirpath,
                                           filename="{epoch}-{val_loss:.2f}",
                                           mode="min",
@@ -72,7 +79,6 @@ if __name__ == '__main__':
     early_stopping_callback = EarlyStopping(monitor="val_loss",
                                             mode="min",
                                             patience=args.early_stopping_patience)
-    logger = WandbLogger(project="symile", log_model="all") if args.wandb else None
 
     trainer = Trainer(
         callbacks=[checkpoint_callback, early_stopping_callback],
