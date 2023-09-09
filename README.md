@@ -14,14 +14,14 @@ TODO: use requirements.txt or pyproject.toml: https://github.com/pypa/packaging.
 
 ```
 > some-command
-(simile-env) >
+(symile-env) >
 ``` -->
 
 #### install project library
 
 From the root directory, run
 ```
-(simile-env) > pip install -e .
+(symile-env) > pip install -e .
 ```
 
 ## 1. Run synthetic dataset experiments
@@ -31,7 +31,7 @@ For experiment details, see [this document](https://www.overleaf.com/7416843814f
 `cd` into `src/synthetic_data/` and set experiment parameters in `args.py`. Then run:
 
 ```
-(simile-env) > python main.py
+(symile-env) > python main.py
 ```
 
 ## 2. Run SYMILE dataset experiments
@@ -43,7 +43,7 @@ For experiment details, see [this document](https://www.overleaf.com/7416843814f
 Then run:
 
 ```
-(simile-env) > python generate_data.py
+(symile-env) > python generate_data.py
 ```
 
 Note that you should use this script to generate train/val/test sets separately in order to ensure that each split has the same number of samples from each template.
@@ -55,7 +55,7 @@ Note that you should use this script to generate train/val/test sets separately 
 Then run:
 
 ```
-(simile-env) > python pretrain.py
+(symile-env) > python pretrain.py
 ```
 
 All checkpoints will be saved to `./ckpts/pretrain/`.
@@ -67,7 +67,7 @@ All checkpoints will be saved to `./ckpts/pretrain/`.
 Then run:
 
 ```
-(simile-env) > python test.py
+(symile-env) > python test.py
 ```
 
 ### Evaluation: in-support classification
@@ -77,7 +77,7 @@ Then run:
 Then run:
 
 ```
-(simile-env) > python test.py
+(symile-env) > python test.py
 ```
 
 All checkpoints will be saved to `./ckpts/support/`.
