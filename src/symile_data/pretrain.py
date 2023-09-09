@@ -34,18 +34,16 @@ if __name__ == '__main__':
     if args.use_seed:
         seed_everything(args.seed, workers=True)
 
-    save_dir = Path("./ckpts/pretrain")
+    save_root = Path("./ckpts/pretrain/")
+    save_dir = save_root / datetime.now().strftime("%Y%m%d_%H%M%S")
+    setattr(args, "save_dir", save_dir)
+
     if args.wandb:
-        logger = WandbLogger(project="symile", log_model="all", save_dir=save_dir)
+        logger = WandbLogger(project="symile", log_model="all", save_dir=save_root)
     else:
         logger = False
 
-    if logger:
-        dirpath = save_dir / logger.experiment.id
-    else:
-        dirpath = save_dir / datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    checkpoint_callback = ModelCheckpoint(dirpath=dirpath,
+    checkpoint_callback = ModelCheckpoint(dirpath=save_dir,
                                           filename="{epoch}-{val_loss:.2f}",
                                           mode="min",
                                           monitor="val_loss")
