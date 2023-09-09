@@ -10,7 +10,7 @@ except ImportError:
     wandb = None
 
 from src.losses import pairwise_infonce, symile
-from utils import l2_normalize
+from src.utils import l2_normalize
 
 
 class ProjectionHead(nn.Module):
@@ -143,16 +143,16 @@ class SymileModel(pl.LightningModule):
         if self.args.normalize:
             r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
 
-        return self.loss_fn(r_a, r_i, r_t, logit_scale_exp)
+        return self.loss_fn(r_a, r_i, r_t, logit_scale_exp), logit_scale_exp
 
     def training_step(self, batch, batch_idx):
-        loss = self._shared_step(batch, batch_idx)
+        loss, logit_scale_exp = self._shared_step(batch, batch_idx)
         self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
                       on_step=False, on_epoch=True, sync_dist=True, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss = self._shared_step(batch, batch_idx)
+        loss, _ = self._shared_step(batch, batch_idx)
         self.log("val_loss", loss, on_step=False, on_epoch=True,
                  sync_dist=True, prog_bar=True)
         return loss
@@ -176,6 +176,8 @@ class SupportClfModel(pl.LightningModule):
         self.text_encoder = self.model.text_encoder
 
         in_features = self.text_encoder.projection_head.linear_projection.out_features
+        if self.model.args.loss_fn == "pairwise_infonce" and self.args.concat_infonce:
+            in_features *= 3
         self.classifier = nn.Linear(in_features, 1, bias=True)
 
         self.training_step_outputs = {"y": [], "prob": []}
@@ -337,7 +339,7 @@ class ZeroshotClfModel(pl.LightningModule):
             # [ r_x[i]^T r_y[i] + r_y[i]^T r_z[0]   + r_x[i]^T r_z[0] ...
             #   r_x[i]^T r_y[i] + r_y[i]^T r_z[n-1] + r_x[i]^T r_z[n-1] ]
             xy = torch.diagonal(r_x @ torch.t(r_y)).unsqueeze(dim=1) # (batch_sz, 1)
-            logits = xy + (r_y @ torch.t(r_z)) + (r_x @ torch.t(r_z))
+            logits = xy + (r_y @ torch.t(self.r_z)) + (r_x @ torch.t(self.r_z))
 
         if self.args.use_logit_scale:
             logits = self.model.logit_scale.exp() * logits
