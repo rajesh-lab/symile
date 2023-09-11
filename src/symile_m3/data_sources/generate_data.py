@@ -1,10 +1,7 @@
 """
 TODO:
 - clean up this whole file
-- Include instructions for how to get google translate/tts up and running
 - Probably move some of these functions in the utils file
-- Depending on how you structure this, you may want to move all the tr and tts clients
-- you may not even need the template information after all...
 """
 
 import os
@@ -13,150 +10,143 @@ import random
 
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 from google.cloud import texttospeech
 from google.cloud import translate_v2 as translate
 
 from args import parse_args_generate_data
-from constants import *
+from src.symile_m3.constants import *
 
-def get_language_column(n_per_language):
-    lang_col = [[x] * n_per_language for x in LANGUAGES]
-    lang_col = [x for sublist in lang_col for x in sublist]
-    return random.sample(lang_col, len(lang_col))
 
-def sample_data(df, n_per_language):
-    return df.sample(n=n_per_language*len(LANGUAGES), ignore_index=True)
-
-def translate_text(text, language, tr_client):
-    if language == "english":
-        return text
-    else:
-        return tr_client.translate(text, target_language=LANG2ISOCODE[language])['translatedText']
-
-def synsetmapping_to_name(synset_str):
-    synset_str = synset_str.split(" ")[1:]
-    return " ".join(synset_str).split(",")[0]
-
-def get_class_mappings(args):
-    class_mapping = pd.read_csv(args.imagenet_dir / args.imagenet_classmapping_filename,
-                                sep="\t", names=["synset"])
-    class_mapping["class_id"] = class_mapping.synset.apply(lambda x: x.split(" ")[0])
-    class_mapping["class_name"] = class_mapping.synset.apply(synsetmapping_to_name)
-    return class_mapping[["class_id", "class_name"]]
-
-def predstr_to_class(class_string):
-    class_string = class_string.split(" ")
-    classes = []
-    for x in class_string:
-        if len(x) > 0 and x[0] == "n":
-            classes.append(x)
-    classes = list(set(classes))
-    if len(classes) == 1:
-        return classes[0]
-    else:
-        return np.nan
-
-def get_image_path(dir, cls, img_id):
-    filename = Path(img_id + ".JPEG")
-    return dir / Path("ILSVRC/Data/CLS-LOC/train") / cls / filename
-
-def get_image_data(args):
-    class_mapping = get_class_mappings(args)
-    df = pd.read_csv(args.imagenet_dir / args.imagenet_train_filename)
-    df["class_id"] = df.PredictionString.apply(predstr_to_class)
-    df = df.rename(columns={"ImageId": "img_id"}).\
-            drop(columns=["PredictionString"]).\
-            join(class_mapping.set_index("class_id"), on="class_id").\
-            dropna()
-    df["image_path"] = df.apply(
-        lambda row: get_image_path(args.imagenet_dir, row.class_id, row.img_id),
-        axis=1)
-    return df
-
-def generate_audio(text_english, language, tr_client, tts_client, audio_save_dir):
-    """
-    right now the std voices are being used
-    """
-    Path(audio_save_dir).mkdir(parents=True, exist_ok=True)
-    save_path = audio_save_dir / f"{language}_{text_english}.mp3"
-
-    if not os.path.exists(save_path):
-        text = translate_text(text_english, language, tr_client)
-
-        voice = texttospeech.VoiceSelectionParams(
-            language_code=LANG2LANGCODE[language], name=LANG2VOICES[language][0]
-        )
-
-        response = tts_client.synthesize_speech(
-            input=texttospeech.SynthesisInput(text=text),
-            voice=voice,
-            audio_config=texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
-        )
-
-        with open(save_path, "wb") as out:
-            out.write(response.audio_content)
-
-    return save_path
-
-def get_word_data(n_per_language):
-    """
-    https://norvig.com/ngrams/count_1w.txt
-    hardcoded right now but will need to change
-    """
-    df = pd.read_csv('words.txt', sep='\t', names=['text_english', 'count'])
-
-    # filter data
-    df = df[df.text_english.str.len() > 2].drop_duplicates(subset=['text_english'])
-
-    # get most common words
+def get_word_data(word_path, n_per_language):
+      # get most common words
     n_words = n_per_language * 5
     assert len(df) >= n_words, "There are not enough words in the dataframe for all 5 languages."
     df = df.sort_values(by=['count'], ascending=False).head(n_words)
     return df[['text_english']]
 
-def sample_alternative_language(x):
+
+def get_language_column(n_per_language):
     """
-    Sample a language Z from the other four languages.
+    Generate and return a list of length (n_per_language * len(LANGUAGES)) whose
+    elements are the ISO-639 codes (str) in LANG2ISOCODE. The list is shuffled
+    and contains exactly n_per_language of each ISO code.
     """
-    return np.random.choice([l for l in LANGUAGES if l != x])
+    lang_col = [[x] * n_per_language for x in LANG2ISOCODE.values()]
+    lang_col = [x for sublist in lang_col for x in sublist]
+    return random.sample(lang_col, len(lang_col))
+
+
+def translate_text(text, lang, tr_client):
+    """
+    Uses Google Translate API to translate `text` to specified `lang` (iso code).
+    Since class names are already in English, do not translate if `lang`
+    is English.
+    """
+    if lang == "en":
+        return text
+    else:
+        return tr_client.translate(text, target_language=lang)['translatedText']
+
+
+# def generate_audio(text_english, language, tr_client, tts_client, audio_save_dir):
+#     """
+#     right now the std voices are being used
+#     """
+#     Path(audio_save_dir).mkdir(parents=True, exist_ok=True)
+#     save_path = audio_save_dir / f"{language}_{text_english}.mp3"
+
+#     if not os.path.exists(save_path):
+#         text = translate_text(text_english, language, tr_client)
+
+#         voice = texttospeech.VoiceSelectionParams(
+#             language_code=LANG2LANGCODE[language], name=LANG2VOICES[language][0]
+#         )
+
+#         response = tts_client.synthesize_speech(
+#             input=texttospeech.SynthesisInput(text=text),
+#             voice=voice,
+#             audio_config=texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+#         )
+
+#         with open(save_path, "wb") as out:
+#             out.write(response.audio_content)
+
+#     return save_path
+
+# def sample_alternative_language(x):
+#     """
+#     Sample a language Z from the other four languages.
+#     """
+#     return np.random.choice([l for l in LANGUAGES if l != x])
 
 ##############
 # template 1 #
 ##############
 
-def sample_audio_file(lang, commonvoice_dir):
-    commonvoice_dir = Path(commonvoice_dir / LANG2ISOCODE[lang] / "clips")
-    return commonvoice_dir / random.choice(os.listdir(commonvoice_dir))
+def get_commonvoice_data(cv_dir, cv_split):
+    """
+    Return dataframe of audio paths for relevant languages taken from the
+    correct `split` in Common Voice dataset.
+    """
+    dfs = []
+    for lang in LANG2ISOCODE.values():
+        df = pd.read_csv(cv_dir / lang / f"{cv_split}.tsv", sep="\t")[["path"]]
+        df["lang"] = lang
+        dfs.append(df)
+    return pd.concat(dfs, ignore_index=True)
 
-def template_1(args):
-    tr_client = translate.Client()
-    tts_client = texttospeech.TextToSpeechClient()
 
-    # MODALITY: IMAGE
-    # TODO: template 3 uses this...maybe pull this function out so you're not pulling the image data twice?
-    df = get_image_data(args)
-    df = sample_data(df, args.n_per_language)
+def sample_audio_file(lang, commonvoice_dir, cv_df):
+    """
+    Randomly samples an audio file from the train set for language `lang` in the
+    Common Voice dataset.
+    """
+    cv_df = cv_df[cv_df.lang == lang]
+    return Path(commonvoice_dir / lang / "clips") / cv_df.path.sample().item()
 
-    # MODALITY: TEXT
+
+def template_1(args, tr_client, tts_client, df):
+    """
+    Template 1:
+    - image: an object Y
+    - audio: an arbitrary audio clip of language X being spoken
+    - text: the word for object Y in written language X
+
+    Start with df, which contains image data (object Y) for template 1, and
+    generate the corresponding audio and text data.
+    """
+    # assign a language X to each triple
     df["lang"] = get_language_column(args.n_per_language)
-    df["text"] = df.apply(lambda row: translate_text(row.class_name, row.lang, tr_client),
-                          axis=1)
 
-    # MODALITY: AUDIO
-    df["audio_path"] = df.lang.apply(lambda x: sample_audio_file(x, args.commonvoice_dir))
+    # generate audio data
+    cv_df = get_commonvoice_data(args.commonvoice_dir, args.commonvoice_split)
+    df["audio_path"] = df.lang.apply(lambda x: sample_audio_file(x, args.commonvoice_dir, cv_df))
+
+    # generate text data
+    df["text"] = df.apply(lambda r: translate_text(r.class_name, r.lang, tr_client),
+                          axis=1)
 
     df["template"] = 1
     return df
+
 
 ##############
 # template 2 #
 ##############
 
-def template_2(args):
-    tr_client = translate.Client()
-    tts_client = texttospeech.TextToSpeechClient()
 
+def template_2(args, tr_client, tts_client, df):
+    """
+    Template 2:
+    - image: the flag of the country where language X is spoken
+    - audio: a word Y spoken in any language other than X
+    - text: the word Y written in language X
+
+    Start with df, which contains text data (word Y in language X) for template
+    2, and generate the corresponding image and audio data.
+    """
     # MODALITY: TEXT
     df = get_word_data(args.n_per_language)
     # technically unnecessary now, but eventually will need to update get_word_data()
@@ -180,9 +170,11 @@ def template_2(args):
     df["template"] = 2
     return df
 
+
 ##############
 # template 3 #
 ##############
+
 
 def get_text_data(commonvoice_dir):
     dfs = []
@@ -195,10 +187,7 @@ def get_text_data(commonvoice_dir):
 def sample_text_data(lang, text_df):
     return text_df[text_df.lang == lang].sample(n=1).iloc[0].sentence
 
-def template_3(args):
-    tr_client = translate.Client()
-    tts_client = texttospeech.TextToSpeechClient()
-
+def template_3(args, tr_client, tts_client, df):
     # MODALITY: IMAGE
     # TODO: template 1 uses this...maybe pull this function out so you're not pulling the image data twice?
     df = get_image_data(args)
@@ -224,10 +213,7 @@ def template_3(args):
 # template 4 #
 ##############
 
-def template_4(args):
-    tr_client = translate.Client()
-    tts_client = texttospeech.TextToSpeechClient()
-
+def template_4(args, tr_client, tts_client, df):
     # MODALITY: AUDIO
     df = get_word_data(args.n_per_language)
     # technically unnecessary now, but eventually will need to update get_word_data()
@@ -324,10 +310,25 @@ def negative_samples(df):
 if __name__ == '__main__':
     args = parse_args_generate_data()
 
-    t1 = template_1(args)[["text", "audio_path", "image_path", "template"]]
-    t2 = template_2(args)[["text", "audio_path", "image_path", "template"]]
-    t3 = template_3(args)[["text", "audio_path", "image_path", "template"]]
-    t4 = template_4(args)[["text", "audio_path", "image_path", "template"]]
+    tr_client = translate.Client()
+    tts_client = texttospeech.TextToSpeechClient()
+
+    # sample image data for templates 1 and 3
+    img_df = pd.read_csv(args.image_dir) \
+               .sample(n=args.n_per_language * len(LANGUAGES) * 2,
+                       ignore_index=True)
+    img_df_t1, img_df_t3 = train_test_split(img_df, train_size=0.5, shuffle=True)
+
+    # sample text data for templates 2 and 4
+    txt_df = get_word_data(args.word_path, args.n_per_language)
+    txt_df_t2, txt_df_t4 = train_test_split(txt_df, train_size=0.5, shuffle=True)
+
+    # t1 = template_1(args, tr_client, tts_client, img_df_t1)
+    t2 = template_2(args, tr_client, tts_client, txt_df_t2)
+    t3 = template_3(args, tr_client, tts_client, img_df_t3)
+    t4 = template_4(args, tr_client, tts_client, txt_df_t4)
+    for t in [t1, t2, t3, t4]:
+        t = t[["text", "audio_path", "image_path", "template"]]
     df = pd.concat([t1, t2, t3, t4], ignore_index=True)
 
     if args.negative_samples:
