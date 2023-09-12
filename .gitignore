@@ -1,5 +1,6 @@
 .DS_Store
 audio/
+sources/
 wandb/
 
 # Byte-compiled / optimized / DLL files
