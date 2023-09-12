@@ -72,9 +72,6 @@ def parse_args_create_word_splits():
 def parse_args_generate_data():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--n_per_language", type=int, default=5,
-                        help="Number of samples per language per template to \
-                              generate.")
     parser.add_argument("--audio_save_dir", type=Path,
                         default=Path("./audio"),
                         help="Where to save generated audio files.")
@@ -88,17 +85,23 @@ def parse_args_generate_data():
     parser.add_argument("--flag_dir", type=Path,
                         default=Path("/scratch/as16583/flags"),
                         help="Where flag image files are saved.")
-    parser.add_argument("--image_dir", type=Path,
-                        default=Path("./img_pretrain_train.csv"),
-                        help="Path to csv with image data to sample from.")
+    parser.add_argument("--image_path", type=Path,
+                        default=Path("./img_pretrain_val.csv"),
+                        help="Path to csv with object image split data to sample \
+                              from for templates 1 and 3.")
+    parser.add_argument("--n_per_language", type=int, default=5,
+                        help="Number of samples per language per template to \
+                              generate.")
     parser.add_argument("--negative_samples", type=str_to_bool, default=False,
                         help="Whether to include negative, along with positive, \
-                              samples in a 1:1 ratio.")
+                              samples in a 1:1 ratio (used for support \
+                              classification).")
     parser.add_argument("--save_path", type=str,
-                        default="./dataset_val.csv",
+                        default="./pretrain_val.csv",
                         help="Where to save dataset csv.")
-    parser.add_argument("--word_path", type=Path,
-                        default=Path("./words.txt"),
-                        help="Path to txt file containing word data.")
+    parser.add_argument("--text_path", type=Path,
+                        default=Path("./txt_pretrain_val.csv"),
+                        help="Path to csv with word split data to sample from \
+                              for templates 2 and 4.")
 
     return parser.parse_args()

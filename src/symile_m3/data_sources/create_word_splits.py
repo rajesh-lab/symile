@@ -21,10 +21,10 @@ from utils import get_splits
 if __name__ == '__main__':
     args = parse_args_create_word_splits()
 
-    df = pd.read_csv(args.word_path, sep='\t', names=['text', 'count']) \
-           .drop_duplicates(subset=['text'])
+    df = pd.read_csv(args.word_path, sep='\t', names=['word', 'count']) \
+           .drop_duplicates(subset=['word'])
     # only include words with >= 3 characters.
-    df = df[df.text.str.len() >= 3]
+    df = df[df.word.str.len() >= 3]
 
     # get pre-training train/val/test splits
     pretrain_train, pretrain_val, pretrain_test = \
