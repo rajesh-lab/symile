@@ -15,61 +15,61 @@ singularity exec --nv \
 	/bin/bash -c "
 
 source /ext3/env.sh
-cd $SCRATCH/symile/src/symile_m3/data_sources
+cd $SCRATCH/symile/src/symile_m3/data
 
 # pretrain train
 echo 'generating pretrain train data...'
 python generate_data.py --commonvoice_split train \
-                        --image_path ./img_pretrain_train.csv \
+                        --image_path ./sources/img_pretrain_train.csv \
                         --n_per_language 2000 \
                         --negative_samples False \
                         --save_path ./pretrain_train.csv \
-                        --text_path ./txt_pretrain_train.csv
+                        --text_path ./sources/txt_pretrain_train.csv
 
 # pretrain val
 echo 'generating pretrain val data...'
 python generate_data.py --commonvoice_split train \
-                        --image_path ./img_pretrain_val.csv \
-                        --n_per_language 2000 \
+                        --image_path ./sources/img_pretrain_val.csv \
+                        --n_per_language 500 \
                         --negative_samples False \
                         --save_path ./pretrain_val.csv \
-                        --text_path ./txt_pretrain_val.csv
+                        --text_path ./sources/txt_pretrain_val.csv
 
 # zeroshot test
 echo 'generating zeroshot test data...'
 python generate_data.py --commonvoice_split test \
-                        --image_path ./img_zeroshot_test.csv \
-                        --n_per_language 2000 \
+                        --image_path ./sources/img_zeroshot_test.csv \
+                        --n_per_language 250 \
                         --negative_samples False \
                         --save_path ./zeroshot_test.csv \
-                        --text_path ./txt_zeroshot_test.csv
+                        --text_path ./sources/txt_zeroshot_test.csv
 
 # support train
 echo 'generating support train data...'
 python generate_data.py --commonvoice_split dev \
-                        --image_path ./img_support_train.csv \
-                        --n_per_language 2000 \
+                        --image_path ./sources/img_support_train.csv \
+                        --n_per_language 1000 \
                         --negative_samples True \
                         --save_path ./support_train.csv \
-                        --text_path ./txt_support_train.csv
+                        --text_path ./sources/txt_support_train.csv
 
 # support val
 echo 'generating support val data...'
 python generate_data.py --commonvoice_split dev \
-                        --image_path ./img_support_val.csv \
-                        --n_per_language 2000 \
+                        --image_path ./sources/img_support_val.csv \
+                        --n_per_language 125 \
                         --negative_samples True \
                         --save_path ./support_val.csv \
-                        --text_path ./txt_support_val.csv
+                        --text_path ./sources/txt_support_val.csv
 
 # support test
 echo 'generating support test data...'
 python generate_data.py --commonvoice_split test \
-                        --image_path ./img_support_test.csv \
-                        --n_per_language 2000 \
+                        --image_path ./sources/img_support_test.csv \
+                        --n_per_language 250 \
                         --negative_samples True \
                         --save_path ./support_test.csv \
-                        --text_path ./txt_support_test.csv
+                        --text_path ./sources/txt_support_test.csv
 
 echo 'done!'
 "
