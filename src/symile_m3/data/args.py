@@ -86,10 +86,10 @@ def parse_args_generate_data():
                         default=Path("/scratch/as16583/flags"),
                         help="Where flag image files are saved.")
     parser.add_argument("--image_path", type=Path,
-                        default=Path("./sources/img_pretrain_val.csv"),
+                        default=Path("./sources/img_pretrain_train.csv"),
                         help="Path to csv with object image split data to sample \
                               from for templates 1 and 3.")
-    parser.add_argument("--n_per_language", type=int, default=5,
+    parser.add_argument("--n_per_language", type=int, default=2000,
                         help="Number of samples per language per template to \
                               generate.")
     parser.add_argument("--negative_samples", type=str_to_bool, default=False,
@@ -97,10 +97,10 @@ def parse_args_generate_data():
                               samples in a 1:1 ratio (used for support \
                               classification).")
     parser.add_argument("--save_path", type=str,
-                        default="./pretrain_val.csv",
+                        default="./pretrain_train.csv",
                         help="Where to save dataset csv.")
     parser.add_argument("--text_path", type=Path,
-                        default=Path("./sources/txt_pretrain_val.csv"),
+                        default=Path("./sources/txt_pretrain_train.csv"),
                         help="Path to csv with word split data to sample from \
                               for templates 2 and 4.")
 

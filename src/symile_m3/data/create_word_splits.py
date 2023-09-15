@@ -4,15 +4,17 @@ templates 2 and 4. The subset is 1/3 million most frequent words, all lowercase,
 downloaded from https://norvig.com/ngrams/count_1w.txt.
 
 We first filter the subset to include only those words that are at least three
-characters long. We shuffle the remaining words and create the following splits:
-train/val splits for pretraining, train/val/test splits for support classification,
-and test split for zero-shot classification. Final datasets are created in
-`generate_data.py` by sampling the desired number of data points from these
-generated splits.
-"""
-from pathlib import Path
+characters long and to remove profanity. We shuffle the remaining words and
+create the following splits:
+  -- train/val splits for pretraining
+  -- train/val/test splits for support classification
+  -- test split for zero-shot classification
 
+Final datasets are created in `generate_data.py` by sampling the desired number
+of data points from these generated splits.
+"""
 import pandas as pd
+from profanity_check import predict
 
 from args import parse_args_create_word_splits
 from utils import get_splits
@@ -25,6 +27,9 @@ if __name__ == '__main__':
            .drop_duplicates(subset=['word'])
     # only include words with >= 3 characters.
     df = df[df.word.str.len() >= 3]
+    # filter out profanity
+    profanity_mask = predict(df.word.tolist()).astype(bool)
+    df = df.iloc[~profanity_mask]
 
     # get pre-training train/val/test splits
     pretrain_train, pretrain_val, pretrain_test = \
