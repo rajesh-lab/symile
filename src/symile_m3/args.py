@@ -8,16 +8,20 @@ def parse_args_pretrain():
     parser = argparse.ArgumentParser()
 
     ### DATASET ARGS ###
+    parser.add_argument("--data_dir", type=Path,
+                        default=Path("./data"),
+                        help="Directory with data files.")
     parser.add_argument("--train_dataset_path", type=Path,
-                        default=Path("./dataset_train.csv"),
+                        default=Path("./pretrain_train.csv"),
                         help="Path to train dataset csv.")
     parser.add_argument("--val_dataset_path", type=Path,
-                        default=Path("./dataset_val.csv"),
+                        default=Path("./pretrain_val.csv"),
                         help="Path to val dataset csv.")
 
     ### MODEL ARGS ###
     parser.add_argument("--audio_model_id", type=str,
-                        default="openai/whisper-small",
+                        default="openai/whisper-tiny",
+                        choices = ["openai/whisper-small", "openai/whisper-tiny"],
                         help="Hugging Face model id for audio encoder.")
     parser.add_argument("--image_model_id", type=str,
                         default="openai/clip-vit-base-patch16",
@@ -39,7 +43,7 @@ def parse_args_pretrain():
                         help="Batch size for pretraining.")
     parser.add_argument("--check_val_every_n_epoch", type=int, default=1,
                         help="Check val every n train epochs.")
-    parser.add_argument("--early_stopping_patience", type=int, default=4,
+    parser.add_argument("--early_stopping_patience", type=int, default=3,
                         help="Number of val checks with no improvement after \
                               which pre-training will be stopped.")
     parser.add_argument("--epochs", type=int, default=2,
