@@ -35,7 +35,7 @@ def pairwise_infonce(r_a, r_b, r_c, logit_scale):
     loss_ab = infonce(r_a, r_b, logit_scale)
     loss_bc = infonce(r_b, r_c, logit_scale)
     loss_ac = infonce(r_a, r_c, logit_scale)
-    return (loss_ab + loss_bc + loss_ac) / 3.0
+    return loss_ab + loss_bc + loss_ac
 
 ##########
 # symile #
