@@ -86,10 +86,13 @@ def generate_audio(text_english, audio_lang, tr_client, tts_client, audio_save_d
     (see ISO2VOICES in constants.py).
     """
     Path(audio_save_dir).mkdir(parents=True, exist_ok=True)
-    save_path = audio_save_dir / f"{audio_lang}_{text_english}.mp3"
+    save_path = audio_save_dir / f"{audio_lang}/{audio_lang}_{text_english}.mp3"
 
     if not os.path.exists(save_path): # only generate audio if it doesn't already exist
         text = translate_text(text_english, audio_lang, tr_client)
+
+        if len(text) == 0:
+            return np.nan
 
         voice = texttospeech.VoiceSelectionParams(
             language_code=ISO2LANGCODE[audio_lang],
@@ -103,6 +106,9 @@ def generate_audio(text_english, audio_lang, tr_client, tts_client, audio_save_d
                 audio_encoding=texttospeech.AudioEncoding.MP3
             )
         )
+
+        if len(response.audio_content) == 0:
+            return np.nan
 
         with open(save_path, "wb") as out:
             out.write(response.audio_content)
@@ -371,6 +377,9 @@ if __name__ == '__main__':
     t4 = template_4(args, tr_client, tts_client, txt_df_t4) \
             [["text", "audio_path", "image_path", "template"]]
     df = pd.concat([t1, t2, t3, t4], ignore_index=True)
+
+    print(f"Dropping {df.isna().any(axis=1).sum()} rows with missing values!\n")
+    df = df.dropna(axis=0)
 
     # get negative samples if generating data for support classification
     if args.negative_samples:
