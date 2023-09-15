@@ -164,12 +164,19 @@ class PretrainDataModule(BaseDataModule):
     def setup(self, stage):
         self.text_tokenization()
 
-        df_train = pd.read_csv(self.args.train_dataset_path)
-        df_train["text"] = df_train.text.fillna("")
+        def _process_df(df):
+            df["text"] = df.text.fillna("")
+            df["audio_path"] = df.apply(
+                lambda r: self.args.data_dir / r.audio_path if r.template in [2, 3, 4] else r.audio_path,
+                axis=1
+            )
+            return df
+        df_train = pd.read_csv(self.args.data_dir / self.args.train_dataset_path)
+        df_train = _process_df(df_train)
         self.ds_train = SymileDataset(df_train, self.audio_feat_extractor, self.img_processor)
 
-        df_val = pd.read_csv(self.args.val_dataset_path)
-        df_val["text"] = df_val.text.fillna("")
+        df_val = pd.read_csv(self.args.data_dir / self.args.val_dataset_path)
+        df_val = _process_df(df_val)
         self.ds_val = SymileDataset(df_val, self.audio_feat_extractor, self.img_processor)
 
     def train_dataloader(self):
