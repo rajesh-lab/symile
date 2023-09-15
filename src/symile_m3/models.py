@@ -148,12 +148,12 @@ class SymileModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         loss, logit_scale_exp = self._shared_step(batch, batch_idx)
         self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
-                      on_step=False, on_epoch=True, sync_dist=True, prog_bar=True)
+                      on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, _ = self._shared_step(batch, batch_idx)
-        self.log("val_loss", loss, on_step=False, on_epoch=True,
+        self.log("val_loss", loss, on_step=True, on_epoch=True,
                  sync_dist=True, prog_bar=True)
         return loss
 
@@ -214,13 +214,13 @@ class SupportClfModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self._shared_step(batch, batch_idx)
-        self.log("train_loss", loss, on_step=False, on_epoch=True,
+        self.log("train_loss", loss, on_step=True, on_epoch=True,
                  sync_dist=True, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss = self._shared_step(batch, batch_idx)
-        self.log("val_loss", loss, on_step=False, on_epoch=True,
+        self.log("val_loss", loss, on_step=True, on_epoch=True,
                  sync_dist=True, prog_bar=True)
         return loss
 
@@ -234,7 +234,7 @@ class SupportClfModel(pl.LightningModule):
         self.training_step_outputs["prob"].append(prob)
         self.training_step_outputs["y"].append(y.squeeze())
 
-        self.log("test_loss", loss, on_step=False, on_epoch=True,
+        self.log("test_loss", loss, on_step=True, on_epoch=True,
                  sync_dist=True, prog_bar=True)
         return loss
 
