@@ -21,7 +21,7 @@ cd $SCRATCH/symile/src/symile_m3
 echo 'pretraining...'
 python pretrain.py --train_dataset_path ./pretrain_train.csv \
                    --val_dataset_path ./pretrain_val.csv \
-                   --batch_sz 38 \
+                   --batch_sz 80 \
                    --check_val_every_n_epoch 10 \
                    --epochs 100 \
                    --logit_scale_init 0 \
