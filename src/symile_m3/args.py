@@ -9,13 +9,19 @@ def parse_args_pretrain():
 
     ### DATASET ARGS ###
     parser.add_argument("--data_dir", type=Path,
-                        default=Path("./data"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources"),
                         help="Directory with data files.")
+    parser.add_argument("--data_dir_commonvoice", type=Path,
+                        default=Path("/gpfs/data/ranganathlab/adriel/cv"),
+                        help="Directory with Common Voice data files.")
+    parser.add_argument("--data_dir_imagenet", type=Path,
+                        default=Path("/gpfs/data/ranganathlab/adriel"),
+                        help="Directory with ImageNet data files.")
     parser.add_argument("--train_dataset_path", type=Path,
-                        default=Path("./pretrain_train.csv"),
+                        default=Path("pretrain_train.csv"),
                         help="Path to train dataset csv.")
     parser.add_argument("--val_dataset_path", type=Path,
-                        default=Path("./pretrain_val.csv"),
+                        default=Path("pretrain_val.csv"),
                         help="Path to val dataset csv.")
 
     ### MODEL ARGS ###
@@ -48,11 +54,11 @@ def parse_args_pretrain():
                               which pre-training will be stopped.")
     parser.add_argument("--epochs", type=int, default=2,
                         help="Number of epochs to pretrain for.")
-    parser.add_argument("--logit_scale_init", type=float, default=-0.3,
+    parser.add_argument("--logit_scale_init", type=float, default=0,
                         help="Value used to initialize the learned logit_scale. \
                               CLIP used np.log(1 / 0.07) = 2.65926.")
     parser.add_argument("--loss_fn", type=str,
-                        choices = ["symile", "pairwise_infonce"], default="pairwise_infonce",
+                        choices = ["symile", "pairwise_infonce"], default="symile",
                         help="Loss function to use for training.")
     parser.add_argument("--lr", type=float, default=1.0e-1,
                         help="Learning rate.")
