@@ -1,31 +1,6 @@
 import argparse
-import os
-import random
 
-import numpy as np
-import torch
 import torch.nn.functional as F
-try:
-    import wandb
-except ImportError:
-    wandb = None
-
-
-# TODO: delete when synthetic experiments is ported to Lightning
-def seed_all(seed):
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-
-
-# TODO: delete when synthetic experiments is ported to Lightning
-def wandb_init(args):
-    if args.wandb:
-        wandb.init(project="symile",
-                   config=args)
-    return
 
 
 def l2_normalize(vectors):
