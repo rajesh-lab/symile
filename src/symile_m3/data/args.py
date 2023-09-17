@@ -73,7 +73,7 @@ def parse_args_generate_data():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--audio_save_dir", type=Path,
-                        default=Path("./sources/audio"),
+                        default=Path("./sources"),
                         help="Where to save generated audio files.")
     parser.add_argument("--commonvoice_dir", type=Path,
                         default=Path("/cv-corpus-14.0-2023-06-23/"),
@@ -82,9 +82,6 @@ def parse_args_generate_data():
                         choices=["train", "dev", "test"],
                         default="train",
                         help="Common Voice split to sample audio data from.")
-    parser.add_argument("--flag_dir", type=Path,
-                        default=Path("/scratch/as16583/flags"),
-                        help="Where flag image files are saved.")
     parser.add_argument("--image_path", type=Path,
                         default=Path("./sources/img_pretrain_train.csv"),
                         help="Path to csv with object image split data to sample \

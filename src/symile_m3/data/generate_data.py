@@ -86,7 +86,8 @@ def generate_audio(text_english, audio_lang, tr_client, tts_client, audio_save_d
     (see ISO2VOICES in constants.py).
     """
     Path(audio_save_dir).mkdir(parents=True, exist_ok=True)
-    save_path = audio_save_dir / f"{audio_lang}/{audio_lang}_{text_english}.mp3"
+    return_path = f"audio/{audio_lang}/{audio_lang}_{text_english}.mp3"
+    save_path = audio_save_dir / return_path
 
     if not os.path.exists(save_path): # only generate audio if it doesn't already exist
         text = translate_text(text_english, audio_lang, tr_client)
@@ -113,7 +114,7 @@ def generate_audio(text_english, audio_lang, tr_client, tts_client, audio_save_d
         with open(save_path, "wb") as out:
             out.write(response.audio_content)
 
-    return save_path
+    return return_path
 
 
 def sample_text_data(lang, cv_df):
@@ -223,7 +224,7 @@ def template_2(args, tr_client, tts_client, df):
                           axis=1)
 
     # generate image data
-    df["image_path"] = df.lang.apply(lambda x: args.flag_dir / ISO2FLAGFILE[x])
+    df["image_path"] = df.lang.apply(lambda x: "flags/" + ISO2FLAGFILE[x])
 
     # generate audio data
     df["audio_lang"] = df.lang.apply(sample_alternative_language)
@@ -282,7 +283,7 @@ def template_4(args, tr_client, tts_client, df):
                                 axis=1)
 
     # generate image data
-    df["image_path"] = df.lang.apply(lambda x: args.flag_dir / ISO2FLAGFILE[x])
+    df["image_path"] = df.lang.apply(lambda x: "flags/" + ISO2FLAGFILE[x])
 
     # generate text data
     df["text_lang"] = df.lang.apply(sample_alternative_language)
