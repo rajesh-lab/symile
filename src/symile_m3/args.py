@@ -45,14 +45,14 @@ def parse_args_pretrain():
                               as input to projection head.")
 
     ### TRAINING ARGS ###
-    parser.add_argument("--batch_sz", type=int, default=10,
+    parser.add_argument("--batch_sz", type=int, default=100,
                         help="Batch size for pretraining.")
-    parser.add_argument("--check_val_every_n_epoch", type=int, default=1,
+    parser.add_argument("--check_val_every_n_epoch", type=int, default=5,
                         help="Check val every n train epochs.")
     parser.add_argument("--early_stopping_patience", type=int, default=3,
                         help="Number of val checks with no improvement after \
                               which pre-training will be stopped.")
-    parser.add_argument("--epochs", type=int, default=2,
+    parser.add_argument("--epochs", type=int, default=50,
                         help="Number of epochs to pretrain for.")
     parser.add_argument("--logit_scale_init", type=float, default=0,
                         help="Value used to initialize the learned logit_scale. \
@@ -60,7 +60,7 @@ def parse_args_pretrain():
     parser.add_argument("--loss_fn", type=str,
                         choices = ["symile", "pairwise_infonce"], default="symile",
                         help="Loss function to use for training.")
-    parser.add_argument("--lr", type=float, default=1.0e-1,
+    parser.add_argument("--lr", type=float, default=1.0e-3,
                         help="Learning rate.")
     parser.add_argument("--normalize", type=str_to_bool, default=True,
                         help="Whether to normalize representations, both during \
@@ -72,7 +72,7 @@ def parse_args_pretrain():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")
-    parser.add_argument("--wandb", type=str_to_bool, default=False,
+    parser.add_argument("--wandb", type=str_to_bool, default=True,
                         help="Whether to use wandb for logging.")
 
     return parser.parse_args()
