@@ -136,11 +136,11 @@ class BaseDataModule(pl.LightningDataModule):
         parent directories.
         """
         df["audio_path"] = df.apply(
-            lambda r: str(self.args.data_dir_commonvoice) + r.audio_path if r.template in [1] else self.args.data_dir / r.audio_path,
+            lambda r: self.args.data_dir_commonvoice / r.audio_path.strip("/") if r.template in [1] else self.args.data_dir / r.audio_path,
             axis=1
         )
         df["image_path"] = df.apply(
-            lambda r: str(self.args.data_dir_imagenet) + r.image_path if r.template in [1, 3] else self.args.data_dir / r.image_path,
+            lambda r: self.args.data_dir_imagenet / r.image_path.strip("/") if r.template in [1, 3] else self.args.data_dir / r.image_path,
             axis=1
         )
         return df
