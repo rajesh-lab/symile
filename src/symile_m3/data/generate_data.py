@@ -86,7 +86,7 @@ def generate_audio(text_english, audio_lang, tr_client, tts_client, audio_save_d
     (see ISO2VOICES in constants.py).
     """
     Path(audio_save_dir).mkdir(parents=True, exist_ok=True)
-    return_path = f"audio/{audio_lang}/{audio_lang}_{text_english}.mp3"
+    return_path = f"audio/{audio_lang}/{audio_lang}_{text_english.lower()}.mp3"
     save_path = audio_save_dir / return_path
 
     if not os.path.exists(save_path): # only generate audio if it doesn't already exist
