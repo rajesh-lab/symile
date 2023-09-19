@@ -130,19 +130,25 @@ class BaseDataModule(pl.LightningDataModule):
         # from max_num_worker_suggest in DataLoader docs
         self.num_workers = len(os.sched_getaffinity(0))
 
-    def update_data_paths(self, df):
+    def get_full_data_paths(self, df):
         """
         Update audio_path and image_path in dataframe to use appropriate
         parent directories.
         """
-        df["audio_path"] = df.apply(
-            lambda r: self.args.data_dir_commonvoice / r.audio_path.strip("/") if r.template in [1] else self.args.data_dir / r.audio_path,
-            axis=1
-        )
-        df["image_path"] = df.apply(
-            lambda r: self.args.data_dir_imagenet / r.image_path.strip("/") if r.template in [1, 3] else self.args.data_dir / r.image_path,
-            axis=1
-        )
+        def _full_audio_path(r):
+            if r.template in [1]:
+                return self.args.data_dir_commonvoice / r.audio_path.strip("/")
+            else:
+                return self.args.data_dir_generated_audio / r.audio_path.strip("/")
+        df["audio_path"] = df.apply(lambda r: _full_audio_path(r), axis=1)
+
+        def _full_image_path(r):
+            if r.template in [1, 3]:
+                return self.args.data_dir_imagenet / r.image_path.strip("/")
+            else:
+                return self.args.data_dir_flags / r.image_path.strip("/")
+        df["image_path"] = df.apply(lambda r: _full_image_path(r), axis=1)
+
         return df
 
     def text_tokenization(self):
@@ -179,12 +185,12 @@ class PretrainDataModule(BaseDataModule):
     def setup(self, stage):
         self.text_tokenization()
 
-        df_train = pd.read_csv(self.args.data_dir / self.args.train_dataset_path)
-        df_train = self.update_data_paths(df_train)
+        df_train = pd.read_csv(self.args.train_dataset_path)
+        df_train = self.get_full_data_paths(df_train)
         self.ds_train = SymileDataset(df_train, self.audio_feat_extractor, self.img_processor)
 
-        df_val = pd.read_csv(self.args.data_dir / self.args.val_dataset_path)
-        df_val = self.update_data_paths(df_val)
+        df_val = pd.read_csv(self.args.val_dataset_path)
+        df_val = self.get_full_data_paths(df_val)
         self.ds_val = SymileDataset(df_val, self.audio_feat_extractor, self.img_processor)
 
     def train_dataloader(self):
@@ -206,16 +212,16 @@ class SupportClfDataModule(BaseDataModule):
     def setup(self, stage):
         self.text_tokenization()
 
-        df_train = pd.read_csv(self.args.data_dir / self.args.support_train_dataset_path)
-        df_train = self.update_data_paths(df_train)
+        df_train = pd.read_csv(self.args.support_train_dataset_path)
+        df_train = self.get_full_data_paths(df_train)
         self.ds_train = SymileDataset(df_train, self.audio_feat_extractor, self.img_processor)
 
-        df_val = pd.read_csv(self.args.data_dir / self.args.support_test_dataset_path)
-        df_val = self.update_data_paths(df_val)
+        df_val = pd.read_csv(self.args.support_test_dataset_path)
+        df_val = self.get_full_data_paths(df_val)
         self.ds_val = SymileDataset(df_val, self.audio_feat_extractor, self.img_processor)
 
-        df_test = pd.read_csv(self.args.data_dir / self.args.support_test_dataset_path)
-        df_test = self.update_data_paths(df_test)
+        df_test = pd.read_csv(self.args.support_test_dataset_path)
+        df_test = self.get_full_data_paths(df_test)
         self.ds_test = SymileDataset(df_test, self.audio_feat_extractor, self.img_processor)
 
     def train_dataloader(self):
@@ -242,8 +248,8 @@ class ZeroshotClfDataModule(BaseDataModule):
     def setup(self, stage):
         self.text_tokenization()
 
-        df_test = pd.read_csv(self.args.data_dir / self.args.zeroshot_dataset_path)
-        df_test = self.update_data_paths(df_test)
+        df_test = pd.read_csv(self.args.zeroshot_dataset_path)
+        df_test = self.get_full_data_paths(df_test)
         self.ds_test = SymileDataset(df_test, self.audio_feat_extractor, self.img_processor)
 
     def test_dataloader(self):

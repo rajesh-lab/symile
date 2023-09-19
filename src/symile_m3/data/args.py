@@ -73,17 +73,17 @@ def parse_args_generate_data():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--audio_save_dir", type=Path,
-                        default=Path("./sources"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/audio"),
                         help="Where to save generated audio files.")
     parser.add_argument("--commonvoice_dir", type=Path,
-                        default=Path("/cv-corpus-14.0-2023-06-23/"),
+                        default=Path("/gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23"),
                         help="Where Common Voice audio data is saved.")
     parser.add_argument("--commonvoice_split", type=str,
                         choices=["train", "dev", "test"],
                         default="train",
                         help="Common Voice split to sample audio data from.")
     parser.add_argument("--image_path", type=Path,
-                        default=Path("./sources/img_pretrain_train.csv"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/img_zeroshot_test.csv"),
                         help="Path to csv with object image split data to sample \
                               from for templates 1 and 3.")
     parser.add_argument("--n_per_language", type=int, default=2000,
@@ -94,10 +94,10 @@ def parse_args_generate_data():
                               samples in a 1:1 ratio (used for support \
                               classification).")
     parser.add_argument("--save_path", type=str,
-                        default="./pretrain_train.csv",
+                        default="/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/zeroshot_test.csv",
                         help="Where to save dataset csv.")
     parser.add_argument("--text_path", type=Path,
-                        default=Path("./sources/txt_pretrain_train.csv"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/txt_zeroshot_test.csv"),
                         help="Path to csv with word split data to sample from \
                               for templates 2 and 4.")
 

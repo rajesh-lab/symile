@@ -12,7 +12,7 @@ cd /gpfs/scratch/as16583/symile/src/symile_m3/data
 
 echo 'generating zeroshot test data...'
 python generate_data.py \
-    --audio_save_dir /gpfs/scratch/as16583/symile/src/symile_m3/data/sources \
+    --audio_save_dir /gpfs/scratch/as16583/symile/src/symile_m3/data/sources/audio \
     --commonvoice_dir /gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23 \
     --commonvoice_split test \
     --image_path /gpfs/scratch/as16583/symile/src/symile_m3/data/sources/img_zeroshot_test.csv \

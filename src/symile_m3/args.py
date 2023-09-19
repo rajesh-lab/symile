@@ -82,8 +82,20 @@ def parse_args_test():
     parser = argparse.ArgumentParser()
 
     ### DATASET ARGS ###
+    parser.add_argument("--data_dir_commonvoice", type=Path,
+                        default=Path("/gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23"),
+                        help="Directory with Common Voice data files.")
+    parser.add_argument("--data_dir_flags", type=Path,
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/flags"),
+                        help="Directory with flag image files.")
+    parser.add_argument("--data_dir_generated_audio", type=Path,
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/audio"),
+                        help="Directory with generated audio files.")
+    parser.add_argument("--data_dir_imagenet", type=Path,
+                        default=Path("/gpfs/data/ranganathlab/adriel/imagenet"),
+                        help="Directory with ImageNet data files.")
     parser.add_argument("--support_train_dataset_path", type=Path,
-                        default=Path("./dataset_support_train.csv"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/dataset_support_train.csv"),
                         help="Path to support classification train (finetune) \
                         dataset csv.")
     parser.add_argument("--support_val_dataset_path", type=Path,
@@ -93,7 +105,7 @@ def parse_args_test():
                         default=Path("./dataset_support_test.csv"),
                         help="Path to support classification test dataset csv.")
     parser.add_argument("--zeroshot_dataset_path", type=Path,
-                        default=Path("./dataset_zeroshot.csv"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/zeroshot_test.csv"),
                         help="Path to zeroshot classification dataset csv.")
 
     ### MODEL ARGS ###

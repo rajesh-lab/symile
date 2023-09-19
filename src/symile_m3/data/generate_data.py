@@ -43,13 +43,13 @@ def get_language_column(n_per_language):
     return random.sample(lang_col, len(lang_col))
 
 
-def sample_audio_file(lang, commonvoice_dir, cv_df):
+def sample_audio_file(lang, cv_df):
     """
     Randomly samples an audio file from the train set for language `lang` in the
     Common Voice dataset.
     """
     cv_df = cv_df[cv_df.lang == lang]
-    return Path(commonvoice_dir / lang / "clips") / cv_df.path.sample().item()
+    return Path(lang + "/clips/" + cv_df.path.sample().item().strip("/"))
 
 
 def translate_text(text, lang, tr_client):
@@ -86,7 +86,7 @@ def generate_audio(text_english, audio_lang, tr_client, tts_client, audio_save_d
     (see ISO2VOICES in constants.py).
     """
     Path(audio_save_dir).mkdir(parents=True, exist_ok=True)
-    return_path = f"audio/{audio_lang}/{audio_lang}_{text_english.lower()}.mp3"
+    return_path = f"{audio_lang}/{audio_lang}_{text_english.lower()}.mp3"
     save_path = audio_save_dir / return_path
 
     if not os.path.exists(save_path): # only generate audio if it doesn't already exist
@@ -195,8 +195,7 @@ def template_1(args, tr_client, df, cv_df):
     df["lang"] = get_language_column(args.n_per_language)
 
     # generate audio data
-    df["audio_path"] = df.lang.apply(
-        lambda x: sample_audio_file(x, args.commonvoice_dir, cv_df))
+    df["audio_path"] = df.lang.apply(lambda x: sample_audio_file(x, cv_df))
 
     # generate text data
     df["text"] = df.apply(lambda r: translate_text(r.class_name, r.lang, tr_client),
@@ -224,7 +223,7 @@ def template_2(args, tr_client, tts_client, df):
                           axis=1)
 
     # generate image data
-    df["image_path"] = df.lang.apply(lambda x: "flags/" + ISO2FLAGFILE[x])
+    df["image_path"] = df.lang.apply(lambda x: ISO2FLAGFILE[x])
 
     # generate audio data
     df["audio_lang"] = df.lang.apply(sample_alternative_language)
@@ -283,7 +282,7 @@ def template_4(args, tr_client, tts_client, df):
                                 axis=1)
 
     # generate image data
-    df["image_path"] = df.lang.apply(lambda x: "flags/" + ISO2FLAGFILE[x])
+    df["image_path"] = df.lang.apply(lambda x: ISO2FLAGFILE[x])
 
     # generate text data
     df["text_lang"] = df.lang.apply(sample_alternative_language)
