@@ -59,6 +59,8 @@ def parse_args_pretrain():
                               which pre-training will be stopped.")
     parser.add_argument("--epochs", type=int, default=50,
                         help="Number of epochs to pretrain for.")
+    parser.add_argument("--freeze_encoders", type=str_to_bool, default=True,
+                        help="Whether to freeze encoders during pretraining.")
     parser.add_argument("--limit_train_batches", type=float, default=1.0,
                         help="How much of training dataset to check. Useful \
                               when debugging. 1.0 is default used by Trainer. \

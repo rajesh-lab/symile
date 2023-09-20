@@ -27,14 +27,14 @@ class ProjectionHead(nn.Module):
 
 
 class AudioEncoder(nn.Module):
-    def __init__(self, model_id, d):
+    def __init__(self, model_id, d, freeze_encoders):
         super().__init__()
         self.encoder = WhisperModel.from_pretrained(model_id).encoder
 
-        # freeze encoders
-        for p in self.encoder.parameters():
-            p.requires_grad = False
-        self.encoder.eval()
+        if freeze_encoders:
+            for p in self.encoder.parameters():
+                p.requires_grad = False
+            self.encoder.eval()
 
         self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
                                               self.encoder.layer_norm.eps)
@@ -59,14 +59,14 @@ class AudioEncoder(nn.Module):
 
 
 class ImageEncoder(nn.Module):
-    def __init__(self, model_id, d):
+    def __init__(self, model_id, d, freeze_encoders):
         super().__init__()
         self.encoder = CLIPVisionModel.from_pretrained(model_id)
 
-        # freeze encoders
-        for p in self.encoder.parameters():
-            p.requires_grad = False
-        self.encoder.eval()
+        if freeze_encoders:
+            for p in self.encoder.parameters():
+                p.requires_grad = False
+            self.encoder.eval()
 
         self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
                                               self.encoder.config.layer_norm_eps)
@@ -91,7 +91,7 @@ class ImageEncoder(nn.Module):
 
 
 class TextEncoder(nn.Module):
-    def __init__(self, model_id, d, feat_token_id):
+    def __init__(self, model_id, d, freeze_encoders, feat_token_id):
         super().__init__()
         self.feat_token_id = feat_token_id
         if model_id == "bert-base-multilingual-cased":
@@ -99,10 +99,10 @@ class TextEncoder(nn.Module):
         elif model_id == "xlm-roberta-base":
             self.encoder = XLMRobertaModel.from_pretrained(model_id)
 
-        # freeze encoders
-        for p in self.encoder.parameters():
-            p.requires_grad = False
-        self.encoder.eval()
+        if freeze_encoders:
+            for p in self.encoder.parameters():
+                p.requires_grad = False
+            self.encoder.eval()
 
         self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
                                               self.encoder.config.layer_norm_eps)
@@ -137,9 +137,12 @@ class SymileModel(pl.LightningModule):
         self.args = Namespace(**args)
         self.loss_fn = symile if self.args.loss_fn == "symile" else pairwise_infonce
 
-        self.audio_encoder = AudioEncoder(self.args.audio_model_id, self.args.d)
-        self.image_encoder = ImageEncoder(self.args.image_model_id, self.args.d)
+        self.audio_encoder = AudioEncoder(self.args.audio_model_id, self.args.d,
+                                          self.args.freeze_encoders)
+        self.image_encoder = ImageEncoder(self.args.image_model_id, self.args.d,
+                                          self.args.freeze_encoders)
         self.text_encoder = TextEncoder(self.args.text_model_id, self.args.d,
+                                        self.args.freeze_encoders,
                                         self.args.feat_token_id)
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
