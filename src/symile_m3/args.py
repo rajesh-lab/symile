@@ -135,9 +135,11 @@ def parse_args_test():
 
     ### TRAINING ARGS ###
     parser.add_argument("--batch_sz", type=int, default=2,
-                        help="Batch size for training.")
+                        help="Batch size for training support classification.")
     parser.add_argument("--batch_sz_val", type=int, default=300,
-                        help="Val set batch size for pretraining.")
+                        help="Val set batch size for training support classification.")
+    parser.add_argument("--batch_sz_test", type=int, default=300,
+                        help="Test set batch size for support or zeroshot classification.")
     parser.add_argument("--check_val_every_n_epoch", type=int, default=1,
                         help="Check val every n train epochs.")
     parser.add_argument("--early_stopping_patience", type=int, default=4,

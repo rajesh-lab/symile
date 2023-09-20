@@ -200,7 +200,7 @@ class PretrainDataModule(BaseDataModule):
                           collate_fn=Collator(self.txt_tokenizer))
 
     def val_dataloader(self):
-        return DataLoader(self.ds_val, batch_size=self.args.batch_sz,
+        return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer))
 
@@ -231,12 +231,12 @@ class SupportClfDataModule(BaseDataModule):
                           collate_fn=Collator(self.txt_tokenizer))
 
     def val_dataloader(self):
-        return DataLoader(self.ds_val, batch_size=self.args.batch_sz,
+        return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer))
 
     def test_dataloader(self):
-        return DataLoader(self.ds_test, batch_size=self.args.batch_sz,
+        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer))
 
@@ -253,6 +253,6 @@ class ZeroshotClfDataModule(BaseDataModule):
         self.ds_test = SymileDataset(df_test, self.audio_feat_extractor, self.img_processor)
 
     def test_dataloader(self):
-        return DataLoader(self.ds_test, batch_size=self.args.batch_sz,
+        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer))
