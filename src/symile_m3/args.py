@@ -59,12 +59,14 @@ def parse_args_pretrain():
                               which pre-training will be stopped.")
     parser.add_argument("--epochs", type=int, default=50,
                         help="Number of epochs to pretrain for.")
-    parser.add_argument("--limit_train_batches", type=int, default=1,
+    parser.add_argument("--limit_train_batches", type=float, default=1.0,
                         help="How much of training dataset to check. Useful \
-                              when debugging.")
-    parser.add_argument("--limit_val_batches", type=int, default=1,
+                              when debugging. 1.0 is default used by Trainer. \
+                              Set to 0.1 to check 10% of dataset.")
+    parser.add_argument("--limit_val_batches", type=float, default=1.0,
                         help="How much of val dataset to check. Useful \
-                              when debugging.")
+                              when debugging. 1.0 is default used by Trainer. \
+                              Set to 0.1 to check 10% of dataset.")
     parser.add_argument("--logit_scale_init", type=float, default=0,
                         help="Value used to initialize the learned logit_scale. \
                               CLIP used np.log(1 / 0.07) = 2.65926.")
