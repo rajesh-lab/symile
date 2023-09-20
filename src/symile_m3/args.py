@@ -147,6 +147,18 @@ def parse_args_test():
                               which training will be stopped.")
     parser.add_argument("--epochs", type=int, default=100,
                         help="Number of epochs to train for.")
+    parser.add_argument("--limit_train_batches", type=float, default=1.0,
+                        help="How much of training dataset to check. Useful \
+                              when debugging. 1.0 is default used by Trainer. \
+                              Set to 0.1 to check 10% of dataset.")
+    parser.add_argument("--limit_val_batches", type=float, default=1.0,
+                        help="How much of val dataset to check. Useful \
+                              when debugging. 1.0 is default used by Trainer. \
+                              Set to 0.1 to check 10% of dataset.")
+    parser.add_argument("--limit_test_batches", type=float, default=1.0,
+                        help="How much of test dataset to check. Useful \
+                              when debugging. 1.0 is default used by Trainer. \
+                              Set to 0.1 to check 10% of dataset.")
     parser.add_argument("--lr", type=float, default=1.0e-1,
                         help="Learning rate.")
     parser.add_argument("--seed", type=int, default=0)
