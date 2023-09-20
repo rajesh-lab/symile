@@ -1,6 +1,7 @@
 from argparse import Namespace
 
 import lightning.pytorch as pl
+import numpy as np
 import torch
 import torch.nn as nn
 from transformers import BertModel, CLIPVisionModel, WhisperModel, XLMRobertaModel
@@ -29,6 +30,12 @@ class AudioEncoder(nn.Module):
     def __init__(self, model_id, d):
         super().__init__()
         self.encoder = WhisperModel.from_pretrained(model_id).encoder
+
+        # freeze encoders
+        for p in self.encoder.parameters():
+            p.requires_grad = False
+        self.encoder.eval()
+
         self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
                                               self.encoder.layer_norm.eps)
 
@@ -55,6 +62,12 @@ class ImageEncoder(nn.Module):
     def __init__(self, model_id, d):
         super().__init__()
         self.encoder = CLIPVisionModel.from_pretrained(model_id)
+
+        # freeze encoders
+        for p in self.encoder.parameters():
+            p.requires_grad = False
+        self.encoder.eval()
+
         self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
                                               self.encoder.config.layer_norm_eps)
 
@@ -85,6 +98,12 @@ class TextEncoder(nn.Module):
             self.encoder = BertModel.from_pretrained(model_id)
         elif model_id == "xlm-roberta-base":
             self.encoder = XLMRobertaModel.from_pretrained(model_id)
+
+        # freeze encoders
+        for p in self.encoder.parameters():
+            p.requires_grad = False
+        self.encoder.eval()
+
         self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
                                               self.encoder.config.layer_norm_eps)
 
@@ -113,6 +132,8 @@ class TextEncoder(nn.Module):
 class SymileModel(pl.LightningModule):
     def __init__(self, **args):
         super().__init__()
+        self.save_hyperparameters()
+
         self.args = Namespace(**args)
         self.loss_fn = symile if self.args.loss_fn == "symile" else pairwise_infonce
 
@@ -124,9 +145,6 @@ class SymileModel(pl.LightningModule):
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
         self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
 
-        for k in args.keys():
-            self.save_hyperparameters(k)
-
     def forward(self, x):
         r_a = self.audio_encoder(x["audio_input_features"], x["audio_attention_mask"])
         r_i = self.image_encoder(x["image_pixel_values"])
@@ -134,7 +152,8 @@ class SymileModel(pl.LightningModule):
         return r_a, r_i, r_t, self.logit_scale.exp()
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.args.lr)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.args.lr,
+                                      weight_decay=self.args.weight_decay)
         return optimizer
 
     def _shared_step(self, batch, batch_idx):
@@ -147,14 +166,22 @@ class SymileModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss, logit_scale_exp = self._shared_step(batch, batch_idx)
+        log_n_minus_1 = np.log(len(batch["idx"])-1)
+
         self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
                       on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
+        self.log("log_n_minus_1", log_n_minus_1,
+                 on_step=False, on_epoch=True, sync_dist=False, prog_bar=False)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, _ = self._shared_step(batch, batch_idx)
-        self.log("val_loss", loss, on_step=True, on_epoch=True,
-                 sync_dist=True, prog_bar=True)
+        log_n_minus_1 = np.log(len(batch["idx"])-1)
+
+        self.log("val_loss", loss,
+                 on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
+        self.log("log_n_minus_1", log_n_minus_1,
+                 on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
         return loss
 
 
