@@ -1,6 +1,5 @@
 from datetime import datetime
 import os
-from pathlib import Path
 
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -13,7 +12,7 @@ from datasets import PretrainDataModule
 from models import SymileModel
 
 
-def pretrain(args, trainer, logger):
+def pretrain(args, trainer):
     dm = PretrainDataModule(args)
     dm.setup(stage="fit")
     args.feat_token_id = dm.feat_token_id
