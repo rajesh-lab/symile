@@ -8,20 +8,23 @@ def parse_args_pretrain():
     parser = argparse.ArgumentParser()
 
     ### DATASET ARGS ###
-    parser.add_argument("--data_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources"),
-                        help="Directory with data files.")
     parser.add_argument("--data_dir_commonvoice", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/adriel/cv"),
+                        default=Path("/gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23"),
                         help="Directory with Common Voice data files.")
+    parser.add_argument("--data_dir_flags", type=Path,
+                        default=Path("/gpfs/scratch/as16583/flags"),
+                        help="Directory with flag image files.")
+    parser.add_argument("--data_dir_generated_audio", type=Path,
+                        default=Path("/gpfs/scratch/as16583/audio"),
+                        help="Directory with generated audio files.")
     parser.add_argument("--data_dir_imagenet", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/adriel"),
+                        default=Path("/gpfs/data/ranganathlab/adriel/imagenet"),
                         help="Directory with ImageNet data files.")
     parser.add_argument("--train_dataset_path", type=Path,
-                        default=Path("pretrain_train.csv"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/pretrain_train.csv"),
                         help="Path to train dataset csv.")
     parser.add_argument("--val_dataset_path", type=Path,
-                        default=Path("pretrain_val.csv"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/pretrain_val.csv"),
                         help="Path to val dataset csv.")
 
     ### MODEL ARGS ###
@@ -45,8 +48,10 @@ def parse_args_pretrain():
                               as input to projection head.")
 
     ### TRAINING ARGS ###
-    parser.add_argument("--batch_sz", type=int, default=100,
+    parser.add_argument("--batch_sz", type=int, default=300,
                         help="Batch size for pretraining.")
+    parser.add_argument("--batch_sz_val", type=int, default=300,
+                        help="Val set batch size for pretraining.")
     parser.add_argument("--check_val_every_n_epoch", type=int, default=5,
                         help="Check val every n train epochs.")
     parser.add_argument("--early_stopping_patience", type=int, default=3,
@@ -54,6 +59,12 @@ def parse_args_pretrain():
                               which pre-training will be stopped.")
     parser.add_argument("--epochs", type=int, default=50,
                         help="Number of epochs to pretrain for.")
+    parser.add_argument("--limit_train_batches", type=int, default=1,
+                        help="How much of training dataset to check. Useful \
+                              when debugging.")
+    parser.add_argument("--limit_val_batches", type=int, default=1,
+                        help="How much of val dataset to check. Useful \
+                              when debugging.")
     parser.add_argument("--logit_scale_init", type=float, default=0,
                         help="Value used to initialize the learned logit_scale. \
                               CLIP used np.log(1 / 0.07) = 2.65926.")
@@ -74,6 +85,13 @@ def parse_args_pretrain():
                         help="Whether to use a seed for reproducibility.")
     parser.add_argument("--wandb", type=str_to_bool, default=True,
                         help="Whether to use wandb for logging.")
+    parser.add_argument("--weight_decay", type=float, default=0.1,
+                        help="Weight decay coefficient used by AdamW optimizer.")
+
+    ### MISC ARGS ###
+    parser.add_argument("--ckpt_save_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/ckpts"),
+                        help="Where to save model checkpoints.")
 
     return parser.parse_args()
 
@@ -86,23 +104,23 @@ def parse_args_test():
                         default=Path("/gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23"),
                         help="Directory with Common Voice data files.")
     parser.add_argument("--data_dir_flags", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/flags"),
+                        default=Path("/gpfs/scratch/as16583/flags"),
                         help="Directory with flag image files.")
     parser.add_argument("--data_dir_generated_audio", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/audio"),
+                        default=Path("/gpfs/scratch/as16583/audio"),
                         help="Directory with generated audio files.")
     parser.add_argument("--data_dir_imagenet", type=Path,
                         default=Path("/gpfs/data/ranganathlab/adriel/imagenet"),
                         help="Directory with ImageNet data files.")
     parser.add_argument("--support_train_dataset_path", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/dataset_support_train.csv"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/support_train.csv"),
                         help="Path to support classification train (finetune) \
                         dataset csv.")
     parser.add_argument("--support_val_dataset_path", type=Path,
-                        default=Path("./dataset_support_test.csv"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/support_val.csv"),
                         help="Path to support classification val dataset csv.")
     parser.add_argument("--support_test_dataset_path", type=Path,
-                        default=Path("./dataset_support_test.csv"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/support_test.csv"),
                         help="Path to support classification test dataset csv.")
     parser.add_argument("--zeroshot_dataset_path", type=Path,
                         default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/zeroshot_test.csv"),
@@ -116,12 +134,14 @@ def parse_args_test():
     ### TRAINING ARGS ###
     parser.add_argument("--batch_sz", type=int, default=2,
                         help="Batch size for training.")
-    parser.add_argument("--check_val_every_n_epoch", type=int, default=2,
+    parser.add_argument("--batch_sz_val", type=int, default=300,
+                        help="Val set batch size for pretraining.")
+    parser.add_argument("--check_val_every_n_epoch", type=int, default=1,
                         help="Check val every n train epochs.")
     parser.add_argument("--early_stopping_patience", type=int, default=4,
                         help="Number of val checks with no improvement after \
                               which training will be stopped.")
-    parser.add_argument("--epochs", type=int, default=2,
+    parser.add_argument("--epochs", type=int, default=100,
                         help="Number of epochs to train for.")
     parser.add_argument("--lr", type=float, default=1.0e-1,
                         help="Learning rate.")
@@ -138,7 +158,7 @@ def parse_args_test():
                               (alternative is to sum the three terms).")
     parser.add_argument("--evaluation", type=str,
                         choices=["zeroshot", "support"],
-                        default="support",
+                        default="zeroshot",
                         help="Evaluation method to run.")
     parser.add_argument("--use_logit_scale", type=str_to_bool, default=True,
                         help="Whether or not to scale logits by temperature \
