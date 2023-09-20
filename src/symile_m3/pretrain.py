@@ -65,4 +65,4 @@ if __name__ == '__main__':
         profiler=profiler
     )
 
-    pretrain(args, trainer, logger)
+    pretrain(args, trainer)
