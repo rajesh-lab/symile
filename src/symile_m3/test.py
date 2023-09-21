@@ -16,6 +16,7 @@ from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
+import torch
 
 from args import parse_args_test
 from datasets import SupportClfDataModule, ZeroshotClfDataModule
@@ -56,6 +57,8 @@ if __name__ == '__main__':
     if os.getenv('SINGULARITY_CONTAINER'):
         os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
 
+    torch.set_float32_matmul_precision('medium')
+
     args = parse_args_test()
 
     if args.use_seed:
@@ -83,6 +86,10 @@ if __name__ == '__main__':
         check_val_every_n_epoch=args.check_val_every_n_epoch,
         deterministic=args.use_seed,
         enable_progress_bar=True,
+        limit_train_batches=args.limit_train_batches,
+        limit_val_batches=args.limit_val_batches,
+        limit_test_batches=args.limit_test_batches,
+        log_every_n_steps=1,
         logger=logger,
         max_epochs=args.epochs,
         num_sanity_val_steps=0
