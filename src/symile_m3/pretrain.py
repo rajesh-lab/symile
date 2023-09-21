@@ -8,12 +8,15 @@ from pytorch_lightning.loggers import WandbLogger
 import torch
 
 from args import parse_args_pretrain
-from datasets import PretrainDataModule
+from datasets import PretrainDataModule, PretrainPrecomputedDataModule
 from models import SymileModel
 
 
 def pretrain(args, trainer):
-    dm = PretrainDataModule(args)
+    if args.use_precomputed_representations:
+        dm = PretrainPrecomputedDataModule(args)
+    else:
+        dm = PretrainDataModule(args)
     dm.setup(stage="fit")
     args.feat_token_id = dm.feat_token_id
 

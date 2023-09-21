@@ -39,7 +39,7 @@ class AudioEncoder(nn.Module):
         self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
                                               self.encoder.layer_norm.eps)
 
-    def forward(self, input_features, attention_mask):
+    def forward(self, x):
         """
         Args:
             input_features (torch.Tensor): shape (batch_sz, 80, 3000)
@@ -47,12 +47,14 @@ class AudioEncoder(nn.Module):
         Returns:
             x (torch.Tensor): shape (batch_sz, d)
         """
-        x = self.encoder(input_features=input_features, attention_mask=attention_mask)
-        x = x["last_hidden_state"]
+        if type(x) is dict: # not using precomputed tensors
+            x = self.encoder(input_features=x["input_features"],
+                             attention_mask=x["attention_mask"])
+            x = x["last_hidden_state"]
 
-        # select first embedding as done by ImageBind:
-        # https://github.com/facebookresearch/ImageBind/blob/95d27c7fd5a8362f3527e176c3a80ae5a4d880c0/imagebind/models/imagebind_model.py#L391C3-L391C3
-        x = x[:, 0, :]
+            # select first embedding as done by ImageBind:
+            # https://github.com/facebookresearch/ImageBind/blob/95d27c7fd5a8362f3527e176c3a80ae5a4d880c0/imagebind/models/imagebind_model.py#L391C3-L391C3
+            x = x[:, 0, :]
 
         x = self.projection_head(x)
         return x
@@ -71,20 +73,21 @@ class ImageEncoder(nn.Module):
         self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
                                               self.encoder.config.layer_norm_eps)
 
-    def forward(self, pixel_values):
+    def forward(self, x):
         """
         Args:
             pixel_values (torch.Tensor): shape (batch_sz, 3, 224, 224)
         Returns:
             x (torch.Tensor): shape (batch_sz, d)
         """
-        x = self.encoder(pixel_values=pixel_values)
-        x = x["last_hidden_state"]
+        if type(x) is dict: # not using precomputed tensors
+            x = self.encoder(pixel_values=x["pixel_values"])
+            x = x["last_hidden_state"]
 
-        # select first embedding as done by transformers' CLIP and ImageBind:
-        # https://github.com/huggingface/transformers/blob/41aef33758ae166291d72bc381477f2db84159cf/src/transformers/models/clip/modeling_clip.py#L894
-        # https://github.com/facebookresearch/ImageBind/blob/95d27c7fd5a8362f3527e176c3a80ae5a4d880c0/imagebind/models/imagebind_model.py#L380
-        x = x[:, 0, :]
+            # select first embedding as done by transformers' CLIP and ImageBind:
+            # https://github.com/huggingface/transformers/blob/41aef33758ae166291d72bc381477f2db84159cf/src/transformers/models/clip/modeling_clip.py#L894
+            # https://github.com/facebookresearch/ImageBind/blob/95d27c7fd5a8362f3527e176c3a80ae5a4d880c0/imagebind/models/imagebind_model.py#L380
+            x = x[:, 0, :]
 
         x = self.projection_head(x)
         return x
@@ -107,7 +110,7 @@ class TextEncoder(nn.Module):
         self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
                                               self.encoder.config.layer_norm_eps)
 
-    def forward(self, input_ids, attention_mask):
+    def forward(self, x):
         """
         Args:
             input_ids (torch.Tensor): shape (batch_sz, len_longest_seq)
@@ -115,14 +118,16 @@ class TextEncoder(nn.Module):
         Returns:
             x (torch.Tensor): shape (batch_sz, d)
         """
-        x = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
-        x = x["last_hidden_state"]
+        if type(x) is dict: # not using precomputed tensors
+            x = self.encoder(input_ids=x["input_ids"],
+                             attention_mask=x["attention_mask"])
+            x = x["last_hidden_state"]
 
-		# take features from EOS or BOS embedding. x has shape (b, l, d).
-        # argmax returns first index of feat_token_id in case pad_token_id is
-        # equal to feat_token_id.
-        x = x[torch.arange(x.shape[0]),
-              (input_ids == self.feat_token_id).int().argmax(dim=-1)]
+            # take features from EOS or BOS embedding. x has shape (b, l, d).
+            # argmax returns first index of feat_token_id in case pad_token_id is
+            # equal to feat_token_id.
+            x = x[torch.arange(x.shape[0]),
+                  (input_ids == self.feat_token_id).int().argmax(dim=-1)]
 
         # x has shape (b, d)
         x = self.projection_head(x)
@@ -149,9 +154,16 @@ class SymileModel(pl.LightningModule):
         self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
 
     def forward(self, x):
-        r_a = self.audio_encoder(x["audio_input_features"], x["audio_attention_mask"])
-        r_i = self.image_encoder(x["image_pixel_values"])
-        r_t = self.text_encoder(x["text_input_ids"], x["text_attention_mask"])
+        if self.args.use_precomputed_representations:
+            r_a = self.audio_encoder(x["audio"])
+            r_i = self.image_encoder(x["image"])
+            r_t = self.text_encoder(x["text"])
+        else:
+            r_a = self.audio_encoder({"input_features": x["audio_input_features"],
+                                      "attention_mask": x["audio_attention_mask"]})
+            r_i = self.image_encoder({"pixel_values": x["image_pixel_values"]})
+            r_t = self.text_encoder({"input_ids": x["text_input_ids"],
+                                     "attention_mask": x["text_attention_mask"]})
         return r_a, r_i, r_t, self.logit_scale.exp()
 
     def configure_optimizers(self):
@@ -169,7 +181,7 @@ class SymileModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss, logit_scale_exp = self._shared_step(batch, batch_idx)
-        log_n_minus_1 = np.log(len(batch["idx"])-1)
+        log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
 
         self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
                       on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
@@ -179,7 +191,7 @@ class SymileModel(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         loss, _ = self._shared_step(batch, batch_idx)
-        log_n_minus_1 = np.log(len(batch["idx"])-1)
+        log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
 
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)

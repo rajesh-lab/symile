@@ -54,6 +54,9 @@ def parse_args_pretrain():
                         help="Val set batch size for pretraining.")
     parser.add_argument("--check_val_every_n_epoch", type=int, default=5,
                         help="Check val every n train epochs.")
+    parser.add_argument("--ckpt_save_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/ckpts"),
+                        help="Where to save model checkpoints.")
     parser.add_argument("--early_stopping_patience", type=int, default=3,
                         help="Number of val checks with no improvement after \
                               which pre-training will be stopped.")
@@ -61,14 +64,6 @@ def parse_args_pretrain():
                         help="Number of epochs to pretrain for.")
     parser.add_argument("--freeze_encoders", type=str_to_bool, default=True,
                         help="Whether to freeze encoders during pretraining.")
-    parser.add_argument("--limit_train_batches", type=float, default=1.0,
-                        help="How much of training dataset to check. Useful \
-                              when debugging. 1.0 is default used by Trainer. \
-                              Set to 0.1 to check 10% of dataset.")
-    parser.add_argument("--limit_val_batches", type=float, default=1.0,
-                        help="How much of val dataset to check. Useful \
-                              when debugging. 1.0 is default used by Trainer. \
-                              Set to 0.1 to check 10% of dataset.")
     parser.add_argument("--logit_scale_init", type=float, default=0,
                         help="Value used to initialize the learned logit_scale. \
                               CLIP used np.log(1 / 0.07) = 2.65926.")
@@ -92,10 +87,21 @@ def parse_args_pretrain():
     parser.add_argument("--weight_decay", type=float, default=0.1,
                         help="Weight decay coefficient used by AdamW optimizer.")
 
-    ### MISC ARGS ###
-    parser.add_argument("--ckpt_save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/ckpts"),
-                        help="Where to save model checkpoints.")
+    ### DEBUGGING ARGS ###
+    parser.add_argument("--limit_train_batches", type=float, default=1.0,
+                        help="How much of training dataset to check. Useful \
+                              when debugging. 1.0 is default used by Trainer. \
+                              Set to 0.1 to check 10% of dataset.")
+    parser.add_argument("--limit_val_batches", type=float, default=1.0,
+                        help="How much of val dataset to check. Useful \
+                              when debugging. 1.0 is default used by Trainer. \
+                              Set to 0.1 to check 10% of dataset.")
+    parser.add_argument("--use_precomputed_representations", type=str_to_bool, default=True,
+                        help="Whether to use precomputed representations to \
+                              train projection heads.")
+    parser.add_argument("--precomputed_rep_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/random_tensors"),
+                        help="Where precomputed representations are saved.")
 
     return parser.parse_args()
 

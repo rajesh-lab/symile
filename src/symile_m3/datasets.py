@@ -5,11 +5,9 @@ import pandas as pd
 from PIL import Image
 import torch
 import torchaudio
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset, DataLoader
 from transformers import BertTokenizer, CLIPImageProcessor, \
                          WhisperFeatureExtractor, XLMRobertaTokenizer
-
 
 class SymileDataset(Dataset):
     def __init__(self, df, audio_feat_extractor, img_processor):
@@ -66,6 +64,21 @@ class SymileDataset(Dataset):
             item_dict["in_support"] = self.df.iloc[idx].in_support
 
         return item_dict
+
+
+class SymilePrecomputedDataset(Dataset):
+    def __init__(self, dataset_dir, split):
+        self.audio = torch.load(dataset_dir / f"audio_{split}.pt")
+        self.image = torch.load(dataset_dir / f"image_{split}.pt")
+        self.text = torch.load(dataset_dir / f"text_{split}.pt")
+
+    def __len__(self):
+        return len(self.audio)
+
+    def __getitem__(self, idx):
+        return {"audio": self.audio[idx],
+                "image": self.image[idx],
+                "text": self.text[idx]}
 
 
 class Collator:
@@ -197,12 +210,36 @@ class PretrainDataModule(BaseDataModule):
         return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
                           shuffle=True,
                           num_workers=self.num_workers,
-                          collate_fn=Collator(self.txt_tokenizer))
+                          collate_fn=Collator(self.txt_tokenizer),
+                          drop_last=True)
 
     def val_dataloader(self):
         return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
                           num_workers=self.num_workers,
-                          collate_fn=Collator(self.txt_tokenizer))
+                          collate_fn=Collator(self.txt_tokenizer),
+                          drop_last=True)
+
+
+class PretrainPrecomputedDataModule(BaseDataModule):
+    def __init__(self, args):
+        super().__init__(args)
+
+    def setup(self, stage):
+        self.text_tokenization()
+
+        self.ds_train = SymilePrecomputedDataset(self.args.precomputed_rep_dir, "train")
+        self.ds_val = SymilePrecomputedDataset(self.args.precomputed_rep_dir, "val")
+
+    def train_dataloader(self):
+        return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
+                          shuffle=True,
+                          num_workers=self.num_workers,
+                          drop_last=True)
+
+    def val_dataloader(self):
+        return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
+                          num_workers=self.num_workers,
+                          drop_last=True)
 
 
 class SupportClfDataModule(BaseDataModule):
@@ -228,17 +265,20 @@ class SupportClfDataModule(BaseDataModule):
         return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
                           shuffle=True,
                           num_workers=self.num_workers,
-                          collate_fn=Collator(self.txt_tokenizer))
+                          collate_fn=Collator(self.txt_tokenizer),
+                          drop_last=True)
 
     def val_dataloader(self):
         return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
                           num_workers=self.num_workers,
-                          collate_fn=Collator(self.txt_tokenizer))
+                          collate_fn=Collator(self.txt_tokenizer),
+                          drop_last=True)
 
     def test_dataloader(self):
         return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
                           num_workers=self.num_workers,
-                          collate_fn=Collator(self.txt_tokenizer))
+                          collate_fn=Collator(self.txt_tokenizer),
+                          drop_last=True)
 
 
 class ZeroshotClfDataModule(BaseDataModule):
@@ -255,4 +295,5 @@ class ZeroshotClfDataModule(BaseDataModule):
     def test_dataloader(self):
         return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
                           num_workers=self.num_workers,
-                          collate_fn=Collator(self.txt_tokenizer))
+                          collate_fn=Collator(self.txt_tokenizer),
+                          drop_last=True)
