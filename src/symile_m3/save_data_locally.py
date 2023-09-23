@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from transformers import BertTokenizer, CLIPImageProcessor, \
                          WhisperFeatureExtractor, XLMRobertaTokenizer
 from transformers import BertModel, CLIPVisionModel, WhisperModel, XLMRobertaModel
+from tqdm import tqdm
 
 from args import parse_args_pretrain
 from datasets import SymileDataset
@@ -98,14 +99,11 @@ class Collator:
 
 def get_full_data_paths(df, args):
     def _full_audio_path(r):
-        if r.template in [1]:
-            return args.data_dir_commonvoice / r.audio_path.strip("/")
-        else:
-            return args.data_dir_generated_audio / r.audio_path.strip("/")
+        return args.data_dir_generated_audio / r.audio_path.strip("/")
     df["audio_path"] = df.apply(lambda r: _full_audio_path(r), axis=1)
 
     def _full_image_path(r):
-        if r.template in [1, 3]:
+        if r.template == 1:
             return args.data_dir_imagenet / r.image_path.strip("/")
         else:
             return args.data_dir_flags / r.image_path.strip("/")
@@ -120,7 +118,8 @@ def tensors(split, dl, tensor_save_dir, audio_encoder, image_encoder, text_encod
     audio_reps = []
     image_reps = []
     text_reps = []
-    for batch in dl:
+    dl_loop = tqdm(dl)
+    for ix, batch in enumerate(dl_loop):
         batch = {k: v.to(device) for k, v in batch.items()}
 
         # audio encoder
@@ -156,8 +155,9 @@ def tensors(split, dl, tensor_save_dir, audio_encoder, image_encoder, text_encod
 
 if __name__ == '__main__':
     # options: "save_tensors", "split_train"
-    do = "split_train"
-    split = "train"
+    do = "save_tensors"
+    split = "val"
+    print("split is: ", split)
 
     if do == "save_tensors":
         args = parse_args_pretrain()
@@ -179,7 +179,7 @@ if __name__ == '__main__':
         dl = DataLoader(ds, batch_size=200, shuffle=shuffle, num_workers=num_workers,
                         collate_fn=Collator(txt_tokenizer, max_length=max_length))
 
-        tensor_save_dir = "/gpfs/scratch/as16583/tensors/"
+        tensor_save_dir = "/gpfs/scratch/as16583/precomputed_tensors/"
 
         # LOAD UP MODELS
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

@@ -3,7 +3,7 @@
 #SBATCH --job-name=test_support_symile
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:a100:1
 #SBATCH --mem=100GB
 #SBATCH --time=12:00:00
@@ -19,10 +19,9 @@ python test.py \
     --batch_sz_val 250 \
     --batch_sz_test 250 \
     --check_val_every_n_epoch 1 \
-    --ckpt_path /gpfs/scratch/as16583/symile/src/symile_m3/ckpts/pretrain/20230918_191959/epoch=4-val_loss=5.53.ckpt \
-    --data_dir_commonvoice /gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23 \
-    --data_dir_flags /gpfs/scratch/as16583/symile/src/symile_m3/data/sources/flags \
-    --data_dir_generated_audio /gpfs/scratch/as16583/symile/src/symile_m3/data/sources/audio \
+    --ckpt_path /gpfs/scratch/as16583/ckpts/20230922_224922/epoch=40-val_loss=4.62.ckpt \
+    --data_dir_flags /gpfs/scratch/as16583/flags \
+    --data_dir_generated_audio /gpfs/scratch/as16583/audio \
     --data_dir_imagenet /gpfs/data/ranganathlab/adriel/imagenet \
     --epochs 100 \
     --evaluation support \

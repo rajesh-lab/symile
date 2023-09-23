@@ -119,15 +119,16 @@ class TextEncoder(nn.Module):
             x (torch.Tensor): shape (batch_sz, d)
         """
         if type(x) is dict: # not using precomputed tensors
-            x = self.encoder(input_ids=x["input_ids"],
-                             attention_mask=x["attention_mask"])
+            x_arg = x
+            x = self.encoder(input_ids=x_arg["input_ids"],
+                             attention_mask=x_arg["attention_mask"])
             x = x["last_hidden_state"]
 
             # take features from EOS or BOS embedding. x has shape (b, l, d).
             # argmax returns first index of feat_token_id in case pad_token_id is
             # equal to feat_token_id.
             x = x[torch.arange(x.shape[0]),
-                  (input_ids == self.feat_token_id).int().argmax(dim=-1)]
+                  (x_arg["input_ids"] == self.feat_token_id).int().argmax(dim=-1)]
 
         # x has shape (b, d)
         x = self.projection_head(x)
@@ -222,12 +223,12 @@ class SupportClfModel(pl.LightningModule):
             in_features *= 3
         self.classifier = nn.Linear(in_features, 1, bias=True)
 
-        self.training_step_outputs = {"y": [], "prob": []}
-
     def forward(self, x):
-        r_a = self.audio_encoder(x["audio_input_features"], x["audio_attention_mask"])
-        r_i = self.image_encoder(x["image_pixel_values"])
-        r_t = self.text_encoder(x["text_input_ids"], x["text_attention_mask"])
+        r_a = self.audio_encoder({"input_features": x["audio_input_features"],
+                                  "attention_mask": x["audio_attention_mask"]})
+        r_i = self.image_encoder({"pixel_values": x["image_pixel_values"]})
+        r_t = self.text_encoder({"input_ids": x["text_input_ids"],
+                                  "attention_mask": x["text_attention_mask"]})
 
         if self.model.args.normalize:
             r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
@@ -314,56 +315,36 @@ class ZeroshotClfModel(pl.LightningModule):
         self.image_encoder = self.model.image_encoder
         self.text_encoder = self.model.text_encoder
 
-        self.training_step_outputs = {"y": [], "pred": []}
-
     def setup(self, stage):
         """
-        r_z should be the text representation for data samples from templates 1
-        and 2, and should be the audio representation for data samples from
-        templates 3 and 4.
+        Pre-compute r_z, which is the text representation for all data samples.
         """
         # target device is not yet available, but we have access to trainer now
         device = self.trainer.strategy.root_device
         r_z_list = []
         idx_list = []
         for x in self.trainer.datamodule.test_dataloader():
-            for i in range(len(x["idx"])):
-                if x["templates"][i] in [1, 2]:
-                    r_z = self.text_encoder(
-                        x["text_input_ids"][i].unsqueeze(0).to(device),
-                        x["text_attention_mask"][i].unsqueeze(0).to(device)
-                    )
-                elif x["templates"][i] in [3, 4]:
-                    r_z = self.audio_encoder(
-                        x["audio_input_features"][i].unsqueeze(0).to(device),
-                        x["audio_attention_mask"][i].unsqueeze(0).to(device)
-                    )
-                r_z_list.append(r_z)
-                idx_list.append(x["idx"][i].unsqueeze(0))
+            r_z = self.text_encoder(
+                {"input_ids": x["text_input_ids"].to(device),
+                 "attention_mask": x["text_attention_mask"].to(device)}
+            )
+            r_z_list.append(r_z)
+            idx_list.append(x["idx"].to(device))
 
         r_z = torch.cat(r_z_list)
-        [self.r_z] = l2_normalize([r_z]) if self.model.args.normalize else r_z
-        self.r_z_idx = torch.cat(idx_list).to(device)
+
+        if self.model.args.normalize:
+            [self.r_z] = l2_normalize([r_z])
+        else:
+            self.r_z = r_z
+
+        self.r_z_idx = torch.cat(idx_list)
 
     def forward(self, x):
-        """
-        r_x should be the audio representation for data samples from templates 1
-        and 2, and should be the text representation for data samples from
-        templates 3 and 4.
-
-        r_y should always be the image representation, regardless of template.
-        """
-        r_a = self.audio_encoder(x["audio_input_features"], x["audio_attention_mask"])
-        r_i = self.image_encoder(x["image_pixel_values"])
-        r_t = self.text_encoder(x["text_input_ids"], x["text_attention_mask"])
-
-        r_x_audio_bool = torch.logical_or(x["templates"] == 1, x["templates"] == 2)
-        r_x_audio_bool = r_x_audio_bool.unsqueeze(1).expand(-1, r_a.shape[1])
-        r_x = torch.where(r_x_audio_bool, r_a, r_t)
-
-        r_y = r_i
-
-        return r_x, r_y, x["idx"]
+        r_a = self.audio_encoder({"input_features": x["audio_input_features"],
+                                  "attention_mask": x["audio_attention_mask"]})
+        r_i = self.image_encoder({"pixel_values": x["image_pixel_values"]})
+        return r_a, r_i, x["idx"]
 
     def test_step(self, batch, batch_idx):
         r_x, r_y, xy_idx = self(batch)
@@ -392,13 +373,5 @@ class ZeroshotClfModel(pl.LightningModule):
         r_z_idx_expanded = self.r_z_idx.unsqueeze(0).expand(xy_idx.shape[0], -1)
         y = torch.argmax((xy_idx.unsqueeze(1) == r_z_idx_expanded).long(), dim=1)
 
-        self.training_step_outputs["pred"].append(pred)
-        self.training_step_outputs["y"].append(y)
-
-    def on_test_epoch_end(self):
-        pred = torch.cat(self.training_step_outputs["pred"])
-        y = torch.cat(self.training_step_outputs["y"])
         acc = (torch.sum(y == pred) / len(y)).item()
         self.log("test_accuracy", acc, sync_dist=True, prog_bar=True)
-
-        self.training_step_outputs.clear() # free memory

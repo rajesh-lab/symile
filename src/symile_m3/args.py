@@ -97,7 +97,7 @@ def parse_args_pretrain():
                         help="Whether to use precomputed representations to \
                               train projection heads.")
     parser.add_argument("--precomputed_rep_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/random_tensors"),
+                        default=Path("/gpfs/scratch/as16583/precomputed_tensors"),
                         help="Where precomputed representations are saved.")
 
     return parser.parse_args()
@@ -144,6 +144,9 @@ def parse_args_test():
                         help="Test set batch size for support or zeroshot classification.")
     parser.add_argument("--check_val_every_n_epoch", type=int, default=1,
                         help="Check val every n train epochs.")
+    parser.add_argument("--ckpt_save_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/ckpts"),
+                        help="Where to save model checkpoints.")
     parser.add_argument("--early_stopping_patience", type=int, default=4,
                         help="Number of val checks with no improvement after \
                               which training will be stopped.")

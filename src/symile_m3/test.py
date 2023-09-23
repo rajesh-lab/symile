@@ -34,8 +34,6 @@ def pretrained_model_args(args, model):
 
 def test_zeroshot(args, trainer, logger):
     model = ZeroshotClfModel(**vars(args))
-    if args.wandb:
-        logger.watch(model)
     args = pretrained_model_args(args, model)
 
     dm = ZeroshotClfDataModule(args)
@@ -44,8 +42,6 @@ def test_zeroshot(args, trainer, logger):
 
 def test_support(args, trainer, logger):
     model = SupportClfModel(**vars(args))
-    if args.wandb:
-        logger.watch(model)
     args = pretrained_model_args(args, model)
 
     dm = SupportClfDataModule(args)
@@ -64,12 +60,13 @@ if __name__ == '__main__':
     if args.use_seed:
         seed_everything(args.seed, workers=True)
 
-    save_root = Path(f"./ckpts/{args.evaluation}")
-    save_dir = save_root / datetime.now().strftime("%Y%m%d_%H%M%S")
+    if not os.path.exists(args.ckpt_save_dir):
+        os.makedirs(args.ckpt_save_dir)
+    save_dir = args.ckpt_save_dir / datetime.now().strftime("%Y%m%d_%H%M%S")
     setattr(args, "save_dir", save_dir)
 
     if args.wandb:
-        logger = WandbLogger(project="symile", log_model="all", save_dir=save_root)
+        logger = WandbLogger(project="symile", log_model="all", save_dir=args.ckpt_save_dir)
     else:
         logger = False
 
