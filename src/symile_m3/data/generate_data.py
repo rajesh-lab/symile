@@ -1,9 +1,19 @@
+"""
+We use images from the ImageNet Large Scale Visual Recognition Challenge (ILSVRC)
+2012-2017. The train set has 1,281,167 images from 1,000 categories.
+
+We use a subset of the Google Web Trillion Word Corpus for text The subset is
+1/3 million most frequent words, all lowercase, downloaded from
+https://norvig.com/ngrams/count_1w.txt. We filter the subset to include only
+those words that are at least three characters long and to remove profanity.
+"""
 import os
 from pathlib import Path
 import random
 
 import numpy as np
 import pandas as pd
+from profanity_check import predict
 from sklearn.model_selection import train_test_split
 
 from google.cloud import texttospeech
@@ -11,45 +21,96 @@ from google.cloud import translate_v2 as translate
 
 from args import parse_args_generate_data
 from src.symile_m3.constants import *
+from utils import get_splits
+
+
+###########################
+# external data functions #
+###########################
+
+
+def get_class_mappings(mapping_path):
+    """
+    Create class mapping dataframe from ImageNet synset mapping file.
+
+    Args:
+        mapping_path (Path): Path to ImageNet synset mapping file (must be .txt).
+    Returns:
+        (pd.DataFrame): columns are `class_id` and `class_name`.
+    """
+    def _synsetmapping_to_name(synset_str):
+        synset_str = synset_str.split(" ")[1:]
+        return " ".join(synset_str).split(",")[0]
+
+    class_mapping = pd.read_csv(mapping_path, sep="\t", names=["synset"])
+    class_mapping["class_id"] = class_mapping.synset.apply(lambda x: x.split(" ")[0])
+    class_mapping["class_name"] = class_mapping.synset.apply(_synsetmapping_to_name)
+    return class_mapping[["class_id", "class_name"]]
+
+
+def add_image_paths(df, image_data_dir):
+    """
+    ImageNet saves training images under the folders with the names of their
+    synsets, and saves validation images all in the same folder.
+
+    Args:
+        df (pd.DataFrame): columns are `class_id` and `img_id`.
+        image_data_dir (Path): Where ImageNet image data is saved (e.g.
+                               `ILSVRC/Data/CLS-LOC/train`).
+        split (str): ImageNet split ("train" or "val").
+    Returns:
+        (pd.DataFrame): df with added column `image_path`.
+    """
+    def _image_path(class_id, img_id):
+        filename = Path(img_id + ".JPEG")
+        if image_data_dir.stem == "train":
+            return image_data_dir / class_id / filename
+        elif image_data_dir.stem == "val":
+            return image_data_dir / filename
+    df["image_path"] = df.apply(lambda r: _image_path(r.class_id, r.img_id),
+                                axis=1)
+    return df
+
+
+def get_imagenet_data(n, imagenet_dir, classmapping_path, image_data_dir, cls_path):
+    class_mapping = get_class_mappings(imagenet_dir / classmapping_path)
+    class_mapping["class_name"] = class_mapping.class_name.apply(lambda x: x.lower())
+
+    # get class information for images
+    df = pd.read_csv(imagenet_dir / cls_path, delim_whitespace=True, header=None)
+    df = df.iloc[:, 0].str.split("/", expand=True)
+    df = df.rename(columns={df.columns[0]: "class_id", df.columns[1]: "img_id"}) \
+           .join(class_mapping.set_index("class_id"), on="class_id") \
+           .dropna()
+
+    df = add_image_paths(df, image_data_dir)
+
+    return df.sample(n=n, ignore_index=True)
+
+
+def get_word_data(n, word_path):
+    """
+    Return the `n` most common words.
+    """
+    df = pd.read_csv(word_path, sep="\t", names=["word", "count"]) \
+           .drop_duplicates(subset=["word"]) \
+           .sort_values(by=["count"], ascending=False)
+
+    # only include words with >= 3 characters.
+    df = df[df.word.str.len() >= 3]
+
+    # filter out profanity
+    profanity_mask = predict(df.word.tolist()).astype(bool)
+    df = df.iloc[~profanity_mask]
+
+    df["word"] = df.word.apply(lambda x: x.lower())
+
+    return df[:n]
 
 
 ####################
 # helper functions #
 ####################
-
-
-def get_commonvoice_data(cv_dir, cv_split):
-    """
-    Return dataframe of audio paths for relevant languages taken from the
-    correct `split` in Common Voice dataset.
-    """
-    dfs = []
-    for lang in ISOCODES:
-        df = pd.read_csv(cv_dir / lang / f"{cv_split}.tsv", sep="\t")
-        df = df[["path", "sentence"]]
-        df["lang"] = lang
-        dfs.append(df)
-    return pd.concat(dfs, ignore_index=True)
-
-
-def get_language_column(n_per_language):
-    """
-    Generate and return a list of length (n_per_language * len(LANGUAGES)) whose
-    elements are the ISO-639 codes (str) in ISOCODES. The list is shuffled
-    and contains exactly n_per_language of each ISO code.
-    """
-    lang_col = [[x] * n_per_language for x in ISOCODES]
-    lang_col = [x for sublist in lang_col for x in sublist]
-    return random.sample(lang_col, len(lang_col))
-
-
-def sample_audio_file(lang, cv_df):
-    """
-    Randomly samples an audio file from the train set for language `lang` in the
-    Common Voice dataset.
-    """
-    cv_df = cv_df[cv_df.lang == lang]
-    return Path(lang + "/clips/" + cv_df.path.sample().item().strip("/"))
 
 
 def translate_text(text, lang, tr_client):
@@ -73,6 +134,13 @@ def sample_alternative_language(x):
         (str): ISO-639 code for language Z
     """
     return np.random.choice([i for i in ISOCODES if i != x])
+
+
+def sample_alternative_word(class_name, word_df):
+    """
+    Sample a word from `word_df` that is different from `class_name`.
+    """
+    return word_df[word_df.word != class_name].sample()["word"].item()
 
 
 def generate_audio(text_english, audio_lang, tr_client, tts_client, audio_save_dir):
@@ -117,10 +185,6 @@ def generate_audio(text_english, audio_lang, tr_client, tts_client, audio_save_d
     return return_path
 
 
-def sample_text_data(lang, cv_df):
-    return cv_df[cv_df.lang == lang].sample(n=1).iloc[0].sentence
-
-
 def audio_path_iso(audio_path, template):
     """Get the ISO code from the audio path."""
     if template == 1:
@@ -131,36 +195,55 @@ def audio_path_iso(audio_path, template):
     return iso
 
 
-def sample_from_alternative_language(iso, df, col):
+def sample_audio_with_alternative_language(iso, df):
     """
-    Sample row from `df` whose whose audio_iso is different from `iso` and return
-    the value of `col` for that row.
+    Sample row from `df` whose whose audio_iso is different from `iso`
+    and return audio_path for that row.
 
     Args:
         iso (str): ISO code for a row's language.
         df (pd.DataFrame): entire template dataframe that the row is from.
-        col (str): column to sample from.
     Returns:
-        (str): negative sample's `col`.
+        (str): negative sample's audio_path.
     """
     neg = df[df.audio_iso != iso].sample()
     assert iso != neg.audio_iso.item(), \
         "Negative sample must be in a different language."
-    return neg[col].item()
+    return neg["audio_path"].item()
 
 
-def sample_negative(positive, df_col):
+def sample_audio_with_alternative_meaning(meaning, df):
     """
-    Sample a negative sample from `df_col` that is different from `positive`.
+    Sample row from `df` whose whose meaning is different from `meaning`
+    and return audio_path for that row.
 
     Args:
-        positive (str): positive sample.
-        df_col (pd.Series): dataframe column to sample from.
+        meaning (str): meaning for a row.
+        df (pd.DataFrame): entire template dataframe that the row is from.
+    Returns:
+        (str): negative sample's audio_path.
     """
-    neg = df_col[df_col != positive].sample().item()
-    assert positive != neg, \
-        f"Negative sample {neg} must be different than {positive}."
-    return neg
+    neg = df[df.audio_meaning != meaning].sample()
+    assert meaning != neg.audio_meaning.item(), \
+        "Negative sample must have a different meaning."
+    return neg["audio_path"].item()
+
+
+def sample_image_with_alternative_class(img_class, df):
+    """
+    Sample row from `df` whose whose image_class is different from `img_class`
+    and return image_path for that row.
+
+    Args:
+        img_class (str): image_class for a row.
+        df (pd.DataFrame): entire template dataframe that the row is from.
+    Returns:
+        (str): negative sample's image_path.
+    """
+    neg = df[df.image_class != img_class].sample()
+    assert img_class != neg.image_class.item(), \
+        "Negative sample must have a different class."
+    return neg["image_path"].item()
 
 
 def sample_negative_flag(pos_path):
@@ -181,42 +264,53 @@ def sample_negative_flag(pos_path):
 #############
 
 
-def template_1(args, tr_client, df, cv_df):
+def template_1(args, tr_client,tts_client, imagenet_df, word_df):
     """
     Template 1:
     - image: an object Y
-    - audio: an arbitrary audio clip of language X being spoken
+    - audio: an audio clip of an arbitrary word in language X being spoken
     - text: the word for object Y written in language X
 
-    Start with df, which contains image data (object Y) for template 1, and
+    Start with df that contains image data (object Y) for template 1, and
     generate the corresponding audio and text data.
     """
-    # assign a language X to each triple
-    df["lang"] = get_language_column(args.n_per_language)
+    df = imagenet_df
 
-    # generate audio data
-    df["audio_path"] = df.lang.apply(lambda x: sample_audio_file(x, cv_df))
+    # assign a language X to each triple
+    df["lang"] = random.choices(ISOCODES, k=len(df))
 
     # generate text data
     df["text"] = df.apply(lambda r: translate_text(r.class_name, r.lang, tr_client),
                           axis=1)
 
+    # generate audio data (make sure language is same, but meaning is different)
+    df["audio_word"] = df.apply(lambda r: sample_alternative_word(r.class_name,
+                                                                  word_df),
+                                axis=1)
+    df["audio_path"] = df.apply(lambda r: generate_audio(r.audio_word,
+                                                         r.lang,
+                                                         tr_client, tts_client,
+                                                         args.audio_save_dir),
+                                axis=1)
+
     df["template"] = 1
-    return df
+    return df[["text", "audio_path", "image_path", "template"]]
 
 
-def template_2(args, tr_client, tts_client, df):
+def template_2(args, tr_client, tts_client, word_df):
     """
     Template 2:
     - image: the flag of the country where language X is spoken
     - audio: a word Y spoken in any language other than X
     - text: the word Y written in language X
 
-    Start with df, which contains text data (word Y) for template 2, and
+    Start with df that contains text data (word Y) for template 2, and
     generate the corresponding image and audio data.
     """
+    df = word_df
+
     # assign a language X to each triple
-    df["lang"] = get_language_column(args.n_per_language)
+    df["lang"] = random.choices(ISOCODES, k=len(df))
 
     # generate text data
     df["text"] = df.apply(lambda r: translate_text(r.word, r.lang, tr_client),
@@ -225,7 +319,7 @@ def template_2(args, tr_client, tts_client, df):
     # generate image data
     df["image_path"] = df.lang.apply(lambda x: ISO2FLAGFILE[x])
 
-    # generate audio data
+    # generate audio data (make sure language is different, but meaning is the same)
     df["audio_lang"] = df.lang.apply(sample_alternative_language)
     df["audio_path"] = df.apply(lambda r: generate_audio(r.word, r.audio_lang,
                                                          tr_client, tts_client,
@@ -233,69 +327,7 @@ def template_2(args, tr_client, tts_client, df):
                                 axis=1)
 
     df["template"] = 2
-    return df
-
-
-def template_3(args, tr_client, tts_client, df, cv_df):
-    """
-    Template 3:
-    - image: an object Y
-    - text: arbitrary text in language X
-    - audio: the word for object Y spoken in language X
-
-    Start with df, which contains image data (object Y) for template 3, and
-    generate the corresponding audio and text data.
-    """
-    # assign a language X to each triple
-    df["lang"] = get_language_column(args.n_per_language)
-
-    # generate audio data
-    df["audio_path"] = df.apply(lambda r: generate_audio(r.class_name, r.lang,
-                                                         tr_client, tts_client,
-                                                         args.audio_save_dir),
-                                axis=1)
-
-    # generate text data
-    df["text"] = df.lang.apply(lambda x: sample_text_data(x, cv_df))
-
-    df["template"] = 3
-    return df
-
-
-def template_4(args, tr_client, tts_client, df):
-    """
-    Template 4:
-    - image: the flag of the country where language X is spoken
-    - text: a word Y written in any language other than X
-    - audio: the word Y spoken in language X
-
-    Start with df, which contains text data (word Y) for template 4, and
-    generate the corresponding image and audio data.
-    """
-    # assign a language X to each triple
-    df["lang"] = get_language_column(args.n_per_language)
-
-    # generate audio data
-    df["audio_path"] = df.apply(lambda r: generate_audio(r.word, r.lang,
-                                                         tr_client, tts_client,
-                                                         args.audio_save_dir),
-                                axis=1)
-
-    # generate image data
-    df["image_path"] = df.lang.apply(lambda x: ISO2FLAGFILE[x])
-
-    # generate text data
-    df["text_lang"] = df.lang.apply(sample_alternative_language)
-    df["text"] = df.apply(lambda r: translate_text(r.word, r.text_lang, tr_client),
-                          axis=1)
-
-    df["template"] = 4
-    return df
-
-
-####################
-# negative samples #
-####################
+    return df[["text", "audio_path", "image_path", "template"]]
 
 
 def negative_samples(df):
@@ -303,92 +335,87 @@ def negative_samples(df):
     Takes in the dataframe with positive samples and returns a dataframe with
     negative samples for support classification.
 
-    For templates 1 and 2, we generate negative samples by fixing the text and
-    shuffling the audio and image. For templates 3 and 4, we generate negative
-    samples by fixing the audio and shuffling the text and image. In other words,
-    the positive and negative samples have the same data, but how they are
-    joined as triples is different.
+    We generate negative samples by fixing the text and shuffling the audio and
+    image. In other words, the positive and negative samples have the same data,
+    but how they are joined as triples is different.
     """
-    df["audio_iso"] = df.apply(lambda r: audio_path_iso(r.audio_path, r.template),
-                               axis=1)
-
-    # TEMPLATE 1: fix text, shuffle audio and image
+    # TEMPLATE 1
     t1 = df[df.template == 1]
-    t1["audio_path"] = t1.apply(
-        lambda r: sample_from_alternative_language(r.audio_iso,
-                                                   t1[["audio_path", "audio_iso"]],
-                                                   "audio_path"),
-        axis=1)
-    t1["image_path"] = t1.apply(lambda r: sample_negative(r.image_path, t1.image_path), axis=1)
 
-    # TEMPLATE 2: fix text, shuffle audio and image
+    t1["audio_iso"] = t1.apply(lambda r: audio_path_iso(r.audio_path, r.template),
+                               axis=1)
+    t1["audio_path"] = t1.apply(
+        lambda r: sample_audio_with_alternative_language(r.audio_iso,
+                                                         t1[["audio_path", "audio_iso"]]),
+        axis=1)
+
+    t1["image_class"] = t1.image_path.apply(lambda x: Path(x).stem.split("_")[0])
+    t1["image_path"] = t1.apply(
+        lambda r: sample_image_with_alternative_class(r.image_class,
+                                                      t1[["image_path", "image_class"]]),
+        axis=1)
+
+    # TEMPLATE 2
     t2 = df[df.template == 2]
-    t2["audio_path"] = t2.apply(lambda r: sample_negative(r.audio_path, t2.audio_path), axis=1)
+
+    t2["audio_meaning"] = t2.audio_path.apply(
+        lambda x: x.split("/")[-1].split(".")[0].split("_")[-1])
+    t2["audio_path"] = t2.apply(
+        lambda r: sample_audio_with_alternative_meaning(r.audio_meaning,
+                                                        t2[["audio_path", "audio_meaning"]]),
+        axis=1)
+
     t2["image_path"] = t2.image_path.apply(sample_negative_flag)
 
-    # TEMPLATE 3: fix audio, shuffle text and image
-    t3 = df[df.template == 3]
-    t3["text"] = t3.apply(
-        lambda r: sample_from_alternative_language(r.audio_iso,
-                                                   t3[["text", "audio_iso"]],
-                                                   "text"),
-        axis=1)
-    t3["image_path"] = t3.apply(lambda r: sample_negative(r.image_path, t3.image_path), axis=1)
-
-    # TEMPLATE 4: fix audio, shuffle text and image
-    t4 = df[df.template == 4]
-    t4["text"] = t4.apply(lambda r: sample_negative(r.text, t4.text), axis=1)
-    t4["image_path"] = t4.image_path.apply(sample_negative_flag)
-
-    df_neg = pd.concat([t1, t2, t3, t4], ignore_index=True)
+    df_neg = pd.concat([t1, t2], ignore_index=True)
     return df_neg[["text", "audio_path", "image_path", "template"]]
 
 
 if __name__ == '__main__':
     args = parse_args_generate_data()
 
+    n = args.pretrain_n + args.zeroshot_n + args.support_n
+
+    # get external data
+    imagenet_df = get_imagenet_data(n,
+                                    args.imagenet_dir,
+                                    args.imagenet_classmapping_path,
+                                    args.imagenet_image_train_data_dir,
+                                    args.imagenet_train_cls_path)
+    word_df = get_word_data(n, args.word_path)
+
     tr_client = translate.Client()
     tts_client = texttospeech.TextToSpeechClient()
 
-    # get common voice data for template 1 (for audio) and template 3 (for text)
-    cv_df = get_commonvoice_data(args.commonvoice_dir, args.commonvoice_split)
-
-    # sample image data for templates 1 and 3 from appropriate dataset split
-    img_df = pd.read_csv(args.image_path) \
-               .sample(n=args.n_per_language * len(LANGUAGES) * 2,
-                       ignore_index=True)
-    img_df_t1, img_df_t3 = train_test_split(img_df, train_size=0.5, shuffle=True)
-
-    # sample text data for templates 2 and 4 from appropriate dataset split
-    n_words = args.n_per_language * len(LANGUAGES) * 2
-    txt_df = pd.read_csv(args.text_path) \
-               .sort_values(by=['count'], ascending=False) \
-               .head(n_words)
-    assert len(txt_df) == n_words, "Too few words in this split for n_per_language."
-    txt_df_t2, txt_df_t4 = train_test_split(txt_df, train_size=0.5, shuffle=True)
-
     # generate data for each template
-    t1 = template_1(args, tr_client, img_df_t1, cv_df) \
-            [["text", "audio_path", "image_path", "template"]]
-    t2 = template_2(args, tr_client, tts_client, txt_df_t2) \
-            [["text", "audio_path", "image_path", "template"]]
-    t3 = template_3(args, tr_client, tts_client, img_df_t3, cv_df) \
-            [["text", "audio_path", "image_path", "template"]]
-    t4 = template_4(args, tr_client, tts_client, txt_df_t4) \
-            [["text", "audio_path", "image_path", "template"]]
-    df = pd.concat([t1, t2, t3, t4], ignore_index=True)
+    t1 = template_1(args, tr_client, tts_client, imagenet_df, word_df)
+    t2 = template_2(args, tr_client, tts_client, word_df)
+    data_df = pd.concat([t1, t2], ignore_index=True)
 
-    print(f"Dropping {df.isna().any(axis=1).sum()} rows with missing values!\n")
-    df = df.dropna(axis=0)
+    print(f"Dropping {data_df.isna().any(axis=1).sum()} rows with missing values!\n")
+    data_df.dropna(axis=0, inplace=True)
+    data_df = data_df[data_df.text.str.len() > 0]
 
-    # get negative samples if generating data for support classification
-    if args.negative_samples:
-        df_neg = negative_samples(df) \
-                    [["text", "audio_path", "image_path", "template"]]
+    # split into pretrain, zeroshot, and support sets
+    pretrain_df, test_df = \
+        train_test_split(data_df, train_size=args.pretrain_n, shuffle=True)
+    pretrain_train_df, pretrain_val_df = \
+        train_test_split(pretrain_df, test_size=args.pretrain_val_size, shuffle=True)
 
-        df["in_support"] = 1
-        df_neg["in_support"] = 0
+    zeroshot_test_df, support_df = \
+        train_test_split(test_df, train_size=args.zeroshot_n, shuffle=True)
 
-        df = pd.concat([df, df_neg], ignore_index=True)
+    support_neg_df = negative_samples(support_df)
+    support_df["in_support"] = 1
+    support_neg_df["in_support"] = 0
+    support_df = pd.concat([support_df, support_neg_df], ignore_index=True)
+    support_train_df, support_val_df, support_test_df = \
+        get_splits(support_df, args.support_train_size, args.support_val_size)
 
-    df.to_csv(args.save_path, index=False)
+    # save data
+    pretrain_train_df.to_csv(args.save_dir / "pretrain_train.csv", index=False)
+    pretrain_val_df.to_csv(args.save_dir / "pretrain_val.csv", index=False)
+    zeroshot_test_df.to_csv(args.save_dir / "zeroshot_test.csv", index=False)
+    support_train_df.to_csv(args.save_dir / "support_train.csv", index=False)
+    support_val_df.to_csv(args.save_dir / "support_val.csv", index=False)
+    support_test_df.to_csv(args.save_dir / "support_test.csv", index=False)

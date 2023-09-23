@@ -8,9 +8,6 @@ def parse_args_pretrain():
     parser = argparse.ArgumentParser()
 
     ### DATASET ARGS ###
-    parser.add_argument("--data_dir_commonvoice", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23"),
-                        help="Directory with Common Voice data files.")
     parser.add_argument("--data_dir_flags", type=Path,
                         default=Path("/gpfs/scratch/as16583/flags"),
                         help="Directory with flag image files.")
@@ -110,9 +107,6 @@ def parse_args_test():
     parser = argparse.ArgumentParser()
 
     ### DATASET ARGS ###
-    parser.add_argument("--data_dir_commonvoice", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23"),
-                        help="Directory with Common Voice data files.")
     parser.add_argument("--data_dir_flags", type=Path,
                         default=Path("/gpfs/scratch/as16583/flags"),
                         help="Directory with flag image files.")
