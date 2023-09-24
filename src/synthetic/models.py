@@ -72,21 +72,46 @@ class XORModule(pl.LightningModule):
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
         self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
 
-    def forward(self, x):
-        v_a, v_b, v_c = x
+    def forward(self, v_a, v_b, v_c):
         r_a, r_b, r_c = self.encoders(v_a, v_b, v_c)
         return r_a, r_b, r_c, self.logit_scale.exp()
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=self.args.lr)
 
+    # def _data_with_all_modes(self, vectors, missingness_ind):
+    #     """
+    #     Takes in a list of 2D vectors and a list of missingness indicators,
+    #     and returns the same list of 2D vectors with "missing" rows removed.
+    #     """
+    #     full_idx = torch.where(missingness_ind == 0)[0]
+    #     return [torch.index_select(v, 0, full_idx) for v in vectors]
+
+    # def _data_with_missing_modes(self, vectors, missingness_ind):
+    #     """
+    #     Takes in a list of 2D vectors and a list of missingness indicators,
+    #     and returns the same list of 2D vectors with only the "missing" rows.
+    #     """
+    #     missing_idx = torch.where(missingness_ind == 1)[0]
+    #     return [torch.index_select(v, 0, missing_idx) for v in vectors]
+
     def _shared_step(self, batch, batch_idx):
-        r_a, r_b, r_c, logit_scale_exp = self(batch)
+        v_a, v_b, v_c, v_a_missing, v_b_missing, v_c_missing = batch
+        r_a, r_b, r_c, logit_scale_exp = self(v_a, v_b, v_c)
 
         if self.args.normalize:
             r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
 
-        return self.loss_fn(r_a, r_b, r_c, logit_scale_exp), logit_scale_exp
+        if self.args.missingness:
+            # NOTE: we currently only handle the case in which v_b is missing
+            # set missing data in r_b to the ones vector
+            missing_idx = torch.where(v_b_missing == 1)[0]
+            r_b = r_b.cpu()
+            r_b[missing_idx, :] = 1
+            r_b = r_b.to(self.device)
+
+        loss = self.loss_fn(r_a, r_b, r_c, logit_scale_exp)
+        return loss, logit_scale_exp
 
     def training_step(self, batch, batch_idx):
         loss, logit_scale_exp = self._shared_step(batch, batch_idx)
@@ -142,9 +167,19 @@ class XORModule(pl.LightningModule):
             self.q = self.get_query_representations()
 
     def zeroshot_step(self, batch):
-        r_a, r_b, r_c, logit_scale_exp = self(batch)
+        v_a, v_b, v_c, v_a_missing, v_b_missing, v_c_missing = batch
+        r_a, r_b, r_c, logit_scale_exp = self(v_a, v_b, v_c)
+
         if self.args.normalize:
             r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
+
+        if self.args.missingness_test:
+            # NOTE: we currently only handle the case in which v_b is missing
+            # set missing data in r_b to the ones vector
+            missing_idx = torch.where(v_b_missing == 1)[0]
+            r_b = r_b.cpu()
+            r_b[missing_idx, :] = 1
+            r_b = r_b.to(self.device)
 
         # get predictions
         if self.args.loss_fn == "symile":
@@ -159,9 +194,7 @@ class XORModule(pl.LightningModule):
             ab = torch.diagonal(r_a @ torch.t(r_b)).unsqueeze(dim=1) # (batch_sz, 1)
             logits = ab + (r_b @ torch.t(self.q)) + (r_a @ torch.t(self.q))
 
-        if self.args.use_logit_scale_eval:
-            logits = logit_scale_exp * logits
-
+        logits = logit_scale_exp * logits if self.args.use_logit_scale_eval else logits
         preds = torch.argmax(logits, dim=1)
 
         # get labels
@@ -172,10 +205,19 @@ class XORModule(pl.LightningModule):
         return torch.where(preds == labels, 1, 0).sum() / len(labels)
 
     def support_step(self, batch):
-        v_a, v_b, v_c, y = batch
-        r_a, r_b, r_c, logit_scale_exp = self((v_a, v_b, v_c))
+        v_a, v_b, v_c, v_a_missing, v_b_missing, v_c_missing, y = batch
+        r_a, r_b, r_c, logit_scale_exp = self(v_a, v_b, v_c)
+
         if self.args.normalize:
             r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
+
+        if self.args.missingness_test:
+            # NOTE: we currently only handle the case in which v_b is missing
+            # set missing data in r_b to the ones vector
+            missing_idx = torch.where(v_b_missing == 1)[0]
+            r_b = r_b.cpu()
+            r_b[missing_idx, :] = 1
+            r_b = r_b.to(self.device)
 
         if self.args.loss_fn == "symile":
             X = r_a * r_b * r_c
@@ -197,10 +239,9 @@ class XORModule(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         if self.args.evaluation == "zeroshot":
-            mean_acc = self.zeroshot_step(batch)
+            acc = self.zeroshot_step(batch)
         elif self.args.evaluation == "support":
-            mean_acc = self.support_step(batch)
+            acc = self.support_step(batch)
 
-        print("Mean accuracy: ", mean_acc)
-        self.log("mean_acc", mean_acc,
-                 on_step=False, on_epoch=True, sync_dist=True)
+        print("Mean accuracy: ", acc)
+        self.log("mean_acc", acc, on_step=False, on_epoch=True, sync_dist=True)
