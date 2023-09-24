@@ -22,7 +22,6 @@ if __name__ == '__main__':
     if args.use_seed:
         seed_everything(args.seed, workers=True)
 
-
     if not os.path.exists(args.ckpt_save_dir):
         os.makedirs(args.ckpt_save_dir)
     save_dir = args.ckpt_save_dir / datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -44,7 +43,7 @@ if __name__ == '__main__':
         callbacks=[checkpoint_callback],
         check_val_every_n_epoch=args.check_val_every_n_epoch,
         deterministic=args.use_seed,
-        enable_progress_bar=True,
+        enable_progress_bar=args.enable_progress_bar,
         log_every_n_steps=1,
         logger=logger,
         max_epochs=args.epochs,
