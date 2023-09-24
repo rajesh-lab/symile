@@ -61,6 +61,8 @@ def parse_args():
                         help="Whether or not to concatenate (r_a * r_b), (r_b * r_c), (r_a * r_c) for \
                               downstream classification tasks when loss function is 'pairwise_infonce' \
                               (alternative is to sum the three terms).")
+    parser.add_argument("--enable_progress_bar", type=str_to_bool, default=True,
+                        help="Whether to enable or disable the progress bar.")
     parser.add_argument("--evaluation", type=str,
                         choices=["zeroshot", "support"],
                         default="zeroshot",
@@ -68,5 +70,15 @@ def parse_args():
     parser.add_argument("--use_logit_scale_eval", type=str_to_bool, default=True,
                         help="Whether or not to scale logits by temperature \
                               parameter during evaluation.")
+
+    ### MISSINGNESS ARGS ###
+    parser.add_argument("--missingness", type=str_to_bool, default=False,
+                        help="Whether or not to make v_b missing with some \
+                              probability in train and val sets.")
+    parser.add_argument("--missingness_test", type=str_to_bool, default=False,
+                        help="Whether or not to make v_b missing with some \
+                              probability in test sets.")
+    parser.add_argument("--missingness_p", type=float, default=0.0,
+                        help="What probability to use for missingness.")
 
     return parser.parse_args()
