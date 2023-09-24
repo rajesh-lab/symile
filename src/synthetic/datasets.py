@@ -13,7 +13,7 @@ class XORDataset(Dataset):
     Generate n samples of data (v_a, v_b, v_c) where
     v_a[i], v_b[i] ~ Bernoulli(0.5), and v_c[i] = v_a[i] XOR v_b[i].
     """
-    def __init__(self, d, n):
+    def __init__(self, d, n, p=0.0):
         """
         Initialize the dataset object.
 
@@ -22,6 +22,10 @@ class XORDataset(Dataset):
             n (int): number of data samples to generate.
         """
         self.v_a, self.v_b, self.v_c = self.generate_data_xor(d, n)
+
+        self.v_a_missingness = self.assign_missingness(n, p)
+        self.v_b_missingness = self.assign_missingness(n, p)
+        self.v_c_missingness = self.assign_missingness(n, p)
 
     def generate_data_xor(self, d, n):
         """
@@ -51,6 +55,9 @@ class XORDataset(Dataset):
 
         return (v_a, v_b, v_c)
 
+    def assign_missingness(self, n, p):
+        return torch.tensor(bernoulli.rvs(p, size=(n)))
+
     def __len__(self):
         """
         Compute length of the dataset.
@@ -72,7 +79,11 @@ class XORDataset(Dataset):
         v_a = self.v_a[idx, :]
         v_b = self.v_b[idx, :]
         v_c = self.v_c[idx, :]
-        return v_a, v_b, v_c
+
+        v_a_missing = self.v_a_missingness[idx]
+        v_b_missing = self.v_b_missingness[idx]
+        v_c_missing = self.v_c_missingness[idx]
+        return v_a, v_b, v_c, v_a_missing, v_b_missing, v_c_missing
 
 
 class XORSupportDataset(XORDataset):
@@ -84,8 +95,8 @@ class XORSupportDataset(XORDataset):
     Representations (r_a, r_b, r_c) are generated from both positive and
     negative triples (v_a, v_b, v_c) using the provided encoders.
     """
-    def __init__(self, d, n):
-        super().__init__(d, n)
+    def __init__(self, d, n, p=0.0):
+        super().__init__(d, n, p=0.0)
         pos_n = n // 2
         v_a, v_b, v_c = self.generate_data_xor(d, pos_n)
 
@@ -98,6 +109,10 @@ class XORSupportDataset(XORDataset):
 
         self.in_support = torch.concat((torch.ones(v_a.shape[0]),
                                         torch.zeros(v_a.shape[0])), axis=0)
+
+        self.v_a_missingness = self.assign_missingness(n, p)
+        self.v_b_missingness = self.assign_missingness(n, p)
+        self.v_c_missingness = self.assign_missingness(n, p)
 
     def get_negative_v_c(self, v_c):
         """
@@ -145,6 +160,9 @@ class XORSupportDataset(XORDataset):
                                                  either 0.0 or 1.0 (float).
         """
         return (self.v_a[idx, :], self.v_b[idx, :], self.v_c[idx, :],
+                self.v_a_missingness[idx],
+                self.v_b_missingness[idx],
+                self.v_c_missingness[idx],
                 self.in_support[idx])
 
 
@@ -157,13 +175,17 @@ class XORDataModule(pl.LightningDataModule):
         self.num_workers = len(os.sched_getaffinity(0))
 
     def setup(self, stage):
-        self.ds_train = XORDataset(self.args.d_v, self.args.pretrain_n)
-        self.ds_val = XORDataset(self.args.d_v, self.args.pretrain_val_n)
+        self.ds_train = XORDataset(self.args.d_v, self.args.pretrain_n,
+                                   self.args.missingness_p)
+        self.ds_val = XORDataset(self.args.d_v, self.args.pretrain_val_n,
+                                 self.args.missingness_p)
 
         if self.args.evaluation == "zeroshot":
-            self.ds_test = XORDataset(self.args.d_v, self.args.test_n)
+            self.ds_test = XORDataset(self.args.d_v, self.args.test_n,
+                                      self.args.missingness_p)
         elif self.args.evaluation == "support":
-            self.ds_test = XORSupportDataset(self.args.d_v, self.args.test_n)
+            self.ds_test = XORSupportDataset(self.args.d_v, self.args.test_n,
+                                             self.args.missingness_p)
 
     def train_dataloader(self):
         batch_sz = self.args.pretrain_n if self.args.use_full_dataset else self.args.batch_sz
