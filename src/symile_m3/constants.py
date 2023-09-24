@@ -24,3 +24,9 @@ ISO2FLAGFILE = {"ar": "lebanon.png",
                 "el": "greece.png",
                 "hi": "india.png",
                 "ja": "japan.png"}
+
+FLAGFILE2ISO = {"lebanon.png": "ar",
+                "usa.png": "en",
+                "greece.png": "el",
+                "india.png": "hi",
+                "japan.png": "ja"}

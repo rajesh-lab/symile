@@ -15,7 +15,7 @@ def parse_args_pretrain():
                         default=Path("/gpfs/scratch/as16583/audio"),
                         help="Directory with generated audio files.")
     parser.add_argument("--data_dir_imagenet", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/adriel/imagenet"),
+                        default=Path("/gpfs/data/ranganathlab/imagenet"),
                         help="Directory with ImageNet data files.")
     parser.add_argument("--train_dataset_path", type=Path,
                         default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/pretrain_train.csv"),
@@ -54,13 +54,15 @@ def parse_args_pretrain():
     parser.add_argument("--ckpt_save_dir", type=Path,
                         default=Path("/gpfs/scratch/as16583/ckpts"),
                         help="Where to save model checkpoints.")
-    parser.add_argument("--early_stopping_patience", type=int, default=3,
+    parser.add_argument("--early_stopping_patience", type=int, default=20,
                         help="Number of val checks with no improvement after \
                               which pre-training will be stopped.")
     parser.add_argument("--epochs", type=int, default=50,
                         help="Number of epochs to pretrain for.")
     parser.add_argument("--freeze_encoders", type=str_to_bool, default=True,
                         help="Whether to freeze encoders during pretraining.")
+    parser.add_argument("--freeze_logit_scale", type=str_to_bool, default=False,
+                        help="Whether to freeze logit scale during pretraining.")
     parser.add_argument("--logit_scale_init", type=float, default=0,
                         help="Value used to initialize the learned logit_scale. \
                               CLIP used np.log(1 / 0.07) = 2.65926.")
@@ -114,7 +116,7 @@ def parse_args_test():
                         default=Path("/gpfs/scratch/as16583/audio"),
                         help="Directory with generated audio files.")
     parser.add_argument("--data_dir_imagenet", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/adriel/imagenet"),
+                        default=Path("/gpfs/data/ranganathlab/imagenet"),
                         help="Directory with ImageNet data files.")
     parser.add_argument("--support_train_dataset_path", type=Path,
                         default=Path("/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/support_train.csv"),

@@ -135,12 +135,45 @@ class TextEncoder(nn.Module):
         return x
 
 
-class SymileModel(pl.LightningModule):
+class BaseModel(pl.LightningModule):
     def __init__(self, **args):
         super().__init__()
         self.save_hyperparameters()
-
         self.args = Namespace(**args)
+
+    def zeroshot_accuracy(self, r_x, r_y, r_z, loss_fn,
+                          logit_scale_exp, use_logit_scale=True,
+                          xy_idx=None, z_idx=None):
+        if loss_fn == "symile":
+            # logits is a (batch_sz, n) matrix where each row i is
+            # [ MIP(r_x[i], r_y[i], r_z[0]) ... MIP(r_x[i], r_y[i], r_z[n-1]) ]
+            # where MIP is the multilinear inner product.
+            logits = (r_x * r_y) @ torch.t(r_z)
+        elif loss_fn == "pairwise_infonce":
+            # logits is a (batch_sz, n) matrix where each row i is
+            # [ r_x[i]^T r_y[i] + r_y[i]^T r_z[0]   + r_x[i]^T r_z[0] ...
+            #   r_x[i]^T r_y[i] + r_y[i]^T r_z[n-1] + r_x[i]^T r_z[n-1] ]
+            xy = torch.diagonal(r_x @ torch.t(r_y)).unsqueeze(dim=1) # (batch_sz, 1)
+            logits = xy + (r_y @ torch.t(r_z)) + (r_x @ torch.t(r_z))
+
+        if use_logit_scale:
+            logits = logit_scale_exp * logits
+
+        pred = torch.argmax(logits, dim=1)
+
+        if xy_idx is None or z_idx is None:
+            y = torch.arange(len(r_z)).to(self.device)
+        else:
+            # in case self.r_z_idx are not in order
+            z_idx_expanded = z_idx.unsqueeze(0).expand(xy_idx.shape[0], -1)
+            y = torch.argmax((xy_idx.unsqueeze(1) == z_idx_expanded).long(), dim=1)
+
+        return (torch.sum(y == pred) / len(y)).item()
+
+
+class SymileModel(BaseModel):
+    def __init__(self, **args):
+        super().__init__(**args)
         self.loss_fn = symile if self.args.loss_fn == "symile" else pairwise_infonce
 
         self.audio_encoder = AudioEncoder(self.args.audio_model_id, self.args.d,
@@ -150,9 +183,13 @@ class SymileModel(pl.LightningModule):
         self.text_encoder = TextEncoder(self.args.text_model_id, self.args.d,
                                         self.args.freeze_encoders,
                                         self.args.feat_token_id)
+
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
-        self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
+        if self.args.freeze_logit_scale:
+            self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init).requires_grad_(False)
+        else:
+            self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
 
     def forward(self, x):
         if self.args.use_precomputed_representations:
@@ -168,9 +205,8 @@ class SymileModel(pl.LightningModule):
         return r_a, r_i, r_t, self.logit_scale.exp()
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.args.lr,
-                                      weight_decay=self.args.weight_decay)
-        return optimizer
+        return torch.optim.AdamW(self.parameters(), lr=self.args.lr,
+                                 weight_decay=self.args.weight_decay)
 
     def _shared_step(self, batch, batch_idx):
         r_a, r_i, r_t, logit_scale_exp = self(batch)
@@ -178,36 +214,44 @@ class SymileModel(pl.LightningModule):
         if self.args.normalize:
             r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
 
-        return self.loss_fn(r_a, r_i, r_t, logit_scale_exp), logit_scale_exp
+        return r_a, r_i, r_t, logit_scale_exp
 
     def training_step(self, batch, batch_idx):
-        loss, logit_scale_exp = self._shared_step(batch, batch_idx)
+        r_a, r_i, r_t, logit_scale_exp = self._shared_step(batch, batch_idx)
+
+        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp)
         log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
+        zeroshot_acc = self.zeroshot_accuracy(r_a, r_i, r_t, self.args.loss_fn,
+                                              logit_scale_exp)
 
         self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
                       on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
         self.log("log_n_minus_1", log_n_minus_1,
                  on_step=False, on_epoch=True, sync_dist=False, prog_bar=False)
+        self.log("zeroshot_acc_train", zeroshot_acc,
+                 on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss, _ = self._shared_step(batch, batch_idx)
+        r_a, r_i, r_t, logit_scale_exp = self._shared_step(batch, batch_idx)
+
+        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp)
         log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
+        zeroshot_acc = self.zeroshot_accuracy(r_a, r_i, r_t, self.args.loss_fn,
+                                              logit_scale_exp)
 
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
         self.log("log_n_minus_1", log_n_minus_1,
                  on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
+        self.log("zeroshot_acc_val", zeroshot_acc,
+                 on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
         return loss
 
 
-class SupportClfModel(pl.LightningModule):
+class SupportClfModel(BaseModel):
     def __init__(self, **args):
-        super().__init__()
-        self.args = Namespace(**args)
-        for k in args.keys():
-            self.save_hyperparameters(k)
-
+        super().__init__(**args)
         # target device is not yet available in __init__ so need to load manually
         # will be fixed soon: https://github.com/Lightning-AI/lightning/pull/18021
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -298,13 +342,9 @@ class SupportClfModel(pl.LightningModule):
         self.training_step_outputs.clear() # free memory
 
 
-class ZeroshotClfModel(pl.LightningModule):
+class ZeroshotClfModel(BaseModel):
     def __init__(self, **args):
-        super().__init__()
-        self.args = Namespace(**args)
-        for k in args.keys():
-            self.save_hyperparameters(k)
-
+        super().__init__(**args)
         # target device is not yet available in __init__ so need to load manually
         # will be fixed soon: https://github.com/Lightning-AI/lightning/pull/18021
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
