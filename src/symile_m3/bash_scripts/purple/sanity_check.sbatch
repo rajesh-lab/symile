@@ -11,15 +11,15 @@
 source ~/miniconda3/bin/activate symile
 cd /gpfs/scratch/as16583/symile/src/symile_m3
 
-echo 'pretraining...'
-python pretrain.py \
+echo 'sanity checking...'
+python sanity_check.py \
     --audio_model_id openai/whisper-small \
     --image_model_id openai/clip-vit-base-patch16 \
     --text_model_id xlm-roberta-base \
-    --batch_sz 500 \
-    --batch_sz_val 500 \
+    --batch_sz 1000 \
+    --batch_sz_val 1000 \
     --check_val_every_n_epoch 1 \
-    --epochs 1000 \
+    --epochs 200 \
     --freeze_encoders True \
     --freeze_logit_scale True \
     --limit_train_batches=1.0 \
