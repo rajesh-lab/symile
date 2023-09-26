@@ -27,6 +27,11 @@ def pretrain(args, trainer):
 if __name__ == '__main__':
     if os.getenv('SINGULARITY_CONTAINER'):
         os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
+    else:
+        os.environ['WANDB_CACHE_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+        os.environ['WANDB_CONFIG_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+        os.environ['WANDB_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+        os.environ['WANDB_DATA_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
 
     torch.set_float32_matmul_precision('medium')
 
@@ -39,6 +44,7 @@ if __name__ == '__main__':
         os.makedirs(args.ckpt_save_dir)
     save_dir = args.ckpt_save_dir / datetime.now().strftime("%Y%m%d_%H%M%S")
     setattr(args, "save_dir", save_dir)
+    print("\nSaving to: ", save_dir)
 
     if args.wandb:
         logger = WandbLogger(project="symile", log_model="all", save_dir=args.ckpt_save_dir)
@@ -52,10 +58,14 @@ if __name__ == '__main__':
     early_stopping_callback = EarlyStopping(monitor="val_loss",
                                             mode="min",
                                             patience=args.early_stopping_patience)
+    if args.early_stopping:
+        callbacks = [checkpoint_callback, early_stopping_callback]
+    else:
+        callbacks = [checkpoint_callback]
     profiler = None if args.profiler == "none" else args.profiler
 
     trainer = Trainer(
-        callbacks=[checkpoint_callback, early_stopping_callback],
+        callbacks=callbacks,
         check_val_every_n_epoch=args.check_val_every_n_epoch,
         deterministic=args.use_seed,
         enable_progress_bar=True,
