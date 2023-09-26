@@ -186,7 +186,8 @@ class SymileModel(BaseModel):
 
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
-        if self.args.freeze_logit_scale:
+        # check if attribute exists in case model is loaded from checkpoint
+        if hasattr(self.args, "freeze_logit_scale") and self.args.freeze_logit_scale:
             self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init).requires_grad_(False)
         else:
             self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
@@ -268,11 +269,16 @@ class SupportClfModel(BaseModel):
         self.classifier = nn.Linear(in_features, 1, bias=True)
 
     def forward(self, x):
-        r_a = self.audio_encoder({"input_features": x["audio_input_features"],
-                                  "attention_mask": x["audio_attention_mask"]})
-        r_i = self.image_encoder({"pixel_values": x["image_pixel_values"]})
-        r_t = self.text_encoder({"input_ids": x["text_input_ids"],
-                                  "attention_mask": x["text_attention_mask"]})
+        if self.args.use_precomputed_representations:
+            r_a = self.audio_encoder(x["audio"])
+            r_i = self.image_encoder(x["image"])
+            r_t = self.text_encoder(x["text"])
+        else:
+            r_a = self.audio_encoder({"input_features": x["audio_input_features"],
+                                    "attention_mask": x["audio_attention_mask"]})
+            r_i = self.image_encoder({"pixel_values": x["image_pixel_values"]})
+            r_t = self.text_encoder({"input_ids": x["text_input_ids"],
+                                    "attention_mask": x["text_attention_mask"]})
 
         if self.model.args.normalize:
             r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
