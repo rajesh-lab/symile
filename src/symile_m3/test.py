@@ -19,7 +19,8 @@ from pytorch_lightning.loggers import WandbLogger
 import torch
 
 from args import parse_args_test
-from datasets import SupportClfDataModule, ZeroshotClfDataModule
+from datasets import SupportClfDataModule, ZeroshotClfDataModule, \
+                     SupportClfPrecomputedDataModule
 from models import SupportClfModel, ZeroshotClfModel
 
 
@@ -44,7 +45,11 @@ def test_support(args, trainer, logger):
     model = SupportClfModel(**vars(args))
     args = pretrained_model_args(args, model)
 
-    dm = SupportClfDataModule(args)
+    if args.use_precomputed_representations:
+        dm = SupportClfPrecomputedDataModule(args)
+    else:
+        dm = SupportClfDataModule(args)
+
     trainer.fit(model, datamodule=dm)
     trainer.test(ckpt_path="best", datamodule=dm)
 
@@ -52,6 +57,11 @@ def test_support(args, trainer, logger):
 if __name__ == '__main__':
     if os.getenv('SINGULARITY_CONTAINER'):
         os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
+    else:
+        os.environ['WANDB_CACHE_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+        os.environ['WANDB_CONFIG_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+        os.environ['WANDB_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+        os.environ['WANDB_DATA_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
 
     torch.set_float32_matmul_precision('medium')
 
@@ -64,6 +74,7 @@ if __name__ == '__main__':
         os.makedirs(args.ckpt_save_dir)
     save_dir = args.ckpt_save_dir / datetime.now().strftime("%Y%m%d_%H%M%S")
     setattr(args, "save_dir", save_dir)
+    print("\nSaving to: ", save_dir)
 
     if args.wandb:
         logger = WandbLogger(project="symile", log_model="all", save_dir=args.ckpt_save_dir)
