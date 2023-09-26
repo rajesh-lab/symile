@@ -81,6 +81,23 @@ class SymilePrecomputedDataset(Dataset):
                 "text": self.text[idx]}
 
 
+class SupportClfPrecomputedDataset(Dataset):
+    def __init__(self, dataset_dir, split):
+        self.audio = torch.load(dataset_dir / f"audio_{split}.pt")
+        self.image = torch.load(dataset_dir / f"image_{split}.pt")
+        self.text = torch.load(dataset_dir / f"text_{split}.pt")
+        self.in_support = torch.load(dataset_dir / f"in_support_{split}.pt")
+
+    def __len__(self):
+        return len(self.audio)
+
+    def __getitem__(self, idx):
+        return {"audio": self.audio[idx],
+                "image": self.image[idx],
+                "text": self.text[idx],
+                "in_support": self.in_support[idx]}
+
+
 class Collator:
     """
     Custom collate function so that the text tokenizer can be called on a batch
@@ -208,13 +225,13 @@ class PretrainDataModule(BaseDataModule):
                           shuffle=True,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=True)
+                          drop_last=self.args.drop_last)
 
     def val_dataloader(self):
         return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=True)
+                          drop_last=self.args.drop_last)
 
 
 class PretrainPrecomputedDataModule(BaseDataModule):
@@ -231,12 +248,12 @@ class PretrainPrecomputedDataModule(BaseDataModule):
         return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
                           shuffle=True,
                           num_workers=self.num_workers,
-                          drop_last=True)
+                          drop_last=self.args.drop_last)
 
     def val_dataloader(self):
         return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
                           num_workers=self.num_workers,
-                          drop_last=True)
+                          drop_last=self.args.drop_last)
 
 
 class SupportClfDataModule(BaseDataModule):
@@ -263,19 +280,47 @@ class SupportClfDataModule(BaseDataModule):
                           shuffle=True,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=True)
+                          drop_last=self.args.drop_last)
 
     def val_dataloader(self):
         return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=True)
+                          drop_last=self.args.drop_last)
 
     def test_dataloader(self):
         return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=True)
+                          drop_last=self.args.drop_last)
+
+
+class SupportClfPrecomputedDataModule(BaseDataModule):
+    def __init__(self, args):
+        super().__init__(args)
+
+    def setup(self, stage):
+        self.text_tokenization()
+
+        self.ds_train = SupportClfPrecomputedDataset(self.args.precomputed_rep_dir, "train")
+        self.ds_val = SupportClfPrecomputedDataset(self.args.precomputed_rep_dir, "val")
+        self.ds_test = SupportClfPrecomputedDataset(self.args.precomputed_rep_dir, "test")
+
+    def train_dataloader(self):
+        return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
+                          shuffle=True,
+                          num_workers=self.num_workers,
+                          drop_last=self.args.drop_last)
+
+    def val_dataloader(self):
+        return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
+                          num_workers=self.num_workers,
+                          drop_last=self.args.drop_last)
+
+    def test_dataloader(self):
+        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
+                          num_workers=self.num_workers,
+                          drop_last=self.args.drop_last)
 
 
 class ZeroshotClfDataModule(BaseDataModule):
@@ -293,4 +338,4 @@ class ZeroshotClfDataModule(BaseDataModule):
         return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=True)
+                          drop_last=self.args.drop_last)
