@@ -68,9 +68,9 @@ class SymileDataset(Dataset):
 
 class SymilePrecomputedDataset(Dataset):
     def __init__(self, dataset_dir, split):
-        self.audio = torch.load(dataset_dir / f"audio_{split}.pt")
-        self.image = torch.load(dataset_dir / f"image_{split}.pt")
-        self.text = torch.load(dataset_dir / f"text_{split}.pt")
+        self.audio = torch.load(dataset_dir / f"{split}/audio_{split}.pt")
+        self.image = torch.load(dataset_dir / f"{split}/image_{split}.pt")
+        self.text = torch.load(dataset_dir / f"{split}/text_{split}.pt")
 
     def __len__(self):
         return len(self.audio)
