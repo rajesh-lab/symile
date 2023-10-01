@@ -54,6 +54,11 @@ def parse_args_pretrain():
     parser.add_argument("--ckpt_save_dir", type=Path,
                         default=Path("/gpfs/scratch/as16583/ckpts"),
                         help="Where to save model checkpoints.")
+    parser.add_argument("--drop_last", type=str_to_bool, default=True,
+                        help="Whether to drop the last non-full batch of each \
+                              DataLoader worker's dataset replica.")
+    parser.add_argument("--early_stopping", type=str_to_bool, default=True,
+                        help="Whether to use early stopping.")
     parser.add_argument("--early_stopping_patience", type=int, default=20,
                         help="Number of val checks with no improvement after \
                               which pre-training will be stopped.")
@@ -99,7 +104,7 @@ def parse_args_pretrain():
                         help="Whether to use precomputed representations to \
                               train projection heads.")
     parser.add_argument("--precomputed_rep_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/precomputed_tensors"),
+                        default=Path("/gpfs/scratch/as16583/tensors_100_classes"),
                         help="Where precomputed representations are saved.")
 
     return parser.parse_args()
@@ -149,6 +154,9 @@ def parse_args_test():
     parser.add_argument("--ckpt_save_dir", type=Path,
                         default=Path("/gpfs/scratch/as16583/ckpts"),
                         help="Where to save model checkpoints.")
+    parser.add_argument("--drop_last", type=str_to_bool, default=True,
+                        help="Whether to drop the last non-full batch of each \
+                              DataLoader worker's dataset replica.")
     parser.add_argument("--early_stopping_patience", type=int, default=4,
                         help="Number of val checks with no improvement after \
                               which training will be stopped.")
@@ -186,5 +194,12 @@ def parse_args_test():
     parser.add_argument("--use_logit_scale", type=str_to_bool, default=True,
                         help="Whether or not to scale logits by temperature \
                               parameter.")
+
+    ### DEBUGGING ARGS ###
+    parser.add_argument("--use_precomputed_representations", type=str_to_bool, default=True,
+                        help="Whether to use precomputed representations.")
+    parser.add_argument("--precomputed_rep_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/tensors_100_classes"),
+                        help="Where precomputed representations are saved.")
 
     return parser.parse_args()
