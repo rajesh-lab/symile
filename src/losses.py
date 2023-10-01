@@ -46,7 +46,7 @@ def compute_logits(x, y, z):
     and the negative multilinear inner products for each sample (row) in x.
     Positive multilinear inner products (MIP) are along the diagonal of the logits matrix.
     For example, the second row of `logits` might be:
-    [ MIP(x[1], y[3], z[2]) MIP(x[1], y[1], z[1]) MIP(x[1], y[5], z[4]) MIP(x[1], y[2], z[5]) ].
+    [ MIP(x[1], y[3], z[2]) MIP(x[1], y[1], z[1]) MIP(x[1], y[0], z[1]) MIP(x[1], y[2], z[3]) ].
     Notice that only the second element is the positive MIP; all others are negative.
     There is a small chance of a false negative MIP.
 
