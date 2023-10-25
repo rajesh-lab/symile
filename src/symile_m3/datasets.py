@@ -71,6 +71,7 @@ class SymilePrecomputedDataset(Dataset):
         self.audio = torch.load(dataset_dir / f"{split}/audio_{split}.pt")
         self.image = torch.load(dataset_dir / f"{split}/image_{split}.pt")
         self.text = torch.load(dataset_dir / f"{split}/text_{split}.pt")
+        self.idx = torch.arange(len(self.text))
 
     def __len__(self):
         return len(self.audio)
@@ -78,7 +79,8 @@ class SymilePrecomputedDataset(Dataset):
     def __getitem__(self, idx):
         return {"audio": self.audio[idx],
                 "image": self.image[idx],
-                "text": self.text[idx]}
+                "text": self.text[idx],
+                "idx": self.idx[idx]}
 
 
 class SupportClfPrecomputedDataset(Dataset):
@@ -338,4 +340,18 @@ class ZeroshotClfDataModule(BaseDataModule):
         return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer),
+                          drop_last=self.args.drop_last)
+
+
+class ZeroshotClfPrecomputedDataModule(BaseDataModule):
+    def __init__(self, args):
+        super().__init__(args)
+
+    def setup(self, stage):
+        self.text_tokenization()
+        self.ds_test = SymilePrecomputedDataset(self.args.precomputed_rep_dir, "test")
+
+    def test_dataloader(self):
+        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
+                          num_workers=self.num_workers,
                           drop_last=self.args.drop_last)

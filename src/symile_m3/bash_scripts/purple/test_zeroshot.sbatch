@@ -15,14 +15,16 @@ cd /gpfs/scratch/as16583/symile/src/symile_m3
 
 echo 'zeroshot classification...'
 python test.py \
-    --batch_sz_test 300 \
-    --ckpt_path /gpfs/scratch/as16583/ckpts/20230922_224922/epoch=40-val_loss=4.62.ckpt \
+    --batch_sz_test 164 \
+    --ckpt_path /gpfs/scratch/as16583/ckpts/20231001_193313/epoch=37-val_loss=7.86.ckpt \
     --data_dir_flags /gpfs/scratch/as16583/flags \
     --data_dir_generated_audio /gpfs/scratch/as16583/audio \
     --data_dir_imagenet /gpfs/data/ranganathlab/adriel/imagenet \
+    --drop_last False \
     --evaluation zeroshot \
     --limit_test_batches 1.0 \
-    --wandb False \
-    --zeroshot_dataset_path /gpfs/scratch/as16583/symile/src/symile_m3/data/sources/pretrain_val.csv
+    --use_precomputed_representations True \
+    --precomputed_rep_dir /gpfs/scratch/as16583/dataset \
+    --wandb False
 
 echo 'done!'

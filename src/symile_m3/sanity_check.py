@@ -27,7 +27,6 @@ class SymilePrecomputedDataset(Dataset):
         self.text = torch.load(dataset_dir / f"text_{split}.pt")
         self.language = torch.load(dataset_dir / f"language_{split}.pt")
         self.object = torch.load(dataset_dir / f"object_{split}.pt")
-        self.template = torch.load(dataset_dir / f"template_{split}.pt")
 
     def __len__(self):
         return len(self.audio)
@@ -37,8 +36,7 @@ class SymilePrecomputedDataset(Dataset):
                 "image": self.image[idx],
                 "text": self.text[idx],
                 "language": self.language[idx],
-                "object": self.object[idx],
-                "template": self.template[idx]}
+                "object": self.object[idx]}
 
 
 class PretrainPrecomputedDataModule(BaseDataModule):
@@ -56,17 +54,17 @@ class PretrainPrecomputedDataModule(BaseDataModule):
         return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
                           shuffle=True,
                           num_workers=self.num_workers,
-                          drop_last=True)
+                          drop_last=False)
 
     def val_dataloader(self):
         return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
                           num_workers=self.num_workers,
-                          drop_last=True)
+                          drop_last=False)
 
     def test_dataloader(self):
         return DataLoader(self.ds_test, batch_size=self.args.batch_sz_val,
                           num_workers=self.num_workers,
-                          drop_last=True)
+                          drop_last=False)
 
 
 class SanityCheckModel(pl.LightningModule):
@@ -88,54 +86,48 @@ class SanityCheckModel(pl.LightningModule):
             nn.Linear(100, 5, bias=False)
         )
 
+        # # classify objects from images from template 1
+        # self.object_from_image_linear = nn.Sequential(
+        #     nn.Linear(768, 50, bias=False),
+        #     nn.ReLU(),
+        #     nn.Linear(50, 100, bias=False)
+        # )
+
+        # # classify objects from text from template 1
+        # self.object_from_text_linear = nn.Sequential(
+        #     nn.Linear(768, 50, bias=False),
+        #     nn.ReLU(),
+        #     nn.Linear(50, 100, bias=False)
+        # )
+
         # classify objects from images from template 1
-        self.object_from_image_linear = nn.Sequential(
-            nn.Linear(768, 100, bias=False),
-            nn.ReLU(),
-            nn.Linear(100, 1000, bias=False)
-        )
+        self.object_from_image_linear = nn.Linear(768, 100, bias=False)
 
         # classify objects from text from template 1
-        self.object_from_text_linear = nn.Sequential(
-            nn.Linear(768, 100, bias=False),
-            nn.ReLU(),
-            nn.Linear(100, 1000, bias=False)
-        )
+        self.object_from_text_linear = nn.Linear(768, 100, bias=False)
 
     def forward(self, x):
-        temp_1_idx = torch.where(x["template"] == 1)[0]
-
         if self.args.classify == "language_from_text":
-            # classify language from all text
             logits = self.language_from_text_linear(x["text"])
         elif self.args.classify == "language_from_audio":
-            # classify language from audio from template 1
-            input_x = torch.index_select(x["audio"], 0, temp_1_idx)
-            logits = self.language_from_audio_linear(input_x)
+            logits = self.language_from_audio_linear(x["audio"])
         elif self.args.classify == "object_from_image":
-            # classify objects from images from template 1
-            input_x = torch.index_select(x["image"], 0, temp_1_idx)
-            logits = self.object_from_image_linear(input_x)
+            logits = self.object_from_image_linear(x["image"])
         elif self.args.classify == "object_from_text":
-            # classify objects from text from template 1
-            input_x = torch.index_select(x["text"], 0, temp_1_idx)
-            logits = self.object_from_text_linear(input_x)
-
-        return logits, temp_1_idx
+            logits = self.object_from_text_linear(x["text"])
+        return logits
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=self.args.lr,
                                  weight_decay=self.args.weight_decay)
 
     def _shared_step(self, batch, batch_idx):
-        logits, temp_1_idx = self(batch)
+        logits = self(batch)
 
-        if self.args.classify == "language_from_text":
+        if self.args.classify == "language_from_text" or self.args.classify == "language_from_audio":
             labels = batch["language"].type(torch.LongTensor).to(self.device)
-        elif self.args.classify == "language_from_audio":
-            labels = torch.index_select(batch["language"], 0, temp_1_idx).type(torch.LongTensor).to(self.device)
-        else:
-            labels = torch.index_select(batch["object"], 0, temp_1_idx).type(torch.LongTensor).to(self.device)
+        elif self.args.classify == "object_from_image" or self.args.classify == "object_from_text":
+            labels = batch["object"].type(torch.LongTensor).to(self.device)
 
         loss = F.cross_entropy(logits, labels)
 
@@ -183,11 +175,11 @@ if __name__ == '__main__':
     # classify language from all text
     # classify = "language_from_text"
     # classify objects from text from template 1
-    # classify = "object_from_text"
+    classify = "object_from_text"
     # classify language from audio from template 1
     # classify = "language_from_audio"
     # classify objects from images from template 1
-    classify = "object_from_image"
+    # classify = "object_from_image"
 
     if os.getenv('SINGULARITY_CONTAINER'):
         os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'

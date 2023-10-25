@@ -370,10 +370,13 @@ class ZeroshotClfModel(BaseModel):
         r_z_list = []
         idx_list = []
         for x in self.trainer.datamodule.test_dataloader():
-            r_z = self.text_encoder(
-                {"input_ids": x["text_input_ids"].to(device),
-                 "attention_mask": x["text_attention_mask"].to(device)}
-            )
+            if self.args.use_precomputed_representations:
+                r_z = self.text_encoder(x["text"].to(device))
+            else:
+                r_z = self.text_encoder(
+                    {"input_ids": x["text_input_ids"].to(device),
+                    "attention_mask": x["text_attention_mask"].to(device)}
+                )
             r_z_list.append(r_z)
             idx_list.append(x["idx"].to(device))
 
@@ -387,9 +390,13 @@ class ZeroshotClfModel(BaseModel):
         self.r_z_idx = torch.cat(idx_list)
 
     def forward(self, x):
-        r_a = self.audio_encoder({"input_features": x["audio_input_features"],
-                                  "attention_mask": x["audio_attention_mask"]})
-        r_i = self.image_encoder({"pixel_values": x["image_pixel_values"]})
+        if self.args.use_precomputed_representations:
+            r_a = self.audio_encoder(x["audio"])
+            r_i = self.image_encoder(x["image"])
+        else:
+            r_a = self.audio_encoder({"input_features": x["audio_input_features"],
+                                    "attention_mask": x["audio_attention_mask"]})
+            r_i = self.image_encoder({"pixel_values": x["image_pixel_values"]})
         return r_a, r_i, x["idx"]
 
     def test_step(self, batch, batch_idx):
@@ -398,26 +405,9 @@ class ZeroshotClfModel(BaseModel):
         if self.model.args.normalize:
             r_x, r_y = l2_normalize([r_x, r_y])
 
-        if self.model.args.loss_fn == "symile":
-            # logits is a (batch_sz, n) matrix where each row i is
-            # [ MIP(r_x[i], r_y[i], r_z[0]) ... MIP(r_x[i], r_y[i], r_z[n-1]) ]
-            # where MIP is the multilinear inner product.
-            logits = (r_x * r_y) @ torch.t(self.r_z)
-        elif self.model.args.loss_fn == "pairwise_infonce":
-            # logits is a (batch_sz, n) matrix where each row i is
-            # [ r_x[i]^T r_y[i] + r_y[i]^T r_z[0]   + r_x[i]^T r_z[0] ...
-            #   r_x[i]^T r_y[i] + r_y[i]^T r_z[n-1] + r_x[i]^T r_z[n-1] ]
-            xy = torch.diagonal(r_x @ torch.t(r_y)).unsqueeze(dim=1) # (batch_sz, 1)
-            logits = xy + (r_y @ torch.t(self.r_z)) + (r_x @ torch.t(self.r_z))
-
-        if self.args.use_logit_scale:
-            logits = self.model.logit_scale.exp() * logits
-
-        pred = torch.argmax(logits, dim=1)
-
-        # in case self.r_z_idx are not in order
-        r_z_idx_expanded = self.r_z_idx.unsqueeze(0).expand(xy_idx.shape[0], -1)
-        y = torch.argmax((xy_idx.unsqueeze(1) == r_z_idx_expanded).long(), dim=1)
-
-        acc = (torch.sum(y == pred) / len(y)).item()
-        self.log("test_accuracy", acc, sync_dist=True, prog_bar=True)
+        zeroshot_acc = self.zeroshot_accuracy(r_x, r_y, self.r_z,
+                                              self.model.args.loss_fn,
+                                              self.model.logit_scale.exp(),
+                                              self.args.use_logit_scale,
+                                              xy_idx, self.r_z_idx)
+        self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)

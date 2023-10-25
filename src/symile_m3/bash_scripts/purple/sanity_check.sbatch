@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=pretrain_symile
+#SBATCH --job-name=sanity_check
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
@@ -16,8 +16,8 @@ python sanity_check.py \
     --audio_model_id openai/whisper-small \
     --image_model_id openai/clip-vit-base-patch16 \
     --text_model_id xlm-roberta-base \
-    --batch_sz 1000 \
-    --batch_sz_val 1000 \
+    --batch_sz 50 \
+    --batch_sz_val 50 \
     --check_val_every_n_epoch 1 \
     --epochs 200 \
     --freeze_encoders True \
@@ -31,6 +31,6 @@ python sanity_check.py \
     --weight_decay 0.01 \
     --wandb True \
     --use_precomputed_representations True \
-    --precomputed_rep_dir /gpfs/scratch/as16583/xlm_whispersmall_tensors/pretrain
+    --precomputed_rep_dir /gpfs/scratch/as16583/tensors_100_classes
 
 echo 'done!'

@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import pandas as pd
 
+import numpy as np
 from PIL import Image
 import torch
 import torchaudio
@@ -14,51 +15,51 @@ from tqdm import tqdm
 from args import parse_args_pretrain
 from constants import *
 
-def get_class_mappings(mapping_path):
-    """
-    Create class mapping dataframe from ImageNet synset mapping file.
+# def get_class_mappings(mapping_path):
+#     """
+#     Create class mapping dataframe from ImageNet synset mapping file.
 
-    Args:
-        mapping_path (Path): Path to ImageNet synset mapping file (must be .txt).
-    Returns:
-        (pd.DataFrame): columns are `class_id` and `class_name`.
-    """
-    def _synsetmapping_to_name(synset_str):
-        synset_str = synset_str.split(" ")[1:]
-        return " ".join(synset_str).split(",")[0]
+#     Args:
+#         mapping_path (Path): Path to ImageNet synset mapping file (must be .txt).
+#     Returns:
+#         (pd.DataFrame): columns are `class_id` and `class_name`.
+#     """
+#     def _synsetmapping_to_name(synset_str):
+#         synset_str = synset_str.split(" ")[1:]
+#         return " ".join(synset_str).split(",")[0]
 
-    class_mapping = pd.read_csv(mapping_path, sep="\t", names=["synset"])
-    class_mapping["class_id"] = class_mapping.synset.apply(lambda x: x.split(" ")[0])
-    class_mapping["class_name"] = class_mapping.synset.apply(_synsetmapping_to_name)
-    return class_mapping[["class_id", "class_name"]]
+#     class_mapping = pd.read_csv(mapping_path, sep="\t", names=["synset"])
+#     class_mapping["class_id"] = class_mapping.synset.apply(lambda x: x.split(" ")[0])
+#     class_mapping["class_name"] = class_mapping.synset.apply(_synsetmapping_to_name)
+#     return class_mapping[["class_id", "class_name"]]
 
 
 class SymileDataset(Dataset):
     def __init__(self, df, audio_feat_extractor, img_processor):
-        self.df = self.add_classification_labels(df)
+        self.df = df
         self.audio_feat_extractor = audio_feat_extractor
         self.img_processor = img_processor
 
     def __len__(self):
         return len(self.df)
 
-    def add_classification_labels(self, df):
-        mapping = get_class_mappings(Path("/gpfs/data/ranganathlab/adriel/imagenet/LOC_synset_mapping.txt"))
-        def _get_language(r):
-            if r.template == 1:
-                return str(r.audio_path).split("/")[-1].split("_")[0]
-            elif r.template == 2:
-                return FLAGFILE2ISO[str(r.image_path).split("/")[-1]]
-        def _get_object(r, mapping):
-            if r.template == 1:
-                class_id = str(r.image_path).split("/")[-2]
-                class_clf = mapping[mapping["class_id"] == class_id].index.item()
-                return class_clf
-            elif r.template == 2:
-                return -1
-        df["language"] = df.apply(lambda r: _get_language(r), axis=1)
-        df["object"] = df.apply(lambda r: _get_object(r, mapping), axis=1)
-        return df
+    # def add_classification_labels(self, df):
+    #     mapping = get_class_mappings(Path("/gpfs/data/ranganathlab/adriel/imagenet/LOC_synset_mapping.txt"))
+    #     def _get_language(r):
+    #         if r.template == 1:
+    #             return str(r.audio_path).split("/")[-1].split("_")[0]
+    #         elif r.template == 2:
+    #             return FLAGFILE2ISO[str(r.image_path).split("/")[-1]]
+    #     def _get_object(r, mapping):
+    #         if r.template == 1:
+    #             class_id = str(r.image_path).split("/")[-2]
+    #             class_clf = mapping[mapping["class_id"] == class_id].index.item()
+    #             return class_clf
+    #         elif r.template == 2:
+    #             return -1
+    #     df["language"] = df.apply(lambda r: _get_language(r), axis=1)
+    #     df["object"] = df.apply(lambda r: _get_object(r, mapping), axis=1)
+    #     return df
 
     def get_audio(self, path):
         # downsample to 16kHz, as expected by Whisper, before passing to feature extractor
@@ -97,32 +98,32 @@ class SymileDataset(Dataset):
         audio = self.get_audio(self.df.iloc[idx].audio_path)
         image = self.get_image(self.df.iloc[idx].image_path)
         text = self.df.iloc[idx].text
-        template = self.df.iloc[idx].template
-
-        lang2clf = {"ar": 0,
-                    "en": 1,
-                    "el": 2,
-                    "hi": 3,
-                    "ja": 4}
+        in_support = self.df.iloc[idx].in_support
+        # lang_cls = self.df.iloc[idx].lang_cls
+        # object_cls = self.df.iloc[idx].object_cls
 
         item_dict = {"audio": audio, "image": image, "text": text,
-                     "template": template, "idx": idx,
-                     "language": lang2clf[self.df.iloc[idx].language],
-                     "object": self.df.iloc[idx].object}
+                    "in_support": in_support}
+                    #  "lang_cls": lang_cls, "object_cls": object_cls}
 
         return item_dict
 
+def count_max_length(txt_tokenizer):
+    # root_dir = "/gpfs/scratch/as16583/tensors_100_classes/"
+    # files = ["train.csv", "val.csv", "test.csv"]
+    # for f in files:
+    #     print("counting max length for ", f, "...\n")
+    #     df = pd.read_csv(root_dir + f)
+    #     text = txt_tokenizer(text=df.text.tolist(), return_tensors="pt", padding=True)
+    #     max_length = text["input_ids"].shape[1]
+    #     print("max length is: ", max_length, "\n")
 
-def count_max_length(split, txt_tokenizer):
-    root_dir = "/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/"
-    files = ["pretrain_train.csv", "pretrain_val.csv", "zeroshot_test.csv",
-             "support_train.csv", "support_val.csv", "support_test.csv"]
-    for f in files:
-        print("counting max length for ", f, "...\n")
-        df = pd.read_csv(root_dir + f)
-        text = txt_tokenizer(text=df.text.tolist(), return_tensors="pt", padding=True)
-        max_length = text["input_ids"].shape[1]
-        print("max length is: ", max_length, "\n")
+    f = "/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/support_test_temp1_insupport1.csv"
+    print("counting max length for ", f, "...\n")
+    df = pd.read_csv(f)
+    text = txt_tokenizer(text=df.text.tolist(), return_tensors="pt", padding=True)
+    max_length = text["input_ids"].shape[1]
+    print("max length is: ", max_length, "\n")
 
 def split_train(split):
     read_dir = Path("/gpfs/scratch/as16583/xlm_whispersmall_tensors/pretrain")
@@ -211,20 +212,21 @@ class Collator:
                                   padding="max_length", max_length=self.max_length,
                                   truncation=True)
 
-        templates = torch.Tensor([s["template"] for s in batch])
-        idx = torch.Tensor([s["idx"] for s in batch])
-        language = torch.Tensor([s["language"] for s in batch])
-        object_clf = torch.Tensor([s["object"] for s in batch])
+        # templates = torch.Tensor([s["template"] for s in batch])
+        # idx = torch.Tensor([s["idx"] for s in batch])
+        # lang_cls = torch.Tensor([s["lang_cls"] for s in batch])
+        # object_cls = torch.Tensor([s["object_cls"] for s in batch])
 
         batched_data = {"audio_input_features": audio_input_features,
                         "audio_attention_mask": audio_attention_mask,
                         "image_pixel_values": image_pixel_values,
                         "text_input_ids": text["input_ids"],
                         "text_attention_mask": text["attention_mask"],
-                        "templates": templates,
-                        "idx": idx,
-                        "language": language,
-                        "object": object_clf}
+                        "in_support": torch.Tensor([s["in_support"] for s in batch])}
+                        # "templates": templates,
+                        # "idx": idx,
+                        # "lang_cls": lang_cls,
+                        # "object_cls": object_cls}
 
         return batched_data
 
@@ -234,11 +236,13 @@ def get_full_data_paths(df, args):
         return args.data_dir_generated_audio / r.audio_path.strip("/")
     df["audio_path"] = df.apply(lambda r: _full_audio_path(r), axis=1)
 
+    # def _full_image_path(r):
+    #     if r.template == 1:
+    #         return args.data_dir_imagenet / r.image_path.strip("/")
+    #     else:
+    #         return args.data_dir_flags / r.image_path.strip("/")
     def _full_image_path(r):
-        if r.template == 1:
-            return args.data_dir_imagenet / r.image_path.strip("/")
-        else:
-            return args.data_dir_flags / r.image_path.strip("/")
+        return args.data_dir_imagenet / r.image_path.strip("/")
     df["image_path"] = df.apply(lambda r: _full_image_path(r), axis=1)
 
     return df
@@ -250,9 +254,9 @@ def tensors(split, dl, tensor_save_dir, audio_encoder, image_encoder, text_encod
     audio_reps = []
     image_reps = []
     text_reps = []
-    language_reps = []
-    object_reps = []
-    template_reps = []
+    # language_reps = []
+    # object_reps = []
+    in_support = []
     dl_loop = tqdm(dl)
     for ix, batch in enumerate(dl_loop):
         batch = {k: v.to(device) for k, v in batch.items()}
@@ -281,9 +285,9 @@ def tensors(split, dl, tensor_save_dir, audio_encoder, image_encoder, text_encod
         text_reps.append(x)
 
         # language and object classifications and templates
-        language_reps.append(batch["language"].cpu())
-        object_reps.append(batch["object"].cpu())
-        template_reps.append(batch["templates"].cpu())
+        # language_reps.append(batch["lang_cls"].cpu())
+        # object_reps.append(batch["object_cls"].cpu())
+        in_support.append(batch["in_support"].cpu())
 
     audio_reps = torch.cat(audio_reps, dim=0)
     torch.save(audio_reps, tensor_save_dir + f'audio_{split}.pt')
@@ -291,20 +295,20 @@ def tensors(split, dl, tensor_save_dir, audio_encoder, image_encoder, text_encod
     torch.save(image_reps, tensor_save_dir + f'image_{split}.pt')
     text_reps = torch.cat(text_reps, dim=0)
     torch.save(text_reps, tensor_save_dir + f'text_{split}.pt')
-    language_reps = torch.cat(language_reps, dim=0)
-    torch.save(language_reps, tensor_save_dir + f'language_{split}.pt')
-    object_reps = torch.cat(object_reps, dim=0)
-    torch.save(object_reps, tensor_save_dir + f'object_{split}.pt')
-    template_reps = torch.cat(template_reps, dim=0)
-    torch.save(template_reps, tensor_save_dir + f'template_{split}.pt')
+    # language_reps = torch.cat(language_reps, dim=0)
+    # torch.save(language_reps, tensor_save_dir + f'language_{split}.pt')
+    # object_reps = torch.cat(object_reps, dim=0)
+    # torch.save(object_reps, tensor_save_dir + f'object_{split}.pt')
+    in_support = torch.cat(in_support, dim=0)
+    torch.save(in_support, tensor_save_dir + f'in_support_{split}.pt')
 
 
 if __name__ == '__main__':
     # options: "save_tensors", "split_train", "count_max_length"
-    do = "split_train"
-    file = "pretrain_train.csv"
-    split = "train"
-    tensor_save_dir = "/gpfs/scratch/as16583/xlm_whispersmall_tensors/pretrain/"
+    do = "save_tensors"
+    file = "support_test_temp1_insupport1_dropduptext.csv"
+    split = "test"
+    tensor_save_dir = "/gpfs/scratch/as16583/tensors_100_classes/support/insupport_dropduptext/"
     audio_model_id = "openai/whisper-small"
     image_model_id = "openai/clip-vit-base-patch16"
     text_model_id = "xlm-roberta-base"
@@ -334,6 +338,7 @@ if __name__ == '__main__':
         num_workers = len(os.sched_getaffinity(0))
 
         dataset_path = "/gpfs/scratch/as16583/symile/src/symile_m3/data/sources/" + file
+        # dataset_path = "/gpfs/scratch/as16583/tensors_100_classes/" + file
 
         df = pd.read_csv(dataset_path)
         df = get_full_data_paths(df, args)
@@ -341,7 +346,7 @@ if __name__ == '__main__':
 
         shuffle = True if split == "train" else False
         dl = DataLoader(ds, batch_size=200, shuffle=shuffle, num_workers=num_workers,
-                        collate_fn=Collator(txt_tokenizer, max_length=max_lengths[file]))
+                        collate_fn=Collator(txt_tokenizer, max_length=22)) #22 for support_test_temp1_insupport1
 
         # LOAD UP MODELS
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -359,4 +364,4 @@ if __name__ == '__main__':
     elif do == "split_train":
         split_train(split)
     elif do == "count_max_length":
-        count_max_length(split, txt_tokenizer)
+        count_max_length(txt_tokenizer)

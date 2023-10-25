@@ -20,7 +20,7 @@ import torch
 
 from args import parse_args_test
 from datasets import SupportClfDataModule, ZeroshotClfDataModule, \
-                     SupportClfPrecomputedDataModule
+                     SupportClfPrecomputedDataModule, ZeroshotClfPrecomputedDataModule
 from models import SupportClfModel, ZeroshotClfModel
 
 
@@ -37,7 +37,11 @@ def test_zeroshot(args, trainer, logger):
     model = ZeroshotClfModel(**vars(args))
     args = pretrained_model_args(args, model)
 
-    dm = ZeroshotClfDataModule(args)
+    if args.use_precomputed_representations:
+        dm = ZeroshotClfPrecomputedDataModule(args)
+    else:
+        dm = ZeroshotClfDataModule(args)
+
     trainer.test(model, datamodule=dm)
 
 
