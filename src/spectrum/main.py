@@ -13,6 +13,7 @@ import torch
 
 from args import parse_args
 from datasets import SyntheticDataModule
+from informations import best_accuracy, mutual_informations
 from models import SyntheticModule
 
 
@@ -35,6 +36,9 @@ if __name__ == '__main__':
 
     for loss_fn in ["symile", "pairwise_infonce"]:
         for i_p in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
+            mi = mutual_informations(i_p)
+            best_acc = best_accuracy(i_p)
+
             datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
             run_save_dir = save_dir / datetime_now
             if not os.path.exists(run_save_dir):
@@ -42,6 +46,10 @@ if __name__ == '__main__':
 
             setattr(args, "i_p", i_p)
             setattr(args, "loss_fn", loss_fn)
+            setattr(args, "mi_a_c", mi["mi_a_c"])
+            setattr(args, "mi_b_c", mi["mi_b_c"])
+            setattr(args, "mi_a_b_given_c", mi["mi_a_b_given_c"])
+            setattr(args, "best_acc", best_acc)
             setattr(args, "run_save_dir", run_save_dir)
 
             wandb_run_name = args.wandb_run_name if args.wandb_run_name != None \
