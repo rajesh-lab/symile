@@ -15,14 +15,12 @@ from args import parse_args
 from datasets import SyntheticDataModule
 from informations import best_accuracy, mutual_informations
 from models import SyntheticModule
+from utils import get_test_distribution
 
 
 if __name__ == '__main__':
     if os.getenv('SINGULARITY_CONTAINER'):
         os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
-    # utilize a100s to trade-off precision for performance
-    if torch.cuda.get_device_name() == "NVIDIA A100 80GB PCIe":
-        torch.set_float32_matmul_precision('medium')
 
     args = parse_args()
 
@@ -32,13 +30,32 @@ if __name__ == '__main__':
     datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
     save_dir = args.ckpt_save_dir / datetime_now
 
-    results = {"loss_fn": [], "i_p": [], "acc": []}
+    # compute mutual informations, total correlation, and best accuracy
+    # for all values of i_p
+    mi_results = {"i_p": [], "value": [], "type": []}
+    acc_results = {"i_p": [], "loss_fn": [], "acc": []}
+    loss_results = {"i_p": [], "type": [], "value": []}
+    for i_p in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
+        # mutual informations and total correlation
+        mi = mutual_informations(i_p, args.d_v)
+        mi["total_corr"] = mi["mi_a_c"] + mi["mi_b_c"] + mi["mi_a_b_given_c"]
+        for k, v in mi.items():
+            mi_results["i_p"].append(i_p)
+            mi_results["type"].append(k)
+            mi_results["value"].append(v)
+
+        # accuracy of best predictor
+        acc_results["i_p"].append(i_p)
+        acc_results["loss_fn"].append("best_predictor")
+        acc_results["acc"].append(best_accuracy(i_p, args.d_v))
+
+        loss_results["i_p"].append(i_p)
+        loss_results["type"].append("total_corr")
+        loss_results["value"].append(mi["total_corr"])
 
     for loss_fn in ["symile", "pairwise_infonce"]:
-        for i_p in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
-            mi = mutual_informations(i_p)
-            best_acc = best_accuracy(i_p)
-
+        for i_p in [0.4]:
+        # for i_p in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
             datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
             run_save_dir = save_dir / datetime_now
             if not os.path.exists(run_save_dir):
@@ -46,10 +63,6 @@ if __name__ == '__main__':
 
             setattr(args, "i_p", i_p)
             setattr(args, "loss_fn", loss_fn)
-            setattr(args, "mi_a_c", mi["mi_a_c"])
-            setattr(args, "mi_b_c", mi["mi_b_c"])
-            setattr(args, "mi_a_b_given_c", mi["mi_a_b_given_c"])
-            setattr(args, "best_acc", best_acc)
             setattr(args, "run_save_dir", run_save_dir)
 
             wandb_run_name = args.wandb_run_name if args.wandb_run_name != None \
@@ -75,21 +88,45 @@ if __name__ == '__main__':
                 num_sanity_val_steps=0
             )
 
-            dm = SyntheticDataModule(args)
-
             print(f"\n***** Running {loss_fn} with i_p = {i_p}... *****\n")
 
-            trainer.fit(SyntheticModule(**vars(args)), datamodule=dm)
-            acc = trainer.test(ckpt_path="best", datamodule=dm)
+            dm = SyntheticDataModule(args)
+            model = SyntheticModule(**vars(args))
 
-            results["loss_fn"].append(loss_fn)
-            results["i_p"].append(i_p)
-            results["acc"].append(acc[0]["mean_acc"])
+            trainer.fit(model, datamodule=dm)
+            test_res = trainer.test(ckpt_path="best", datamodule=dm)[0]
+
+            acc_results["i_p"].append(i_p)
+            acc_results["loss_fn"].append(loss_fn)
+            acc_results["acc"].append(test_res["mean_acc"])
+
+            loss_results["i_p"].append(i_p)
+            loss_results["type"].append(f"test_loss_{loss_fn}")
+            loss_results["value"].append(test_res["test_loss_epoch"])
+            loss_results["i_p"].append(i_p)
+            loss_results["type"].append(f"log_n_minus_1_{loss_fn}")
+            loss_results["value"].append(test_res["test_log_n_minus_1"])
+
+            test_dist_df = get_test_distribution(dm)
 
             if args.wandb:
                 logger.experiment.finish()
 
-    df = pd.DataFrame(results)
-    df.to_csv(save_dir / "results.csv", index=False)
-    fig = px.line(df, x="i_p", y="acc", color="loss_fn")
-    fig.write_image(save_dir / "results.png")
+    mi_df = pd.DataFrame(mi_results)
+    mi_df.to_csv(save_dir / "mi.csv", index=False)
+    fig = px.line(mi_df, x="i_p", y="value", color="type")
+    fig.write_image(save_dir / "mi.png")
+
+    acc_df = pd.DataFrame(acc_results)
+    acc_df.to_csv(save_dir / "acc.csv", index=False)
+    fig = px.line(acc_df, x="i_p", y="acc", color="loss_fn")
+    fig.write_image(save_dir / "acc.png")
+
+    loss_df = pd.DataFrame(loss_results)
+    loss_df.to_csv(save_dir / "loss.csv", index=False)
+    fig = px.line(loss_df, x="i_p", y="value", color="type")
+    fig.write_image(save_dir / "loss.png")
+
+    test_dist_df.to_csv(save_dir / "test_dist.csv", index=False)
+    fig = px.line(test_dist_df, x="value", y="prob", color="type")
+    fig.write_image(save_dir / "test_dist.png")
