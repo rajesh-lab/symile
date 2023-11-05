@@ -39,9 +39,16 @@ class SyntheticDataset(Dataset):
         i = bernoulli.rvs(i_p, size=n)
 
         xor = np.bitwise_xor(v_a, v_b)
-        v_c_0 = np.where(i, xor[:, 0], v_a[:, 0])
-        v_c_1 = np.where(i, xor[:, 1], v_b[:, 0])
-        v_c = np.stack([v_c_0, v_c_1], axis=1)
+
+        if d == 1:
+            i = np.expand_dims(i, axis=1)
+            v_c = np.where(i, xor, v_a)
+        elif d == 2:
+            v_c_0 = np.where(i, xor[:, 0], v_a[:, 0])
+            v_c_1 = np.where(i, xor[:, 1], v_b[:, 0])
+            v_c = np.stack([v_c_0, v_c_1], axis=1)
+        else:
+            raise ValueError("d must be 1 or 2.")
 
         v_a = torch.from_numpy(v_a).to(torch.float32)
         v_b = torch.from_numpy(v_b).to(torch.float32)

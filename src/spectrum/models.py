@@ -95,7 +95,7 @@ class SyntheticModule(pl.LightningModule):
 
         self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
                       on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
-        self.log("log_n_minus_1", log_n_minus_1,
+        self.log("train_log_n_minus_1", log_n_minus_1,
                  on_step=False, on_epoch=True, sync_dist=False, prog_bar=False)
         return loss
 
@@ -105,7 +105,7 @@ class SyntheticModule(pl.LightningModule):
 
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
-        self.log("log_n_minus_1", log_n_minus_1,
+        self.log("val_log_n_minus_1", log_n_minus_1,
                  on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
         return loss
 
@@ -117,27 +117,14 @@ class SyntheticModule(pl.LightningModule):
         #                       q[0] = f([0,0]), q[1] = f([0,1]),
         #                       q[2] = f([1,0]), q[3] = f([1,1]).
         # """
-        # q_00 = self.encoders.f_a(torch.Tensor([0,0]).to(self.device))
-        # q_01 = self.encoders.f_a(torch.Tensor([0,1]).to(self.device))
-        # q_10 = self.encoders.f_a(torch.Tensor([1,0]).to(self.device))
-        # q_11 = self.encoders.f_a(torch.Tensor([1,1]).to(self.device))
-
-        # assert torch.ne(q_00, q_01).any() and \
-        #        torch.ne(q_00, q_10).any() and \
-        #        torch.ne(q_00, q_11).any() and \
-        #        torch.ne(q_01, q_10).any() and \
-        #        torch.ne(q_01, q_11).any() and \
-        #        torch.ne(q_10, q_11).any(), \
-        #        "q_00, q_01, q_10, q_11 must all be different."
-
-        # q = torch.cat((torch.unsqueeze(q_00, 0), torch.unsqueeze(q_01, 0),
-        #                torch.unsqueeze(q_10, 0), torch.unsqueeze(q_11, 0)), dim=0)
-
-        v_q = torch.stack((torch.Tensor([0,0]),
-                           torch.Tensor([0,1]),
-                           torch.Tensor([1,0]),
-                           torch.Tensor([1,1])), dim=0).to(self.device)
-        r_q = self.encoders.f_a(v_q)
+        if self.args.d_v == 1:
+            v_q = torch.Tensor([[0], [1]]).to(self.device)
+        elif self.args.d_v == 2:
+            v_q = torch.stack((torch.Tensor([0,0]),
+                               torch.Tensor([0,1]),
+                               torch.Tensor([1,0]),
+                               torch.Tensor([1,1])), dim=0).to(self.device)
+        r_q = self.encoders.f_b(v_q)
 
         if self.args.normalize:
             [r_q] = l2_normalize([r_q])
@@ -155,18 +142,25 @@ class SyntheticModule(pl.LightningModule):
         if self.args.normalize:
             r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
 
+        loss = self.loss_fn(r_a, r_b, r_c, logit_scale_exp)
+        log_n_minus_1 = np.log(len(batch[0])-1)
+        self.log("test_loss", loss,
+                 on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
+        self.log("test_log_n_minus_1", log_n_minus_1,
+                 on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
+
         # get predictions
         if self.args.loss_fn == "symile":
             # logits is a (batch_sz, 4) matrix where each row i is
             # [ MIP(r_a[i], r_b[i], q[0]) ... MIP(r_a[i], r_b[i], q[3]) ]
             # where MIP is the multilinear inner product.
-            logits = (r_b * r_c) @ torch.t(self.r_q)
+            logits = (r_a * r_c) @ torch.t(self.r_q)
         elif self.args.loss_fn == "pairwise_infonce":
             # logits is a (batch_sz, 4) matrix where each row i is
             # [ r_a[i]^T r_b[i] + r_b[i]^T q[0] + r_a[i]^T q[0] ...
             #   r_a[i]^T r_b[i] + r_b[i]^T q[3] + r_a[i]^T q[3] ]
-            bc = torch.diagonal(r_b @ torch.t(r_c)).unsqueeze(dim=1) # (batch_sz, 1)
-            logits = bc + (r_b @ torch.t(self.r_q)) + (r_c @ torch.t(self.r_q))
+            ac = torch.diagonal(r_a @ torch.t(r_c)).unsqueeze(dim=1) # (batch_sz, 1)
+            logits = ac + (r_a @ torch.t(self.r_q)) + (r_c @ torch.t(self.r_q))
 
         logits = logit_scale_exp * logits if self.args.use_logit_scale_eval else logits
         preds = torch.argmax(logits, dim=1)
@@ -174,34 +168,37 @@ class SyntheticModule(pl.LightningModule):
         # get labels
         def _get_label(r):
             return torch.argmax(torch.where(r == self.v_q, 1, 0).sum(dim=1))
-        labels = torch.vmap(_get_label)(v_a)
+        if self.args.d_v == 1:
+            labels = torch.squeeze(v_b)
+        elif self.args.d_v == 2:
+            labels = torch.vmap(_get_label)(v_b)
 
         return torch.where(preds == labels, 1, 0).sum() / len(labels)
 
-    def support_step(self, batch):
-        v_a, v_b, v_c, y = batch
-        r_a, r_b, r_c, logit_scale_exp = self(v_a, v_b, v_c)
+    # def support_step(self, batch):
+    #     v_a, v_b, v_c, y = batch
+    #     r_a, r_b, r_c, logit_scale_exp = self(v_a, v_b, v_c)
 
-        if self.args.normalize:
-            r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
+    #     if self.args.normalize:
+    #         r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
 
-        if self.args.loss_fn == "symile":
-            X = r_a * r_b * r_c
-        elif self.args.loss_fn == "pairwise_infonce":
-            if self.args.concat_infonce:
-                X = torch.cat((r_a * r_b, r_b * r_c, r_a * r_c), dim=1)
-            else:
-                X = (r_a * r_b) + (r_b * r_c) + (r_a * r_c)
+    #     if self.args.loss_fn == "symile":
+    #         X = r_a * r_b * r_c
+    #     elif self.args.loss_fn == "pairwise_infonce":
+    #         if self.args.concat_infonce:
+    #             X = torch.cat((r_a * r_b, r_b * r_c, r_a * r_c), dim=1)
+    #         else:
+    #             X = (r_a * r_b) + (r_b * r_c) + (r_a * r_c)
 
-        if self.args.use_logit_scale_eval:
-            X = logit_scale_exp * X
+    #     if self.args.use_logit_scale_eval:
+    #         X = logit_scale_exp * X
 
-        X_train, X_test, y_train, y_test = train_test_split(X.cpu(), y.cpu(),
-                                                            test_size=0.2)
-        clf = LogisticRegression()
-        clf.fit(X_train, y_train)
+    #     X_train, X_test, y_train, y_test = train_test_split(X.cpu(), y.cpu(),
+    #                                                         test_size=0.2)
+    #     clf = LogisticRegression()
+    #     clf.fit(X_train, y_train)
 
-        return clf.score(X_test, y_test)
+    #     return clf.score(X_test, y_test)
 
     def test_step(self, batch, batch_idx):
         if self.args.evaluation == "zeroshot":
