@@ -9,13 +9,13 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 import pandas as pd
 import plotly.express as px
 from pytorch_lightning.loggers import WandbLogger
-import torch
 
 from args import parse_args
 from datasets import SyntheticDataModule
 from informations import best_accuracy, mutual_informations
 from models import SyntheticModule
-from utils import get_test_distribution
+from utils import get_test_distribution, likelihood_ratio_vs_score, \
+                  likelihood_ratios
 
 
 if __name__ == '__main__':
@@ -53,9 +53,11 @@ if __name__ == '__main__':
         loss_results["type"].append("total_corr")
         loss_results["value"].append(mi["total_corr"])
 
+    # calculate true likelihood ratio p(a,b,c)/p(a)p(b)p(c) for each i_p
+    lr_data = likelihood_ratios(args.d_v)
+
     for loss_fn in ["symile", "pairwise_infonce"]:
-        for i_p in [0.4]:
-        # for i_p in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
+        for i_p in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
             datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
             run_save_dir = save_dir / datetime_now
             if not os.path.exists(run_save_dir):
@@ -108,6 +110,9 @@ if __name__ == '__main__':
             loss_results["value"].append(test_res["test_log_n_minus_1"])
 
             test_dist_df = get_test_distribution(dm)
+
+            likelihood_ratio_vs_score(i_p, loss_fn, model, lr_data[i_p],
+                                      save_dir, dim=args.d_v)
 
             if args.wandb:
                 logger.experiment.finish()
