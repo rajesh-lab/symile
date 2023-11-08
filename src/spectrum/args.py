@@ -8,19 +8,19 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     ### DATASET ARGS ###
-    parser.add_argument("--pretrain_n", type=int, default=10, #5K
+    parser.add_argument("--pretrain_n", type=int, default=5000, #5K
                         help="Number of samples (a, b, c) in pretraining dataset.")
     parser.add_argument("--pretrain_val_n", type=int, default=1000, #1K
                         help="Number of samples (a, b, c) in pretraining validation dataset.")
     parser.add_argument("--test_n", type=int, default=5000, #5K
                         help="Number of samples (a, b, c) in test dataset.")
-    parser.add_argument("--d_v", type=int, default=2,
+    parser.add_argument("--d_v", type=int, default=1, #1 or 2
                         help="Dimensionality of dataset vectors.")
-    parser.add_argument("--d_r", type=int, default=2,
+    parser.add_argument("--d_r", type=int, default=16,
                         help="Dimensionality of representation vectors.")
 
     ### TRAINING ARGS ###
-    parser.add_argument("--batch_sz", type=int, default=10,
+    parser.add_argument("--batch_sz", type=int, default=1000, #1K
                         help="Batch size for pretraining.")
     parser.add_argument("--batch_sz_val", type=int, default=1000,
                         help="Val set batch size for pretraining.")
@@ -44,11 +44,11 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")
-    parser.add_argument("--use_full_dataset", type=str_to_bool, default=True,
+    parser.add_argument("--use_full_dataset", type=str_to_bool, default=False,
                         help="Whether to set batch size equal to full dataset. \
                               Note that if set to True, `batch_sz` param \
                               will be ignored.")
-    parser.add_argument("--wandb", type=str_to_bool, default=False,
+    parser.add_argument("--wandb", type=str_to_bool, default=True, #True
                         help="Whether to use wandb for logging.")
     parser.add_argument("--wandb_run_name", type=str, default=None,
                         help="Run name for wandb for logging.")
