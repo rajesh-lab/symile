@@ -6,7 +6,7 @@ from informations import prob_c_1d, prob_c_given_a_b_1d, \
                          prob_c_2d, prob_c_given_a_b_2d
 
 
-def get_test_distribution(dm):
+def save_test_distribution(dm, save_dir, loss_fn, i_p):
     """
     Returns a dataframe that, for each vector (v_a, v_b, v_c) in the test,
     calculates the percent of the vector that belongs to each possible value.
@@ -15,6 +15,7 @@ def get_test_distribution(dm):
 
     Args:
         dm (SyntheticDataModule): data module.
+        save_dir (Path): i_p-specific directory to save dataframe and plot to.
     Returns:
         df (pd.DataFrame): with the following columns:
             "value": e.g. "00", "01" for two dims, or "0", "1" for one dim
@@ -46,7 +47,9 @@ def get_test_distribution(dm):
     df = pd.DataFrame(df_dict)
     df["prob"] = df["count"] / len(v_a)
 
-    return df
+    df.to_csv(save_dir / f"test_dist_{loss_fn}_i_p_{i_p}.csv", index=False)
+    fig = px.line(df, x="value", y="prob", color="type")
+    fig.write_image(save_dir / f"test_dist_{loss_fn}_i_p_{i_p}.png")
 
 
 def likelihood_ratios(dim):
@@ -116,7 +119,7 @@ def all_data_vectors(dim):
     return v_a, v_b, v_c, abc
 
 
-def likelihood_ratio_vs_score(i_p, loss_fn, model, lr_data, save_dir, dim):
+def save_likelihood_ratio_vs_score(i_p, loss_fn, model, lr_data, save_dir, dim):
     """
     For each i_p, create and save a plot that compares the likelihood ratio to
     the multilinear inner product for different values of a, b, c.
@@ -140,6 +143,5 @@ def likelihood_ratio_vs_score(i_p, loss_fn, model, lr_data, save_dir, dim):
     df = pd.DataFrame(lr_data)
     df.to_csv(save_dir / f"lr_vs_score_{loss_fn}_{i_p}.csv", index=False)
     fig = px.bar(df, x="abc", y="value", color="type", barmode="group")
-    breakpoint()
-    fig.update_xaxes(tickfont_size=20)
+    fig.update_xaxes(tickfont_size=6)
     fig.write_image(save_dir / f"lr_vs_score_{loss_fn}_{i_p}.png")

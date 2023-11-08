@@ -14,8 +14,8 @@ from args import parse_args
 from datasets import SyntheticDataModule
 from informations import best_accuracy, mutual_informations
 from models import SyntheticModule
-from utils import get_test_distribution, likelihood_ratio_vs_score, \
-                  likelihood_ratios
+from utils import likelihood_ratios, save_likelihood_ratio_vs_score, \
+                  save_test_distribution
 
 
 if __name__ == '__main__':
@@ -29,6 +29,7 @@ if __name__ == '__main__':
 
     datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
     save_dir = args.ckpt_save_dir / datetime_now
+    os.mkdir(save_dir)
 
     # compute mutual informations, total correlation, and best accuracy
     # for all values of i_p
@@ -58,6 +59,10 @@ if __name__ == '__main__':
 
     for loss_fn in ["symile", "pairwise_infonce"]:
         for i_p in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
+            i_p_dir = save_dir / f"i_p_{i_p}"
+            if not os.path.exists(i_p_dir):
+                os.mkdir(i_p_dir)
+
             datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
             run_save_dir = save_dir / datetime_now
             if not os.path.exists(run_save_dir):
@@ -109,10 +114,9 @@ if __name__ == '__main__':
             loss_results["type"].append(f"log_n_minus_1_{loss_fn}")
             loss_results["value"].append(test_res["test_log_n_minus_1"])
 
-            test_dist_df = get_test_distribution(dm)
-
-            likelihood_ratio_vs_score(i_p, loss_fn, model, lr_data[i_p],
-                                      save_dir, dim=args.d_v)
+            save_test_distribution(dm, i_p_dir, loss_fn, i_p)
+            save_likelihood_ratio_vs_score(i_p, loss_fn, model, lr_data[i_p],
+                                           i_p_dir, dim=args.d_v)
 
             if args.wandb:
                 logger.experiment.finish()
@@ -131,7 +135,3 @@ if __name__ == '__main__':
     loss_df.to_csv(save_dir / "loss.csv", index=False)
     fig = px.line(loss_df, x="i_p", y="value", color="type")
     fig.write_image(save_dir / "loss.png")
-
-    test_dist_df.to_csv(save_dir / "test_dist.csv", index=False)
-    fig = px.line(test_dist_df, x="value", y="prob", color="type")
-    fig.write_image(save_dir / "test_dist.png")
