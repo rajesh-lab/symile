@@ -135,6 +135,25 @@ class SyntheticModule(pl.LightningModule):
         if self.args.evaluation == "zeroshot":
             self.v_q, self.r_q = self.get_query_representations()
 
+    def test_loss(self, r_a, r_b, r_c, logit_scale_exp):
+        total_batches = len(r_a) // self.args.batch_sz
+        loss = 0
+        log_n_minus_1 = 0
+
+        for i in range(total_batches):
+            start_idx = i * self.args.batch_sz
+            end_idx = (i + 1) * self.args.batch_sz
+            batch_loss = self.loss_fn(r_a[start_idx:end_idx],
+                                      r_b[start_idx:end_idx],
+                                      r_c[start_idx:end_idx],
+                                      logit_scale_exp)
+            loss += batch_loss
+            log_n_minus_1 += np.log((end_idx-start_idx) - 1)
+
+        loss = loss / total_batches
+        log_n_minus_1 = log_n_minus_1 / total_batches
+        return loss, log_n_minus_1
+
     def zeroshot_step(self, batch):
         v_a, v_b, v_c = batch
         r_a, r_b, r_c, logit_scale_exp = self(v_a, v_b, v_c)
@@ -142,8 +161,7 @@ class SyntheticModule(pl.LightningModule):
         if self.args.normalize:
             r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
 
-        loss = self.loss_fn(r_a, r_b, r_c, logit_scale_exp)
-        log_n_minus_1 = np.log(len(batch[0])-1)
+        loss, log_n_minus_1 = self.test_loss(r_a, r_b, r_c, logit_scale_exp)
         self.log("test_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
         self.log("test_log_n_minus_1", log_n_minus_1,
