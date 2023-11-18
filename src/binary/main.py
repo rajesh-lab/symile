@@ -1,5 +1,5 @@
 """
-Experiment to demonstrate performance of SYMILE on synthetic datasets.
+Experiments to demonstrate performance of SYMILE on binary data.
 """
 from datetime import datetime
 import os
@@ -12,7 +12,7 @@ from pytorch_lightning.loggers import WandbLogger
 
 from args import parse_args
 from datasets import SyntheticDataModule
-from informations import best_accuracy, mutual_informations
+from information_measures import best_accuracy, mutual_informations
 from models import SyntheticModule
 from utils import likelihood_ratios, save_likelihood_ratio_vs_score, \
                   save_test_distribution
@@ -40,24 +40,25 @@ if __name__ == '__main__':
         # mutual informations and total correlation
         mi = mutual_informations(i_p, args.d_v)
         mi["total_corr"] = mi["mi_a_c"] + mi["mi_b_c"] + mi["mi_a_b_given_c"]
+
         for k, v in mi.items():
             mi_results["i_p"].append(i_p)
             mi_results["type"].append(k)
             mi_results["value"].append(v)
+
+        loss_results["i_p"].append(i_p)
+        loss_results["type"].append("total_corr")
+        loss_results["value"].append(mi["total_corr"])
 
         # accuracy of best predictor
         acc_results["i_p"].append(i_p)
         acc_results["loss_fn"].append("best_predictor")
         acc_results["acc"].append(best_accuracy(i_p, args.d_v))
 
-        loss_results["i_p"].append(i_p)
-        loss_results["type"].append("total_corr")
-        loss_results["value"].append(mi["total_corr"])
-
     # calculate true likelihood ratio p(a,b,c)/p(a)p(b)p(c) for each i_p
     lr_data = likelihood_ratios(args.d_v)
 
-    for loss_fn in ["symile", "pairwise_infonce"]:
+    for loss_fn in ["symile", "clip"]:
         for i_p in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
             i_p_dir = save_dir / f"i_p_{i_p}"
             if not os.path.exists(i_p_dir):
@@ -81,9 +82,9 @@ if __name__ == '__main__':
                 logger = False
 
             checkpoint_callback = ModelCheckpoint(dirpath=run_save_dir,
-                                                filename="{epoch}-{val_loss:.2f}",
-                                                mode="min",
-                                                monitor="val_loss")
+                                                  filename="{epoch}-{val_loss:.2f}",
+                                                  mode="min",
+                                                  monitor="val_loss")
             trainer = Trainer(
                 callbacks=[checkpoint_callback],
                 check_val_every_n_epoch=args.check_val_every_n_epoch,
