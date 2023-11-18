@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 import torch
 import torch.nn as nn
 
-from src.losses import pairwise_infonce, symile
+from src.losses import clip, symile
 from src.utils import l2_normalize
 
 
@@ -57,13 +57,13 @@ class LinearEncoders(nn.Module):
         return r_a, r_b, r_c
 
 
-class SyntheticModule(pl.LightningModule):
+class BinaryModule(pl.LightningModule):
     def __init__(self, **args):
         super().__init__()
         self.save_hyperparameters()
 
         self.args = Namespace(**args)
-        self.loss_fn = symile if self.args.loss_fn == "symile" else pairwise_infonce
+        self.loss_fn = symile if self.args.loss_fn == "symile" else clip
 
         self.encoders = LinearEncoders(self.args.d_v, self.args.d_r,
                                        self.args.hardcode_encoders)
@@ -110,13 +110,17 @@ class SyntheticModule(pl.LightningModule):
         return loss
 
     def get_query_representations(self):
-        # """
-        # Get representations for the four query vectors [0,0], [0,1], [1,0], [1,1].
-        # Returns:
-        #     q (torch.Tensor): query representations of size (4, d_r) where
-        #                       q[0] = f([0,0]), q[1] = f([0,1]),
-        #                       q[2] = f([1,0]), q[3] = f([1,1]).
-        # """
+        """
+        Get representations for the four possible "query" vectors v_b.
+        If d_v == 1, the query vectors are: [0], [1].
+        If d_v == 2, the query vectors are: [0,0], [0,1], [1,0], [1,1].
+
+        Returns:
+            v_q (torch.Tensor): query vectors in Tensor of size (4, d_v).
+            r_q (torch.Tensor): query representations of size (4, d_r) where
+                                    q[0] = f([0,0]), q[1] = f([0,1]),
+                                    q[2] = f([1,0]), q[3] = f([1,1]).
+        """
         if self.args.d_v == 1:
             v_q = torch.Tensor([[0], [1]]).to(self.device)
         elif self.args.d_v == 2:
@@ -132,36 +136,29 @@ class SyntheticModule(pl.LightningModule):
         return v_q, r_q
 
     def on_test_start(self):
+        """
+        If evaluation is zeroshot, the task is to predict which v_b corresponds
+        to a given v_a, v_c. At test start, we'll compute the representations
+        for each of the four possible "query" vectors v_b.
+
+        If d_v == 1, the query vectors are: [0], [1].
+        If d_v == 2, the query vectors are: [0,0], [0,1], [1,0], [1,1].
+        """
         if self.args.evaluation == "zeroshot":
             self.v_q, self.r_q = self.get_query_representations()
 
-    def test_loss(self, r_a, r_b, r_c, logit_scale_exp):
-        total_batches = len(r_a) // self.args.batch_sz
-        loss = 0
-        log_n_minus_1 = 0
-
-        for i in range(total_batches):
-            start_idx = i * self.args.batch_sz
-            end_idx = (i + 1) * self.args.batch_sz
-            batch_loss = self.loss_fn(r_a[start_idx:end_idx],
-                                      r_b[start_idx:end_idx],
-                                      r_c[start_idx:end_idx],
-                                      logit_scale_exp)
-            loss += batch_loss
-            log_n_minus_1 += np.log((end_idx-start_idx) - 1)
-
-        loss = loss / total_batches
-        log_n_minus_1 = log_n_minus_1 / total_batches
-        return loss, log_n_minus_1
-
     def zeroshot_step(self, batch):
+        """
+        The zeroshot task is to predict which v_b corresponds to a given v_a, v_c.
+        """
         v_a, v_b, v_c = batch
         r_a, r_b, r_c, logit_scale_exp = self(v_a, v_b, v_c)
 
         if self.args.normalize:
             r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
 
-        loss, log_n_minus_1 = self.test_loss(r_a, r_b, r_c, logit_scale_exp)
+        loss = self.loss_fn(r_a, r_b, r_c, logit_scale_exp)
+        log_n_minus_1 = np.log(len(batch[0])-1)
         self.log("test_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
         self.log("test_log_n_minus_1", log_n_minus_1,
@@ -170,13 +167,13 @@ class SyntheticModule(pl.LightningModule):
         # get predictions
         if self.args.loss_fn == "symile":
             # logits is a (batch_sz, 4) matrix where each row i is
-            # [ MIP(r_a[i], r_b[i], q[0]) ... MIP(r_a[i], r_b[i], q[3]) ]
+            # [ MIP(r_a[i], r_q[0], r_c[i]) ... MIP(r_a[i], r_q[3], r_c[i]) ]
             # where MIP is the multilinear inner product.
             logits = (r_a * r_c) @ torch.t(self.r_q)
         elif self.args.loss_fn == "pairwise_infonce":
             # logits is a (batch_sz, 4) matrix where each row i is
-            # [ r_a[i]^T r_b[i] + r_b[i]^T q[0] + r_a[i]^T q[0] ...
-            #   r_a[i]^T r_b[i] + r_b[i]^T q[3] + r_a[i]^T q[3] ]
+            # [ r_a[i]^T r_c[i] + r_a[i]^T r_q[0] + r_c[i]^T r_q[0] ...
+            #   r_a[i]^T r_c[i] + r_a[i]^T r_q[3] + r_c[i]^T r_q[3] ]
             ac = torch.diagonal(r_a @ torch.t(r_c)).unsqueeze(dim=1) # (batch_sz, 1)
             logits = ac + (r_a @ torch.t(self.r_q)) + (r_c @ torch.t(self.r_q))
 
@@ -193,38 +190,43 @@ class SyntheticModule(pl.LightningModule):
 
         return torch.where(preds == labels, 1, 0).sum() / len(labels)
 
-    # def support_step(self, batch):
-    #     v_a, v_b, v_c, y = batch
-    #     r_a, r_b, r_c, logit_scale_exp = self(v_a, v_b, v_c)
+    def support_step(self, batch):
+        """
+        The support task is to predict whether a given v_a, v_b, v_c is in
+        support or out of support.
 
-    #     if self.args.normalize:
-    #         r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
+        Note that this evaluation step expects the test batch size to equal the
+        test dataset size (i.e. there is only one batch).
+        """
+        v_a, v_b, v_c, y = batch
+        r_a, r_b, r_c, logit_scale_exp = self(v_a, v_b, v_c)
 
-    #     if self.args.loss_fn == "symile":
-    #         X = r_a * r_b * r_c
-    #     elif self.args.loss_fn == "pairwise_infonce":
-    #         if self.args.concat_infonce:
-    #             X = torch.cat((r_a * r_b, r_b * r_c, r_a * r_c), dim=1)
-    #         else:
-    #             X = (r_a * r_b) + (r_b * r_c) + (r_a * r_c)
+        if self.args.normalize:
+            r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
 
-    #     if self.args.use_logit_scale_eval:
-    #         X = logit_scale_exp * X
+        if self.args.loss_fn == "symile":
+            X = r_a * r_b * r_c
+        elif self.args.loss_fn == "pairwise_infonce":
+            if self.args.concat_infonce:
+                X = torch.cat((r_a * r_b, r_b * r_c, r_a * r_c), dim=1)
+            else:
+                X = (r_a * r_b) + (r_b * r_c) + (r_a * r_c)
 
-    #     X_train, X_test, y_train, y_test = train_test_split(X.cpu(), y.cpu(),
-    #                                                         test_size=0.2)
-    #     clf = LogisticRegression()
-    #     clf.fit(X_train, y_train)
+        if self.args.use_logit_scale_eval:
+            X = logit_scale_exp * X
 
-    #     return clf.score(X_test, y_test)
+        X_train, X_test, y_train, y_test = train_test_split(X.cpu(), y.cpu(),
+                                                            test_size=0.2)
+        clf = LogisticRegression()
+        clf.fit(X_train, y_train)
+
+        return clf.score(X_test, y_test)
 
     def test_step(self, batch, batch_idx):
         if self.args.evaluation == "zeroshot":
             acc = self.zeroshot_step(batch)
-        # elif self.args.evaluation == "support":
-        #     acc = self.support_step(batch)
+        elif self.args.evaluation == "support":
+            acc = self.support_step(batch)
 
-        print("Mean accuracy: ", acc)
         self.log("mean_acc", acc, on_step=False, on_epoch=True, sync_dist=True)
-
         return acc
