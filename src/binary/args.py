@@ -14,7 +14,7 @@ def parse_args():
                         help="Number of samples (a, b, c) in pretraining validation dataset.")
     parser.add_argument("--test_n", type=int, default=5000, #5K
                         help="Number of samples (a, b, c) in test dataset.")
-    parser.add_argument("--d_v", type=int, default=1, #1 or 2
+    parser.add_argument("--d_v", type=int, default=2, #1 or 2
                         help="Dimensionality of dataset vectors.")
     parser.add_argument("--d_r", type=int, default=16,
                         help="Dimensionality of representation vectors.")
