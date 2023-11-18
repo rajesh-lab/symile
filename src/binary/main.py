@@ -11,9 +11,9 @@ import plotly.express as px
 from pytorch_lightning.loggers import WandbLogger
 
 from args import parse_args
-from datasets import SyntheticDataModule
+from datasets import BinaryDataModule
 from information_measures import best_accuracy, mutual_informations
-from models import SyntheticModule
+from models import BinaryModule
 from utils import likelihood_ratios, save_likelihood_ratio_vs_score, \
                   save_test_distribution
 
@@ -98,8 +98,8 @@ if __name__ == '__main__':
 
             print(f"\n***** Running {loss_fn} with i_p = {i_p}... *****\n")
 
-            dm = SyntheticDataModule(args)
-            model = SyntheticModule(**vars(args))
+            dm = BinaryDataModule(args)
+            model = BinaryModule(**vars(args))
 
             trainer.fit(model, datamodule=dm)
             test_res = trainer.test(ckpt_path="best", datamodule=dm)[0]
