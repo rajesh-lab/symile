@@ -2,9 +2,9 @@ import torch
 import torch.nn.functional as F
 
 
-####################
-# pairwise infonce #
-####################
+########
+# clip #
+########
 def infonce(u, v, logit_scale):
     """
     Computes the InfoNCE loss for a batch of representations.
@@ -23,7 +23,7 @@ def infonce(u, v, logit_scale):
     labels = torch.arange(logits_u.shape[0]).to(u.device)
     return (F.cross_entropy(logits_u, labels) + F.cross_entropy(logits_v, labels)) / 2.0
 
-def pairwise_infonce(r_a, r_b, r_c, logit_scale):
+def clip(r_a, r_b, r_c, logit_scale):
     """
     Computes the pairwise InfoNCE loss for a batch of representations.
 
