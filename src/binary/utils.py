@@ -2,8 +2,8 @@ import pandas as pd
 import plotly.express as px
 import torch
 
-from informations import prob_c_1d, prob_c_given_a_b_1d, \
-                         prob_c_2d, prob_c_given_a_b_2d
+from information_measures import prob_c_1d, prob_c_given_a_b_1d, \
+                                 prob_c_2d, prob_c_given_a_b_2d
 
 
 def save_test_distribution(dm, save_dir, loss_fn, i_p):
