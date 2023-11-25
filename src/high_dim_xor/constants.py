@@ -30,3 +30,5 @@ FLAGFILE2ISO = {"lebanon.png": "ar",
                 "greece.png": "el",
                 "india.png": "hi",
                 "japan.png": "ja"}
+
+SYNSET_IDS = {"dog": "n02100583", "cat": "n02123159"}

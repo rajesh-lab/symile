@@ -11,10 +11,6 @@ def parse_args_generate_data():
     parser.add_argument("--cv_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23"),
                         help="Directory where CommonVoice audio clips are held.")
-    parser.add_argument("--data_reference", type=Path,
-                        default=Path("./data/data_reference.json"),
-                        help="json file with class names, ImageNet synset id, \
-                              and language translations.")
     parser.add_argument("--imagenet_image_train_data_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/imagenet/ILSVRC/Data/CLS-LOC/train"),
                         help="Directory where ImageNet image train data is held.")
@@ -23,13 +19,13 @@ def parse_args_generate_data():
     parser.add_argument("--pretrain_n", type=int, default=6,
                         help="Number of samples for combined pretrain train and \
                               val sets.")
-    parser.add_argument("--pretrain_val_size", type=float, default=0.5,
+    parser.add_argument("--val_size", type=float, default=0.5,
                         help="Should be between 0.0 and 1.0. Represents the \
                               proportion of pretrain data to include in val split.")
     parser.add_argument("--test_n", type=int, default=4,
                         help="Number of samples for zeroshot test set.")
     parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dimensional/data/sources"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim_xor/data"),
                         help="Directory to save dataset csvs in.")
 
     return parser.parse_args()
