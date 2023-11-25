@@ -1,0 +1,413 @@
+from argparse import Namespace
+
+import lightning.pytorch as pl
+import numpy as np
+import torch
+import torch.nn as nn
+from transformers import BertModel, CLIPVisionModel, WhisperModel, XLMRobertaModel
+try:
+    import wandb
+except ImportError:
+    wandb = None
+
+from src.losses import pairwise_infonce, symile
+from src.utils import l2_normalize
+
+
+class ProjectionHead(nn.Module):
+    def __init__(self, hidden_size, d, layer_norm_eps):
+        super().__init__()
+        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+        self.linear_projection = nn.Linear(hidden_size, d, bias=False)
+
+    def forward(self, x):
+        x = self.layer_norm(x)
+        x = self.linear_projection(x)
+        return x
+
+
+class AudioEncoder(nn.Module):
+    def __init__(self, model_id, d, freeze_encoders):
+        super().__init__()
+        self.encoder = WhisperModel.from_pretrained(model_id).encoder
+
+        if freeze_encoders:
+            for p in self.encoder.parameters():
+                p.requires_grad = False
+            self.encoder.eval()
+
+        self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
+                                              self.encoder.layer_norm.eps)
+
+    def forward(self, x):
+        """
+        Args:
+            input_features (torch.Tensor): shape (batch_sz, 80, 3000)
+            attention_mask (torch.Tensor): shape (batch_sz, 3000)
+        Returns:
+            x (torch.Tensor): shape (batch_sz, d)
+        """
+        if type(x) is dict: # not using precomputed tensors
+            x = self.encoder(input_features=x["input_features"],
+                             attention_mask=x["attention_mask"])
+            x = x["last_hidden_state"]
+
+            # select first embedding as done by ImageBind:
+            # https://github.com/facebookresearch/ImageBind/blob/95d27c7fd5a8362f3527e176c3a80ae5a4d880c0/imagebind/models/imagebind_model.py#L391C3-L391C3
+            x = x[:, 0, :]
+
+        x = self.projection_head(x)
+        return x
+
+
+class ImageEncoder(nn.Module):
+    def __init__(self, model_id, d, freeze_encoders):
+        super().__init__()
+        self.encoder = CLIPVisionModel.from_pretrained(model_id)
+
+        if freeze_encoders:
+            for p in self.encoder.parameters():
+                p.requires_grad = False
+            self.encoder.eval()
+
+        self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
+                                              self.encoder.config.layer_norm_eps)
+
+    def forward(self, x):
+        """
+        Args:
+            pixel_values (torch.Tensor): shape (batch_sz, 3, 224, 224)
+        Returns:
+            x (torch.Tensor): shape (batch_sz, d)
+        """
+        if type(x) is dict: # not using precomputed tensors
+            x = self.encoder(pixel_values=x["pixel_values"])
+            x = x["last_hidden_state"]
+
+            # select first embedding as done by transformers' CLIP and ImageBind:
+            # https://github.com/huggingface/transformers/blob/41aef33758ae166291d72bc381477f2db84159cf/src/transformers/models/clip/modeling_clip.py#L894
+            # https://github.com/facebookresearch/ImageBind/blob/95d27c7fd5a8362f3527e176c3a80ae5a4d880c0/imagebind/models/imagebind_model.py#L380
+            x = x[:, 0, :]
+
+        x = self.projection_head(x)
+        return x
+
+
+class TextEncoder(nn.Module):
+    def __init__(self, model_id, d, freeze_encoders, feat_token_id):
+        super().__init__()
+        self.feat_token_id = feat_token_id
+        if model_id == "bert-base-multilingual-cased":
+            self.encoder = BertModel.from_pretrained(model_id)
+        elif model_id == "xlm-roberta-base":
+            self.encoder = XLMRobertaModel.from_pretrained(model_id)
+
+        if freeze_encoders:
+            for p in self.encoder.parameters():
+                p.requires_grad = False
+            self.encoder.eval()
+
+        self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
+                                              self.encoder.config.layer_norm_eps)
+
+    def forward(self, x):
+        """
+        Args:
+            input_ids (torch.Tensor): shape (batch_sz, len_longest_seq)
+            attention_mask (torch.Tensor): shape (batch_sz, len_longest_seq)
+        Returns:
+            x (torch.Tensor): shape (batch_sz, d)
+        """
+        if type(x) is dict: # not using precomputed tensors
+            x_arg = x
+            x = self.encoder(input_ids=x_arg["input_ids"],
+                             attention_mask=x_arg["attention_mask"])
+            x = x["last_hidden_state"]
+
+            # take features from EOS or BOS embedding. x has shape (b, l, d).
+            # argmax returns first index of feat_token_id in case pad_token_id is
+            # equal to feat_token_id.
+            x = x[torch.arange(x.shape[0]),
+                  (x_arg["input_ids"] == self.feat_token_id).int().argmax(dim=-1)]
+
+        # x has shape (b, d)
+        x = self.projection_head(x)
+        return x
+
+
+class BaseModel(pl.LightningModule):
+    def __init__(self, **args):
+        super().__init__()
+        self.save_hyperparameters()
+        self.args = Namespace(**args)
+
+    def zeroshot_accuracy(self, r_x, r_y, r_z, loss_fn,
+                          logit_scale_exp, use_logit_scale=True,
+                          xy_idx=None, z_idx=None):
+        if loss_fn == "symile":
+            # logits is a (batch_sz, n) matrix where each row i is
+            # [ MIP(r_x[i], r_y[i], r_z[0]) ... MIP(r_x[i], r_y[i], r_z[n-1]) ]
+            # where MIP is the multilinear inner product.
+            logits = (r_x * r_y) @ torch.t(r_z)
+        elif loss_fn == "pairwise_infonce":
+            # logits is a (batch_sz, n) matrix where each row i is
+            # [ r_x[i]^T r_y[i] + r_y[i]^T r_z[0]   + r_x[i]^T r_z[0] ...
+            #   r_x[i]^T r_y[i] + r_y[i]^T r_z[n-1] + r_x[i]^T r_z[n-1] ]
+            xy = torch.diagonal(r_x @ torch.t(r_y)).unsqueeze(dim=1) # (batch_sz, 1)
+            logits = xy + (r_y @ torch.t(r_z)) + (r_x @ torch.t(r_z))
+
+        if use_logit_scale:
+            logits = logit_scale_exp * logits
+
+        pred = torch.argmax(logits, dim=1)
+
+        if xy_idx is None or z_idx is None:
+            y = torch.arange(len(r_z)).to(self.device)
+        else:
+            # in case self.r_z_idx are not in order
+            z_idx_expanded = z_idx.unsqueeze(0).expand(xy_idx.shape[0], -1)
+            y = torch.argmax((xy_idx.unsqueeze(1) == z_idx_expanded).long(), dim=1)
+
+        return (torch.sum(y == pred) / len(y)).item()
+
+
+class SymileModel(BaseModel):
+    def __init__(self, **args):
+        super().__init__(**args)
+        self.loss_fn = symile if self.args.loss_fn == "symile" else pairwise_infonce
+
+        self.audio_encoder = AudioEncoder(self.args.audio_model_id, self.args.d,
+                                          self.args.freeze_encoders)
+        self.image_encoder = ImageEncoder(self.args.image_model_id, self.args.d,
+                                          self.args.freeze_encoders)
+        self.text_encoder = TextEncoder(self.args.text_model_id, self.args.d,
+                                        self.args.freeze_encoders,
+                                        self.args.feat_token_id)
+
+        # temperature parameter is learned as done by CLIP:
+        # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
+        # check if attribute exists in case model is loaded from checkpoint
+        if hasattr(self.args, "freeze_logit_scale") and self.args.freeze_logit_scale:
+            self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init).requires_grad_(False)
+        else:
+            self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
+
+    def forward(self, x):
+        if self.args.use_precomputed_representations:
+            r_a = self.audio_encoder(x["audio"])
+            r_i = self.image_encoder(x["image"])
+            r_t = self.text_encoder(x["text"])
+        else:
+            r_a = self.audio_encoder({"input_features": x["audio_input_features"],
+                                      "attention_mask": x["audio_attention_mask"]})
+            r_i = self.image_encoder({"pixel_values": x["image_pixel_values"]})
+            r_t = self.text_encoder({"input_ids": x["text_input_ids"],
+                                     "attention_mask": x["text_attention_mask"]})
+        return r_a, r_i, r_t, self.logit_scale.exp()
+
+    def configure_optimizers(self):
+        return torch.optim.AdamW(self.parameters(), lr=self.args.lr,
+                                 weight_decay=self.args.weight_decay)
+
+    def _shared_step(self, batch, batch_idx):
+        r_a, r_i, r_t, logit_scale_exp = self(batch)
+
+        if self.args.normalize:
+            r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
+
+        return r_a, r_i, r_t, logit_scale_exp
+
+    def training_step(self, batch, batch_idx):
+        r_a, r_i, r_t, logit_scale_exp = self._shared_step(batch, batch_idx)
+
+        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp)
+        log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
+        zeroshot_acc = self.zeroshot_accuracy(r_a, r_i, r_t, self.args.loss_fn,
+                                              logit_scale_exp)
+
+        self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
+                      on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
+        self.log("log_n_minus_1", log_n_minus_1,
+                 on_step=False, on_epoch=True, sync_dist=False, prog_bar=False)
+        self.log("zeroshot_acc_train", zeroshot_acc,
+                 on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        r_a, r_i, r_t, logit_scale_exp = self._shared_step(batch, batch_idx)
+
+        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp)
+        log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
+        zeroshot_acc = self.zeroshot_accuracy(r_a, r_i, r_t, self.args.loss_fn,
+                                              logit_scale_exp)
+
+        self.log("val_loss", loss,
+                 on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
+        self.log("log_n_minus_1", log_n_minus_1,
+                 on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
+        self.log("zeroshot_acc_val", zeroshot_acc,
+                 on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
+        return loss
+
+
+class SupportClfModel(BaseModel):
+    def __init__(self, **args):
+        super().__init__(**args)
+        # target device is not yet available in __init__ so need to load manually
+        # will be fixed soon: https://github.com/Lightning-AI/lightning/pull/18021
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = SymileModel.load_from_checkpoint(self.args.ckpt_path,
+                                                      map_location=device)
+        self.model.freeze()
+        self.audio_encoder = self.model.audio_encoder
+        self.image_encoder = self.model.image_encoder
+        self.text_encoder = self.model.text_encoder
+
+        in_features = self.text_encoder.projection_head.linear_projection.out_features
+        if self.model.args.loss_fn == "pairwise_infonce" and self.args.concat_infonce:
+            in_features *= 3
+        self.classifier = nn.Linear(in_features, 1, bias=True)
+
+    def forward(self, x):
+        if self.args.use_precomputed_representations:
+            r_a = self.audio_encoder(x["audio"])
+            r_i = self.image_encoder(x["image"])
+            r_t = self.text_encoder(x["text"])
+        else:
+            r_a = self.audio_encoder({"input_features": x["audio_input_features"],
+                                    "attention_mask": x["audio_attention_mask"]})
+            r_i = self.image_encoder({"pixel_values": x["image_pixel_values"]})
+            r_t = self.text_encoder({"input_ids": x["text_input_ids"],
+                                    "attention_mask": x["text_attention_mask"]})
+
+        if self.model.args.normalize:
+            r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
+
+        if self.model.args.loss_fn == "symile":
+            X = r_a * r_i * r_t
+        elif self.model.args.loss_fn == "pairwise_infonce":
+            if self.args.concat_infonce:
+                X = torch.cat((r_a * r_i, r_i * r_t, r_a * r_t), dim=1)
+            else:
+                X = (r_a * r_i) + (r_i * r_t) + (r_a * r_t)
+
+        if self.args.use_logit_scale:
+            X = self.model.logit_scale.exp() * X
+
+        return self.classifier(X)
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.args.lr)
+        return optimizer
+
+    def _shared_step(self, batch, batch_idx):
+        y_hat = self(batch)
+        y = batch["in_support"].unsqueeze(1)
+        return nn.BCEWithLogitsLoss()(y_hat, y)
+
+    def training_step(self, batch, batch_idx):
+        loss = self._shared_step(batch, batch_idx)
+        self.log("train_loss", loss, on_step=True, on_epoch=True,
+                 sync_dist=False, prog_bar=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        loss = self._shared_step(batch, batch_idx)
+        self.log("val_loss", loss, on_step=True, on_epoch=True,
+                 sync_dist=True, prog_bar=True)
+        return loss
+
+    def test_step(self, batch, batch_idx):
+        y_hat = self(batch)
+        y = batch["in_support"].unsqueeze(1)
+        loss = nn.BCEWithLogitsLoss()(y_hat, y)
+
+        # save y and probabilities to compute accuracy at epoch end
+        prob = nn.Sigmoid()(y_hat)
+        self.training_step_outputs["prob"].append(prob)
+        self.training_step_outputs["y"].append(y.squeeze())
+
+        self.log("test_loss", loss, on_step=True, on_epoch=True,
+                 sync_dist=True, prog_bar=True)
+        return loss
+
+    def on_test_epoch_end(self):
+        prob = torch.cat(self.training_step_outputs["prob"])
+        pred = torch.where(prob >= 0.5, 1, 0).squeeze()
+        y = torch.cat(self.training_step_outputs["y"])
+        acc = (torch.sum(y == pred) / len(y)).item()
+        self.log("test_accuracy", acc, sync_dist=True, prog_bar=True)
+
+        # wandb.plot.roc_curve expects probabilities to have shape (n, n_classes)
+        if self.args.wandb:
+            y = y.cpu()
+            prob = prob.cpu()
+            probs = torch.cat([(1-prob), prob], dim=1)
+            self.logger.experiment.log({"roc_curve": wandb.plot.roc_curve(y, probs)})
+
+        self.training_step_outputs.clear() # free memory
+
+
+class ZeroshotClfModel(BaseModel):
+    def __init__(self, **args):
+        super().__init__(**args)
+        # target device is not yet available in __init__ so need to load manually
+        # will be fixed soon: https://github.com/Lightning-AI/lightning/pull/18021
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = SymileModel.load_from_checkpoint(self.args.ckpt_path,
+                                                      map_location=device)
+        self.model.freeze()
+        self.audio_encoder = self.model.audio_encoder
+        self.image_encoder = self.model.image_encoder
+        self.text_encoder = self.model.text_encoder
+
+    def setup(self, stage):
+        """
+        Pre-compute r_z, which is the text representation for all data samples.
+        """
+        # target device is not yet available, but we have access to trainer now
+        device = self.trainer.strategy.root_device
+        r_z_list = []
+        idx_list = []
+        for x in self.trainer.datamodule.test_dataloader():
+            if self.args.use_precomputed_representations:
+                r_z = self.text_encoder(x["text"].to(device))
+            else:
+                r_z = self.text_encoder(
+                    {"input_ids": x["text_input_ids"].to(device),
+                    "attention_mask": x["text_attention_mask"].to(device)}
+                )
+            r_z_list.append(r_z)
+            idx_list.append(x["idx"].to(device))
+
+        r_z = torch.cat(r_z_list)
+
+        if self.model.args.normalize:
+            [self.r_z] = l2_normalize([r_z])
+        else:
+            self.r_z = r_z
+
+        self.r_z_idx = torch.cat(idx_list)
+
+    def forward(self, x):
+        if self.args.use_precomputed_representations:
+            r_a = self.audio_encoder(x["audio"])
+            r_i = self.image_encoder(x["image"])
+        else:
+            r_a = self.audio_encoder({"input_features": x["audio_input_features"],
+                                    "attention_mask": x["audio_attention_mask"]})
+            r_i = self.image_encoder({"pixel_values": x["image_pixel_values"]})
+        return r_a, r_i, x["idx"]
+
+    def test_step(self, batch, batch_idx):
+        r_x, r_y, xy_idx = self(batch)
+
+        if self.model.args.normalize:
+            r_x, r_y = l2_normalize([r_x, r_y])
+
+        zeroshot_acc = self.zeroshot_accuracy(r_x, r_y, self.r_z,
+                                              self.model.args.loss_fn,
+                                              self.model.logit_scale.exp(),
+                                              self.args.use_logit_scale,
+                                              xy_idx, self.r_z_idx)
+        self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)
