@@ -21,33 +21,54 @@ from args import parse_args_generate_data
 from src.high_dim_xor.constants import *
 
 
-def generate_sample(args):
-    """
-    Generate a single data sample.
-    """
+def generate_data(args, n):
+    # get all possible audio and image paths, and get all possible text snippets
+    dog_image_dir = args.imagenet_image_train_data_dir / SYNSET_IDS["dog"]
+    dog_image_paths = os.listdir(dog_image_dir)
+    cat_image_dir = args.imagenet_image_train_data_dir / SYNSET_IDS["cat"]
+    cat_image_paths = os.listdir(cat_image_dir)
+    en_audio_dir = args.cv_dir / "en/clips"
+    en_audio_paths = os.listdir(en_audio_dir)
+    ja_audio_dir = args.cv_dir / "ja/clips"
+    ja_audio_paths = os.listdir(ja_audio_dir)
+    el_text = pd.read_csv(args.cv_dir / "el/train.tsv", sep='\t').sentence
+    hi_text = pd.read_csv(args.cv_dir / "hi/train.tsv", sep='\t').sentence
+
     # sample z_a, z_i, and set z_t = z_a xor z_i
-    z_a = bernoulli.rvs(0.5, size=1)[0]
-    z_i = bernoulli.rvs(0.5, size=1)[0]
+    z_a = bernoulli.rvs(0.5, size=n)
+    z_i = bernoulli.rvs(0.5, size=n)
     z_t = np.bitwise_xor(z_i, z_a)
 
+    data_df = pd.DataFrame({"z_a": z_a, "z_i": z_i, "z_t": z_t})
+
     # if z_a == 0, sample an audio clip in English, else sample an audio clip in Japanese
-    lang = "en" if z_a == 0 else "ja"
-    audio_dir = args.cv_dir / lang / "clips"
-    audio_path = random.sample(os.listdir(audio_dir), 1)[0]
-    audio_path = audio_dir / audio_path
+    print("sampling audio paths...\n")
+    def _sample_audio(z_a):
+        if z_a == 0:
+            return en_audio_dir / random.sample(en_audio_paths, 1)[0]
+        else:
+            return ja_audio_dir / random.sample(ja_audio_paths, 1)[0]
+    data_df["audio_path"] = data_df.apply(lambda r: _sample_audio(r.z_a), axis=1)
 
     # if z_i == 0, sample a dog image, else sample a cat image
-    class_name = "dog" if z_i == 0 else "cat"
-    image_dir = args.imagenet_image_train_data_dir / SYNSET_IDS[class_name]
-    image_path = random.sample(os.listdir(image_dir), 1)[0]
-    image_path = image_dir / image_path
+    print("sampling image paths...\n")
+    def _sample_image(z_i):
+        if z_i == 0:
+            return dog_image_dir / random.sample(dog_image_paths, 1)[0]
+        else:
+            return cat_image_dir / random.sample(cat_image_paths, 1)[0]
+    data_df["image_path"] = data_df.apply(lambda r: _sample_image(r.z_i), axis=1)
 
     # if z_t == 0, sample text in Greek, else sample text in Hindi
-    lang = "el" if z_t == 0 else "hi"
-    lang_text = pd.read_csv(args.cv_dir / lang / "train.tsv", sep='\t').sentence
-    text = lang_text.sample(n=1).item()
+    print("sampling text...\n")
+    def _sample_text(z_t):
+        if z_t == 0:
+            return el_text.sample(n=1).item()
+        else:
+            return hi_text.sample(n=1).item()
+    data_df["text"] = data_df.apply(lambda r: _sample_text(r.z_t), axis=1)
 
-    return {"audio_path": audio_path, "image_path": image_path, "text": text}
+    return data_df
 
 
 if __name__ == '__main__':
@@ -55,13 +76,7 @@ if __name__ == '__main__':
 
     n = args.pretrain_n + args.test_n
 
-    data = {"audio": [], "image": [], "text": []}
-    for i in range(n):
-        sample = generate_sample(args)
-        data["audio"].append(sample["audio_path"])
-        data["image"].append(sample["image_path"])
-        data["text"].append(sample["text"])
-    data_df = pd.DataFrame(data)
+    data_df = generate_data(args, n)
 
     # split into pretrain train, pretrain val, and zeroshot test sets
     pretrain_df, test_df = train_test_split(data_df, train_size=args.pretrain_n,
