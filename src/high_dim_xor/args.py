@@ -31,6 +31,56 @@ def parse_args_generate_data():
     return parser.parse_args()
 
 
+def parse_args_save_representations():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--data_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim_xor/data"),
+                        help="Directory with dataset csvs.")
+    parser.add_argument("--train_csv", type=Path,
+                        default=Path("train.csv"),
+                        help="Filename for train csv.")
+    parser.add_argument("--val_csv", type=Path,
+                        default=Path("val.csv"),
+                        help="Filename for val csv.")
+    parser.add_argument("--test_csv", type=Path,
+                        default=Path("test.csv"),
+                        help="Filename for test csv.")
+    parser.add_argument("--save_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim_xor/data"),
+                        help="Directory to save dataset tensors in.")
+
+    ### MODEL ARGS ###
+    parser.add_argument("--audio_model_id", type=str,
+                        default="openai/whisper-tiny",
+                        choices = ["openai/whisper-small", "openai/whisper-tiny"],
+                        help="Hugging Face model id for audio encoder.")
+    parser.add_argument("--image_model_id", type=str,
+                        default="openai/clip-vit-base-patch16",
+                        help="Hugging Face model id for image encoder.")
+    parser.add_argument("--text_model_id", type=str,
+                        default="bert-base-multilingual-cased",
+                        choices = ["bert-base-multilingual-cased", "xlm-roberta-base"],
+                        help="Hugging Face model id for text encoder.")
+    parser.add_argument("--text_embedding", type=str,
+                        choices = ["eos", "bos"], default="eos",
+                        help="Whether to use text encoder BOS or EOS embedding \
+                              as input to projection head.")
+
+    ### TRAINING ARGS ###
+    parser.add_argument("--batch_sz_train", type=int, default=300,
+                        help="Train batch size for pretraining.")
+    parser.add_argument("--batch_sz_val", type=int, default=300,
+                        help="Val set batch size for pretraining.")
+    parser.add_argument("--batch_sz_test", type=int, default=300,
+                        help="Test set batch size.")
+    parser.add_argument("--drop_last", type=str_to_bool, default=True,
+                        help="Whether to drop the last non-full batch of each \
+                              DataLoader worker's dataset replica.")
+
+    return parser.parse_args()
+
+
 def parse_args_pretrain():
     parser = argparse.ArgumentParser()
 

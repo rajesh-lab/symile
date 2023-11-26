@@ -9,7 +9,7 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import BertTokenizer, CLIPImageProcessor, \
                          WhisperFeatureExtractor, XLMRobertaTokenizer
 
-class SymileDataset(Dataset):
+class HighDimDataset(Dataset):
     def __init__(self, df, audio_feat_extractor, img_processor):
         self.df = df
         self.audio_feat_extractor = audio_feat_extractor
@@ -48,25 +48,18 @@ class SymileDataset(Dataset):
                 - image: (dict) whose key-value pairs are
                     (pixel_values: torch.Tensor of shape (3, 224, 224)).
                 - text: (str) with data sample text.
-                - template: (int) with data sample template number.
                 - idx: (int) unique identifier for data sample.
-                - support (optional): (int) 1 if data sample is in support, 0 otherwise.
         """
         audio = self.get_audio(self.df.iloc[idx].audio_path)
         image = self.get_image(self.df.iloc[idx].image_path)
         text = self.df.iloc[idx].text
-        template = self.df.iloc[idx].template
 
-        item_dict = {"audio": audio, "image": image, "text": text,
-                     "template": template, "idx": idx}
-
-        if "in_support" in self.df:
-            item_dict["in_support"] = self.df.iloc[idx].in_support
+        item_dict = {"audio": audio, "image": image, "text": text, "idx": idx}
 
         return item_dict
 
 
-class SymilePrecomputedDataset(Dataset):
+class HighDimPrecomputedDataset(Dataset):
     def __init__(self, dataset_dir, split):
         self.audio = torch.load(dataset_dir / f"{split}/audio_{split}.pt")
         self.image = torch.load(dataset_dir / f"{split}/image_{split}.pt")
@@ -83,23 +76,6 @@ class SymilePrecomputedDataset(Dataset):
                 "idx": self.idx[idx]}
 
 
-class SupportClfPrecomputedDataset(Dataset):
-    def __init__(self, dataset_dir, split):
-        self.audio = torch.load(dataset_dir / f"audio_{split}.pt")
-        self.image = torch.load(dataset_dir / f"image_{split}.pt")
-        self.text = torch.load(dataset_dir / f"text_{split}.pt")
-        self.in_support = torch.load(dataset_dir / f"in_support_{split}.pt")
-
-    def __len__(self):
-        return len(self.audio)
-
-    def __getitem__(self, idx):
-        return {"audio": self.audio[idx],
-                "image": self.image[idx],
-                "text": self.text[idx],
-                "in_support": self.in_support[idx]}
-
-
 class Collator:
     """
     Custom collate function so that the text tokenizer can be called on a batch
@@ -112,8 +88,7 @@ class Collator:
         Args:
             batch (list): List of data samples of length `batch_sz`. Each sample
                           is a dictionary with keys `audio`, `image`, `text`,
-                          `template`, `idx`, and (optionally) `in_support`
-                          (see SymileDataset.__getitem__).
+                          and `idx` (see SymileDataset.__getitem__).
         Returns:
             (dict): of batched data samples with the following keys:
                 - audio_input_features: torch.Tensor of shape (batch_sz, 80, 3000)
@@ -121,10 +96,7 @@ class Collator:
                 - image_pixel_values: torch.Tensor of shape (batch_sz, 3, 224, 224)
                 - text_input_ids: torch.Tensor of shape (batch_sz, len_longest_seq)
                 - text_attention_mask: torch.Tensor of shape (batch_sz, len_longest_seq)
-                - templates: torch.Tensor of shape (batch_sz) containing template numbers
                 - idx: torch.Tensor of shape (batch_sz) with unique identifier for data sample
-                - in_support: (optional) torch.Tensor of shape (batch_sz) where 1 means
-                              sample is in support, 0 otherwise.
         """
         audio_input_features = torch.stack([s["audio"]["input_features"] for s in batch])
         audio_attention_mask = torch.stack([s["audio"]["attention_mask"] for s in batch])
@@ -135,7 +107,6 @@ class Collator:
         text = self.txt_tokenizer(text=text_list, return_tensors="pt",
                                   padding=True, truncation=True)
 
-        templates = torch.Tensor([s["template"] for s in batch])
         idx = torch.Tensor([s["idx"] for s in batch])
 
         batched_data = {"audio_input_features": audio_input_features,
@@ -143,11 +114,7 @@ class Collator:
                         "image_pixel_values": image_pixel_values,
                         "text_input_ids": text["input_ids"],
                         "text_attention_mask": text["attention_mask"],
-                        "templates": templates,
                         "idx": idx}
-
-        if "in_support" in batch[0]:
-            batched_data["in_support"] = torch.Tensor([s["in_support"] for s in batch])
 
         return batched_data
 
@@ -161,24 +128,6 @@ class BaseDataModule(pl.LightningDataModule):
 
         # from max_num_worker_suggest in DataLoader docs
         self.num_workers = len(os.sched_getaffinity(0))
-
-    def get_full_data_paths(self, df):
-        """
-        Update audio_path and image_path in dataframe to use appropriate
-        parent directories.
-        """
-        def _full_audio_path(r):
-            return self.args.data_dir_generated_audio / r.audio_path.strip("/")
-        df["audio_path"] = df.apply(lambda r: _full_audio_path(r), axis=1)
-
-        def _full_image_path(r):
-            if r.template == 1:
-                return self.args.data_dir_imagenet / r.image_path.strip("/")
-            else:
-                return self.args.data_dir_flags / r.image_path.strip("/")
-        df["image_path"] = df.apply(lambda r: _full_image_path(r), axis=1)
-
-        return df
 
     def text_tokenization(self):
         """
@@ -207,23 +156,24 @@ class BaseDataModule(pl.LightningDataModule):
                 self.feat_token_id = self.txt_tokenizer.bos_token_id
 
 
-class PretrainDataModule(BaseDataModule):
+class HighDimDataModule(BaseDataModule):
     def __init__(self, args):
         super().__init__(args)
 
     def setup(self, stage):
         self.text_tokenization()
 
-        df_train = pd.read_csv(self.args.train_dataset_path)
-        df_train = self.get_full_data_paths(df_train)
-        self.ds_train = SymileDataset(df_train, self.audio_feat_extractor, self.img_processor)
+        df_train = pd.read_csv(self.args.data_dir / self.args.train_csv)
+        self.ds_train = HighDimDataset(df_train, self.audio_feat_extractor, self.img_processor)
 
-        df_val = pd.read_csv(self.args.val_dataset_path)
-        df_val = self.get_full_data_paths(df_val)
-        self.ds_val = SymileDataset(df_val, self.audio_feat_extractor, self.img_processor)
+        df_val = pd.read_csv(self.args.data_dir / self.args.val_csv)
+        self.ds_val = HighDimDataset(df_val, self.audio_feat_extractor, self.img_processor)
+
+        df_test = pd.read_csv(self.args.data_dir / self.args.test_csv)
+        self.ds_test = HighDimDataset(df_test, self.audio_feat_extractor, self.img_processor)
 
     def train_dataloader(self):
-        return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
+        return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train,
                           shuffle=True,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer),
@@ -235,8 +185,14 @@ class PretrainDataModule(BaseDataModule):
                           collate_fn=Collator(self.txt_tokenizer),
                           drop_last=self.args.drop_last)
 
+    def test_dataloader(self):
+        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
+                          num_workers=self.num_workers,
+                          collate_fn=Collator(self.txt_tokenizer),
+                          drop_last=self.args.drop_last)
 
-class PretrainPrecomputedDataModule(BaseDataModule):
+
+class HighDimPrecomputedDataModule(BaseDataModule):
     def __init__(self, args):
         super().__init__(args)
 
@@ -245,111 +201,18 @@ class PretrainPrecomputedDataModule(BaseDataModule):
 
         self.ds_train = SymilePrecomputedDataset(self.args.precomputed_rep_dir, "train")
         self.ds_val = SymilePrecomputedDataset(self.args.precomputed_rep_dir, "val")
-
-    def train_dataloader(self):
-        return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
-                          shuffle=True,
-                          num_workers=self.num_workers,
-                          drop_last=self.args.drop_last)
-
-    def val_dataloader(self):
-        return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
-                          num_workers=self.num_workers,
-                          drop_last=self.args.drop_last)
-
-
-class SupportClfDataModule(BaseDataModule):
-    def __init__(self, args):
-        super().__init__(args)
-
-    def setup(self, stage):
-        self.text_tokenization()
-
-        df_train = pd.read_csv(self.args.support_train_dataset_path)
-        df_train = self.get_full_data_paths(df_train)
-        self.ds_train = SymileDataset(df_train, self.audio_feat_extractor, self.img_processor)
-
-        df_val = pd.read_csv(self.args.support_test_dataset_path)
-        df_val = self.get_full_data_paths(df_val)
-        self.ds_val = SymileDataset(df_val, self.audio_feat_extractor, self.img_processor)
-
-        df_test = pd.read_csv(self.args.support_test_dataset_path)
-        df_test = self.get_full_data_paths(df_test)
-        self.ds_test = SymileDataset(df_test, self.audio_feat_extractor, self.img_processor)
-
-    def train_dataloader(self):
-        return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
-                          shuffle=True,
-                          num_workers=self.num_workers,
-                          collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=self.args.drop_last)
-
-    def val_dataloader(self):
-        return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
-                          num_workers=self.num_workers,
-                          collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=self.args.drop_last)
-
-    def test_dataloader(self):
-        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
-                          num_workers=self.num_workers,
-                          collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=self.args.drop_last)
-
-
-class SupportClfPrecomputedDataModule(BaseDataModule):
-    def __init__(self, args):
-        super().__init__(args)
-
-    def setup(self, stage):
-        self.text_tokenization()
-
-        self.ds_train = SupportClfPrecomputedDataset(self.args.precomputed_rep_dir, "train")
-        self.ds_val = SupportClfPrecomputedDataset(self.args.precomputed_rep_dir, "val")
-        self.ds_test = SupportClfPrecomputedDataset(self.args.precomputed_rep_dir, "test")
-
-    def train_dataloader(self):
-        return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
-                          shuffle=True,
-                          num_workers=self.num_workers,
-                          drop_last=self.args.drop_last)
-
-    def val_dataloader(self):
-        return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
-                          num_workers=self.num_workers,
-                          drop_last=self.args.drop_last)
-
-    def test_dataloader(self):
-        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
-                          num_workers=self.num_workers,
-                          drop_last=self.args.drop_last)
-
-
-class ZeroshotClfDataModule(BaseDataModule):
-    def __init__(self, args):
-        super().__init__(args)
-
-    def setup(self, stage):
-        self.text_tokenization()
-
-        df_test = pd.read_csv(self.args.zeroshot_dataset_path)
-        df_test = self.get_full_data_paths(df_test)
-        self.ds_test = SymileDataset(df_test, self.audio_feat_extractor, self.img_processor)
-
-    def test_dataloader(self):
-        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
-                          num_workers=self.num_workers,
-                          collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=self.args.drop_last)
-
-
-class ZeroshotClfPrecomputedDataModule(BaseDataModule):
-    def __init__(self, args):
-        super().__init__(args)
-
-    def setup(self, stage):
-        self.text_tokenization()
         self.ds_test = SymilePrecomputedDataset(self.args.precomputed_rep_dir, "test")
+
+    def train_dataloader(self):
+        return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
+                          shuffle=True,
+                          num_workers=self.num_workers,
+                          drop_last=self.args.drop_last)
+
+    def val_dataloader(self):
+        return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
+                          num_workers=self.num_workers,
+                          drop_last=self.args.drop_last)
 
     def test_dataloader(self):
         return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,

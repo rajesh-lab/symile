@@ -10,7 +10,7 @@ try:
 except ImportError:
     wandb = None
 
-from src.losses import pairwise_infonce, symile
+from src.losses import clip, symile
 from src.utils import l2_normalize
 
 
@@ -149,7 +149,7 @@ class BaseModel(pl.LightningModule):
             # [ MIP(r_x[i], r_y[i], r_z[0]) ... MIP(r_x[i], r_y[i], r_z[n-1]) ]
             # where MIP is the multilinear inner product.
             logits = (r_x * r_y) @ torch.t(r_z)
-        elif loss_fn == "pairwise_infonce":
+        elif loss_fn == "clip":
             # logits is a (batch_sz, n) matrix where each row i is
             # [ r_x[i]^T r_y[i] + r_y[i]^T r_z[0]   + r_x[i]^T r_z[0] ...
             #   r_x[i]^T r_y[i] + r_y[i]^T r_z[n-1] + r_x[i]^T r_z[n-1] ]
@@ -171,10 +171,10 @@ class BaseModel(pl.LightningModule):
         return (torch.sum(y == pred) / len(y)).item()
 
 
-class SymileModel(BaseModel):
+class SSLModel(BaseModel):
     def __init__(self, **args):
         super().__init__(**args)
-        self.loss_fn = symile if self.args.loss_fn == "symile" else pairwise_infonce
+        self.loss_fn = symile if self.args.loss_fn == "symile" else clip
 
         self.audio_encoder = AudioEncoder(self.args.audio_model_id, self.args.d,
                                           self.args.freeze_encoders)
@@ -256,7 +256,7 @@ class SupportClfModel(BaseModel):
         # target device is not yet available in __init__ so need to load manually
         # will be fixed soon: https://github.com/Lightning-AI/lightning/pull/18021
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = SymileModel.load_from_checkpoint(self.args.ckpt_path,
+        self.model = SSLModel.load_from_checkpoint(self.args.ckpt_path,
                                                       map_location=device)
         self.model.freeze()
         self.audio_encoder = self.model.audio_encoder
@@ -264,7 +264,7 @@ class SupportClfModel(BaseModel):
         self.text_encoder = self.model.text_encoder
 
         in_features = self.text_encoder.projection_head.linear_projection.out_features
-        if self.model.args.loss_fn == "pairwise_infonce" and self.args.concat_infonce:
+        if self.model.args.loss_fn == "clip" and self.args.concat_infonce:
             in_features *= 3
         self.classifier = nn.Linear(in_features, 1, bias=True)
 
@@ -285,7 +285,7 @@ class SupportClfModel(BaseModel):
 
         if self.model.args.loss_fn == "symile":
             X = r_a * r_i * r_t
-        elif self.model.args.loss_fn == "pairwise_infonce":
+        elif self.model.args.loss_fn == "clip":
             if self.args.concat_infonce:
                 X = torch.cat((r_a * r_i, r_i * r_t, r_a * r_t), dim=1)
             else:
@@ -354,7 +354,7 @@ class ZeroshotClfModel(BaseModel):
         # target device is not yet available in __init__ so need to load manually
         # will be fixed soon: https://github.com/Lightning-AI/lightning/pull/18021
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = SymileModel.load_from_checkpoint(self.args.ckpt_path,
+        self.model = SSLModel.load_from_checkpoint(self.args.ckpt_path,
                                                       map_location=device)
         self.model.freeze()
         self.audio_encoder = self.model.audio_encoder
