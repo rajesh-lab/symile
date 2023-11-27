@@ -61,9 +61,9 @@ class HighDimDataset(Dataset):
 
 class HighDimPrecomputedDataset(Dataset):
     def __init__(self, dataset_dir, split):
-        self.audio = torch.load(dataset_dir / f"{split}/audio_{split}.pt")
-        self.image = torch.load(dataset_dir / f"{split}/image_{split}.pt")
-        self.text = torch.load(dataset_dir / f"{split}/text_{split}.pt")
+        self.audio = torch.load(dataset_dir / f"audio_{split}.pt")
+        self.image = torch.load(dataset_dir / f"image_{split}.pt")
+        self.text = torch.load(dataset_dir / f"text_{split}.pt")
         self.idx = torch.arange(len(self.text))
 
     def __len__(self):
@@ -169,8 +169,11 @@ class HighDimDataModule(BaseDataModule):
         df_val = pd.read_csv(self.args.data_dir / self.args.val_csv)
         self.ds_val = HighDimDataset(df_val, self.audio_feat_extractor, self.img_processor)
 
-        df_test = pd.read_csv(self.args.data_dir / self.args.test_csv)
-        self.ds_test = HighDimDataset(df_test, self.audio_feat_extractor, self.img_processor)
+        df_test_zeroshot = pd.read_csv(self.args.data_dir / self.args.test_csv)
+        self.ds_test_zeroshot = HighDimDataset(df_test_zeroshot, self.audio_feat_extractor, self.img_processor)
+
+        df_test_support = pd.read_csv(self.args.data_dir / self.args.test_csv)
+        self.ds_test_support = HighDimDataset(df_test_support, self.audio_feat_extractor, self.img_processor)
 
     def train_dataloader(self):
         return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train,
@@ -186,10 +189,15 @@ class HighDimDataModule(BaseDataModule):
                           drop_last=self.args.drop_last)
 
     def test_dataloader(self):
-        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
-                          num_workers=self.num_workers,
-                          collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=self.args.drop_last)
+        dl_zeroshot = DataLoader(self.ds_test_zeroshot, batch_size=self.args.batch_sz_test,
+                                 num_workers=self.num_workers,
+                                 collate_fn=Collator(self.txt_tokenizer),
+                                 drop_last=self.args.drop_last)
+        dl_support = DataLoader(self.ds_test_support, batch_size=self.args.batch_sz_test,
+                                num_workers=self.num_workers,
+                                collate_fn=Collator(self.txt_tokenizer),
+                                drop_last=self.args.drop_last)
+        return [dl_zeroshot, dl_support]
 
 
 class HighDimPrecomputedDataModule(BaseDataModule):
@@ -199,12 +207,12 @@ class HighDimPrecomputedDataModule(BaseDataModule):
     def setup(self, stage):
         self.text_tokenization()
 
-        self.ds_train = SymilePrecomputedDataset(self.args.precomputed_rep_dir, "train")
-        self.ds_val = SymilePrecomputedDataset(self.args.precomputed_rep_dir, "val")
-        self.ds_test = SymilePrecomputedDataset(self.args.precomputed_rep_dir, "test")
+        self.ds_train = HighDimPrecomputedDataset(self.args.precomputed_rep_dir, "train")
+        self.ds_val = HighDimPrecomputedDataset(self.args.precomputed_rep_dir, "val")
+        self.ds_test = HighDimPrecomputedDataset(self.args.precomputed_rep_dir, "test")
 
     def train_dataloader(self):
-        return DataLoader(self.ds_train, batch_size=self.args.batch_sz,
+        return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train,
                           shuffle=True,
                           num_workers=self.num_workers,
                           drop_last=self.args.drop_last)

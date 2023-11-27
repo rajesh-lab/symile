@@ -19,6 +19,6 @@ python save_representations.py \
     --batch_sz_train 300 \
     --batch_sz_val 300 \
     --batch_sz_test 300 \
-    --drop_last True
+    --drop_last False
 
 echo 'done!'
