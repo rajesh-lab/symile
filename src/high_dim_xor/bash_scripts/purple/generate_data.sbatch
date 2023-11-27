@@ -14,6 +14,8 @@ echo 'generating data...'
 python generate_data.py \
     --pretrain_n 50000 \
     --val_size 0.1 \
-    --test_n 10000
+    --test_n 10000 \
+    --support_train_size 0.8 \
+    --support_val_size 0.1
 
 echo 'done!'
