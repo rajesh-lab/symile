@@ -71,10 +71,10 @@ def save_representations(args, encoders, dl, split):
         x = x.cpu()
         text_reps.append(x)
 
-        z_a.append(batch["z_a"])
-        z_i.append(batch["z_i"])
-        z_t.append(batch["z_t"])
-        idx.append(batch["idx"])
+        z_a.append(batch["z_a"].cpu())
+        z_i.append(batch["z_i"].cpu())
+        z_t.append(batch["z_t"].cpu())
+        idx.append(batch["idx"].cpu())
 
     audio_reps = torch.cat(audio_reps, dim=0)
     torch.save(audio_reps, save_dir / f'audio_{split}.pt')
