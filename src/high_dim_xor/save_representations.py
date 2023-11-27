@@ -1,3 +1,5 @@
+import os
+
 import torch
 from transformers import BertModel, CLIPVisionModel, WhisperModel, XLMRobertaModel
 from tqdm import tqdm
@@ -26,6 +28,10 @@ def load_encoders(args, device):
 
 
 def save_representations(args, encoders, dl, split):
+    save_dir = args.save_dir / split
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
     audio_encoder = encoders["audio"]
     image_encoder = encoders["image"]
     text_encoder = encoders["text"]
@@ -33,6 +39,10 @@ def save_representations(args, encoders, dl, split):
     audio_reps = []
     image_reps = []
     text_reps = []
+    z_a = []
+    z_i = []
+    z_t = []
+    idx = []
 
     for ix, batch in enumerate(tqdm(dl)):
         batch = {k: v.to(device) for k, v in batch.items()}
@@ -61,14 +71,28 @@ def save_representations(args, encoders, dl, split):
         x = x.cpu()
         text_reps.append(x)
 
+        z_a.append(batch["z_a"])
+        z_i.append(batch["z_i"])
+        z_t.append(batch["z_t"])
+        idx.append(batch["idx"])
+
     audio_reps = torch.cat(audio_reps, dim=0)
-    torch.save(audio_reps, args.save_dir / f'audio_{split}.pt')
+    torch.save(audio_reps, save_dir / f'audio_{split}.pt')
 
     image_reps = torch.cat(image_reps, dim=0)
-    torch.save(image_reps, args.save_dir / f'image_{split}.pt')
+    torch.save(image_reps, save_dir / f'image_{split}.pt')
 
     text_reps = torch.cat(text_reps, dim=0)
-    torch.save(text_reps, args.save_dir / f'text_{split}.pt')
+    torch.save(text_reps, save_dir / f'text_{split}.pt')
+
+    z_a = torch.cat(z_a, dim=0)
+    torch.save(z_a, save_dir / f'z_a_{split}.pt')
+    z_i = torch.cat(z_i, dim=0)
+    torch.save(z_i, save_dir / f'z_i_{split}.pt')
+    z_t = torch.cat(z_t, dim=0)
+    torch.save(z_t, save_dir / f'z_t_{split}.pt')
+    idx = torch.cat(idx, dim=0)
+    torch.save(idx, save_dir / f'idx_{split}.pt')
 
 
 if __name__ == '__main__':

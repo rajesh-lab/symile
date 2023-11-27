@@ -50,7 +50,7 @@ def parse_args_save_representations():
                         default=Path("val.csv"),
                         help="Filename for val csv.")
     parser.add_argument("--test_csv", type=Path,
-                        default=Path("test.csv"),
+                        default=Path("zeroshot.csv"),
                         help="Filename for test csv.")
     parser.add_argument("--save_dir", type=Path,
                         default=Path("/gpfs/scratch/as16583/symile/src/high_dim_xor/data"),
