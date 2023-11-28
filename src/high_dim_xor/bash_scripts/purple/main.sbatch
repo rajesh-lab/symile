@@ -16,7 +16,7 @@ python main.py \
     --audio_model_id openai/whisper-tiny \
     --image_model_id openai/clip-vit-base-patch16 \
     --text_model_id bert-base-multilingual-cased \
-    --batch_sz 300 \
+    --batch_sz_train 300 \
     --batch_sz_val 300 \
     --batch_sz_test 300 \
     --check_val_every_n_epoch 5 \
@@ -24,7 +24,7 @@ python main.py \
     --drop_last True \
     --early_stopping True \
     --early_stopping_patience 20 \
-    --epochs 500 \
+    --epochs 50 \
     --freeze_encoders True \
     --freeze_logit_scale False \
     --limit_train_batches=1.0 \
