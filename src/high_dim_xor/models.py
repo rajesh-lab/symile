@@ -215,26 +215,30 @@ class SSLModel(pl.LightningModule):
         Compute or get r_i, which is the image representations for all data samples.
         """
         r_i_list = []
+        z_i_list = []
         idx_list = []
 
         for x in self.trainer.datamodule.test_dataloader():
+
             if self.args.use_precomputed_representations:
                 r_i = self.image_encoder(x["image"].to(self.device))
             else:
                 r_i = self.image_encoder(
                     {"pixel_values": x["image_pixel_values"].to(self.device)}
                     )
+
             r_i_list.append(r_i)
+            z_i_list.append(x["z_i"].to(self.device))
             idx_list.append(x["idx"].to(self.device))
 
+        self.z_i = torch.cat(z_i_list)
+        self.r_i_idx = torch.cat(idx_list)
         r_i = torch.cat(r_i_list)
 
         if self.args.normalize:
             [self.r_i] = l2_normalize([r_i])
         else:
             self.r_i = r_i
-
-        self.r_i_idx = torch.cat(idx_list)
 
     def zeroshot_accuracy(self, r_a, r_t, batch_idx):
         if self.args.loss_fn == "symile":
@@ -251,11 +255,19 @@ class SSLModel(pl.LightningModule):
 
         logits = self.logit_scale.exp() * logits
 
-        pred = torch.argmax(logits, dim=1)
+        # pred_idx is a tensor of length batch_sz where each element is the
+        # index of the r_i (across the whole test set) that maximizes the score.
+        pred_idx = torch.argmax(logits, dim=1)
 
-        # roundabout way to get true labels in case self.r_i_idx are not in order
-        r_i_idx = self.r_i_idx.unsqueeze(0).expand(batch_idx.shape[0], -1)
-        y = torch.argmax((batch_idx.unsqueeze(1) == r_i_idx).long(), dim=1)
+        # for each index in pred_idx, we get the label (0 or 1) that corresponds
+        # to the r_i at that index; so pred is a tensor of length batch_sz where
+        # each element is the predicted label (0 or 1)
+        pred = self.z_i[pred_idx]
+
+        # roundabout way to get true labels in case self.r_i_idx is not in order
+        matching_indices = torch.nonzero(
+            self.r_i_idx.unsqueeze(1) == batch_idx.unsqueeze(0), as_tuple=False)
+        y = self.z_i[matching_indices[:, 0]]
 
         return (torch.sum(y == pred) / len(y)).item()
 
