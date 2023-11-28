@@ -53,18 +53,27 @@ class HighDimDataset(Dataset):
         audio = self.get_audio(self.df.iloc[idx].audio_path)
         image = self.get_image(self.df.iloc[idx].image_path)
         text = self.df.iloc[idx].text
+        z_a = self.df.iloc[idx].z_a
+        z_i = self.df.iloc[idx].z_i
+        z_t = self.df.iloc[idx].z_t
 
-        item_dict = {"audio": audio, "image": image, "text": text, "idx": idx}
+        item_dict = {"audio": audio, "image": image, "text": text,
+                     "z_a": z_a, "z_i": z_i, "z_t": z_t,
+                     "idx": idx}
 
         return item_dict
 
 
 class HighDimPrecomputedDataset(Dataset):
     def __init__(self, dataset_dir, split):
-        self.audio = torch.load(dataset_dir / f"audio_{split}.pt")
-        self.image = torch.load(dataset_dir / f"image_{split}.pt")
-        self.text = torch.load(dataset_dir / f"text_{split}.pt")
-        self.idx = torch.arange(len(self.text))
+        split_dir = dataset_dir / f"{split}"
+        self.audio = torch.load(split_dir / f"audio_{split}.pt")
+        self.image = torch.load(split_dir / f"image_{split}.pt")
+        self.text = torch.load(split_dir / f"text_{split}.pt")
+        self.z_a = torch.load(split_dir / f"z_a_{split}.pt")
+        self.z_i = torch.load(split_dir / f"z_i_{split}.pt")
+        self.z_t = torch.load(split_dir / f"z_t_{split}.pt")
+        self.idx = torch.load(split_dir / f"idx_{split}.pt")
 
     def __len__(self):
         return len(self.audio)
@@ -73,6 +82,9 @@ class HighDimPrecomputedDataset(Dataset):
         return {"audio": self.audio[idx],
                 "image": self.image[idx],
                 "text": self.text[idx],
+                "z_a": self.z_a[idx],
+                "z_i": self.z_i[idx],
+                "z_t": self.z_t[idx],
                 "idx": self.idx[idx]}
 
 
@@ -88,7 +100,8 @@ class Collator:
         Args:
             batch (list): List of data samples of length `batch_sz`. Each sample
                           is a dictionary with keys `audio`, `image`, `text`,
-                          and `idx` (see SymileDataset.__getitem__).
+                          `z_a`, `z_i`, `z_t`, and `idx`
+                          (see SymileDataset.__getitem__).
         Returns:
             (dict): of batched data samples with the following keys:
                 - audio_input_features: torch.Tensor of shape (batch_sz, 80, 3000)
@@ -96,6 +109,9 @@ class Collator:
                 - image_pixel_values: torch.Tensor of shape (batch_sz, 3, 224, 224)
                 - text_input_ids: torch.Tensor of shape (batch_sz, len_longest_seq)
                 - text_attention_mask: torch.Tensor of shape (batch_sz, len_longest_seq)
+                - z_a: torch.Tensor of shape (batch_sz) with z_a used in data generating process
+                - z_i: torch.Tensor of shape (batch_sz) with z_i used in data generating process
+                - z_t: torch.Tensor of shape (batch_sz) with z_t used in data generating process
                 - idx: torch.Tensor of shape (batch_sz) with unique identifier for data sample
         """
         audio_input_features = torch.stack([s["audio"]["input_features"] for s in batch])
@@ -107,6 +123,9 @@ class Collator:
         text = self.txt_tokenizer(text=text_list, return_tensors="pt",
                                   padding=True, truncation=True)
 
+        z_a = torch.Tensor([s["z_a"] for s in batch])
+        z_i = torch.Tensor([s["z_i"] for s in batch])
+        z_t = torch.Tensor([s["z_t"] for s in batch])
         idx = torch.Tensor([s["idx"] for s in batch])
 
         batched_data = {"audio_input_features": audio_input_features,
@@ -114,7 +133,7 @@ class Collator:
                         "image_pixel_values": image_pixel_values,
                         "text_input_ids": text["input_ids"],
                         "text_attention_mask": text["attention_mask"],
-                        "idx": idx}
+                        "z_a": z_a, "z_i": z_i, "z_t": z_t, "idx": idx}
 
         return batched_data
 
@@ -169,11 +188,8 @@ class HighDimDataModule(BaseDataModule):
         df_val = pd.read_csv(self.args.data_dir / self.args.val_csv)
         self.ds_val = HighDimDataset(df_val, self.audio_feat_extractor, self.img_processor)
 
-        df_test_zeroshot = pd.read_csv(self.args.data_dir / self.args.test_csv)
-        self.ds_test_zeroshot = HighDimDataset(df_test_zeroshot, self.audio_feat_extractor, self.img_processor)
-
-        df_test_support = pd.read_csv(self.args.data_dir / self.args.test_csv)
-        self.ds_test_support = HighDimDataset(df_test_support, self.audio_feat_extractor, self.img_processor)
+        df_test = pd.read_csv(self.args.data_dir / self.args.test_csv)
+        self.ds_test = HighDimDataset(df_test, self.audio_feat_extractor, self.img_processor)
 
     def train_dataloader(self):
         return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train,
@@ -189,15 +205,10 @@ class HighDimDataModule(BaseDataModule):
                           drop_last=self.args.drop_last)
 
     def test_dataloader(self):
-        dl_zeroshot = DataLoader(self.ds_test_zeroshot, batch_size=self.args.batch_sz_test,
-                                 num_workers=self.num_workers,
-                                 collate_fn=Collator(self.txt_tokenizer),
-                                 drop_last=self.args.drop_last)
-        dl_support = DataLoader(self.ds_test_support, batch_size=self.args.batch_sz_test,
-                                num_workers=self.num_workers,
-                                collate_fn=Collator(self.txt_tokenizer),
-                                drop_last=self.args.drop_last)
-        return [dl_zeroshot, dl_support]
+        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
+                          num_workers=self.num_workers,
+                          collate_fn=Collator(self.txt_tokenizer),
+                          drop_last=self.args.drop_last)
 
 
 class HighDimPrecomputedDataModule(BaseDataModule):
