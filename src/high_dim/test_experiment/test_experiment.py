@@ -1,95 +1,129 @@
+from argparse import Namespace
 from datetime import datetime
 import os
-from pathlib import Path
 
 import lightning.pytorch as pl
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import Dataset, DataLoader
-from transformers import BertModel, BertTokenizer
-import pandas as pd
 import torch
 import torch.nn as nn
 
 from args import parse_args_main
+from save_representations import BaseDataModule, HighDimDataModule
+
+
+class HighDimPrecomputedDataset(Dataset):
+    def __init__(self, dataset_dir, split):
+        split_dir = dataset_dir / f"{split}"
+        self.text = torch.load(split_dir / f"text_{split}.pt")
+        self.lang_embed = torch.load(split_dir / f"lang_embed_{split}.pt")
+        self.img_cls = torch.load(split_dir / f"img_cls_{split}.pt")
+        self.idx = torch.load(split_dir / f"idx_{split}.pt")
+
+    def __len__(self):
+        return len(self.text)
+
+    def __getitem__(self, idx):
+        return {"text": self.text[idx],
+                "lang_embed": self.lang_embed[idx],
+                "img_cls": self.img_cls[idx],
+                "idx": self.idx[idx]}
+
+
+class HighDimPrecomputedDataModule(BaseDataModule):
+    def __init__(self, args):
+        super().__init__(args)
+
+    def setup(self, stage):
+        self.text_tokenization()
+
+        self.ds_train = HighDimPrecomputedDataset(self.args.precomputed_rep_dir, "train")
+        self.ds_val = HighDimPrecomputedDataset(self.args.precomputed_rep_dir, "val")
+        self.ds_test = HighDimPrecomputedDataset(self.args.precomputed_rep_dir, "test")
+
+    def train_dataloader(self):
+        return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train,
+                          shuffle=True,
+                          num_workers=self.num_workers,
+                          drop_last=self.args.drop_last)
+
+    def val_dataloader(self):
+        return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
+                          num_workers=self.num_workers,
+                          drop_last=self.args.drop_last)
+
+    def test_dataloader(self):
+        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
+                          num_workers=self.num_workers,
+                          drop_last=self.args.drop_last)
 
 
 class SSLModel(pl.LightningModule):
-    def __init__(self, feat_token_id):
+    def __init__(self, **args):
         super().__init__()
-        self.feat_token_id = feat_token_id
+        self.save_hyperparameters()
 
-        self.text_encoder = BertModel.from_pretrained("bert-base-multilingual-cased")
-        self.language_embedding = nn.Embedding(5, 768)
-        self.fc1 = nn.Linear(10, 100)
+        self.args = Namespace(**args)
+
+        self.lang_embedding = nn.Embedding(5, self.args.lang_embed_d).to(self.device)
+        self.fc1 = nn.Linear(self.args.d + self.args.lang_embed_d, self.args.hidden_layer_d)
         self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(100, 5)
+        self.fc2 = nn.Linear(self.args.hidden_layer_d, 5)
 
     def forward(self, x):
-        txt_embed = self.text_encoder(input_ids=x["text_input_ids"],
-                                      attention_mask=x["text_attention_mask"])
-        txt_embed = txt_embed.last_hidden_state[:, 0, :]
-        breakpoint()
-        # take features from EOS or BOS embedding. x has shape (b, l, d).
-        # argmax returns first index of feat_token_id in case pad_token_id is
-        # equal to feat_token_id.
-        txt_embed = txt_embed[torch.arange(txt_embed.shape[0]),
-                  (x["text_input_ids"] == self.feat_token_id).int().argmax(dim=-1)]
+        if self.args.use_precomputed_representations:
+            # x["text"] has shape (b, d); x["lang_embed"] has shape (b)
+            lang_embed = self.lang_embedding(x["lang_embed"].to(torch.int))
 
-        lang_embed = self.language_embedding(x["lang_embed"].to(torch.int))
+            input_tensor = torch.cat((x["text"], lang_embed), dim=1)
 
-        return r_a, r_i, r_t, self.logit_scale.exp()
+            x = self.fc1(input_tensor)
+            x = self.relu(x)
+            x = self.fc2(x)
+        else:
+            ValueError("Not implemented.")
+
+        return x
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=1.0e-3)
+        return torch.optim.AdamW(self.parameters(), lr=self.args.lr,
+                                 weight_decay=self.args.weight_decay)
 
     def _shared_step(self, batch, batch_idx):
-        r_a, r_i, r_t, logit_scale_exp = self(batch)
+        logits = self(batch) # (b, 5)
+        labels = batch["img_cls"].long() # (b)
 
-        if self.args.normalize:
-            r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
-
-        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp)
-
-        return loss, logit_scale_exp
+        loss = nn.CrossEntropyLoss()
+        return loss(logits, labels)
 
     def training_step(self, batch, batch_idx):
-        loss, logit_scale_exp = self._shared_step(batch, batch_idx)
+        loss = self._shared_step(batch, batch_idx)
 
-        log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
-
-        self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
-                      on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
-        self.log("log_n_minus_1", log_n_minus_1,
-                 on_step=False, on_epoch=True, sync_dist=False, prog_bar=False)
+        self.log("train_loss", loss,
+                 on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss, logit_scale_exp = self._shared_step(batch, batch_idx)
-
-        log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
+        loss = self._shared_step(batch, batch_idx)
 
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
-        self.log("log_n_minus_1", log_n_minus_1,
-                 on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
 
         return loss
 
     def test_step(self, batch, batch_idx):
-        """
-        The zeroshot task is to predict which r_i corresponds to a given r_a, r_t.
-        """
-        r_a, _, r_t, _ = self(batch)
+        logits = self(batch) # (b, 5)
+        labels = batch["img_cls"].long() # (b)
 
-        if self.args.normalize:
-            r_a, r_t = l2_normalize([r_a, r_t])
+        pred = torch.argmax(logits, dim=1)
 
-        zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"])
+        acc = torch.sum(pred == labels) / len(labels)
 
-        self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)
+        self.log("test_accuracy", acc, sync_dist=True, prog_bar=True)
 
 
 def main(args, trainer):

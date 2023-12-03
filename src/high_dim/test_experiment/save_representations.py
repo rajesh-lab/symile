@@ -1,9 +1,14 @@
 import os
 
+import lightning.pytorch as pl
+import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
-from transformers import BertModel
+from transformers import BertTokenizer, XLMRobertaTokenizer, \
+                         BertModel, XLMRobertaModel
 from tqdm import tqdm
+
+from args import parse_args_save_representations
 
 
 LANGUAGE_EMBED = {"ar": 0, "el": 1, "en": 2, "hi": 3, "ja": 4}
@@ -22,7 +27,8 @@ class HighDimDataset(Dataset):
         img_cls = IMG_CLS[self.df.iloc[idx].cls]
         text = self.df.iloc[idx].text
 
-        return {"lang_embed": lang_embed, "img_cls": img_cls, "text": text}
+        return {"lang_embed": lang_embed, "img_cls": img_cls, "text": text,
+                "idx": idx}
 
 
 class Collator:
@@ -39,62 +45,72 @@ class Collator:
 
         lang_embed = torch.Tensor([s["lang_embed"] for s in batch])
         img_cls = torch.Tensor([s["img_cls"] for s in batch])
+        idx = torch.Tensor([s["idx"] for s in batch])
 
         batched_data = {"text_input_ids": text["input_ids"],
                         "text_attention_mask": text["attention_mask"],
-                        "lang_embed": lang_embed, "img_cls": img_cls}
+                        "lang_embed": lang_embed, "img_cls": img_cls, "idx": idx}
 
         return batched_data
 
 
 class BaseDataModule(pl.LightningDataModule):
-    def __init__(self):
+    def __init__(self, args):
         super().__init__()
+        self.args = args
 
         # from max_num_worker_suggest in DataLoader docs
         self.num_workers = len(os.sched_getaffinity(0))
 
     def text_tokenization(self):
-        self.txt_tokenizer = BertTokenizer.from_pretrained("bert-base-multilingual-cased")
-        self.feat_token_id = self.txt_tokenizer.sep_token_id
+        if self.args.text_model_id == "bert-base-multilingual-cased":
+            self.txt_tokenizer = BertTokenizer.from_pretrained(self.args.text_model_id)
+            if self.args.text_embedding == "eos":
+                self.feat_token_id = self.txt_tokenizer.sep_token_id
+            elif self.args.text_embedding == "bos":
+                self.feat_token_id = self.txt_tokenizer.cls_token_id
+        elif self.args.text_model_id == "xlm-roberta-base":
+            self.txt_tokenizer = XLMRobertaTokenizer.from_pretrained(self.args.text_model_id)
+            if self.args.text_embedding == "eos":
+                self.feat_token_id = self.txt_tokenizer.eos_token_id
+            elif self.args.text_embedding == "bos":
+                self.feat_token_id = self.txt_tokenizer.bos_token_id
 
 
 class HighDimDataModule(BaseDataModule):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, args):
+        super().__init__(args)
 
     def setup(self, stage):
         self.text_tokenization()
 
-        data_dir = Path("/gpfs/scratch/as16583/symile/src/high_dim/data")
-
-        df_train = pd.read_csv(data_dir / "train.csv")
+        df_train = pd.read_csv(self.args.data_dir / self.args.train_csv)
         self.ds_train = HighDimDataset(df_train)
 
-        df_val = pd.read_csv(data_dir / "val.csv")
+        df_val = pd.read_csv(self.args.data_dir / self.args.val_csv)
         self.ds_val = HighDimDataset(df_val)
 
-        df_test = pd.read_csv(data_dir / "zeroshot.csv")
+        df_test = pd.read_csv(self.args.data_dir / self.args.test_csv)
         self.ds_test = HighDimDataset(df_test)
 
     def train_dataloader(self):
-        return DataLoader(self.ds_train, batch_size=500,
+        return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train,
                           shuffle=True,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=True)
+                          drop_last=self.args.drop_last)
 
     def val_dataloader(self):
-        return DataLoader(self.ds_val, batch_size=500,
+        return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=True)
+                          drop_last=self.args.drop_last)
 
     def test_dataloader(self):
-        return DataLoader(self.ds_test, batch_size=500,
+        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=True)
+                          drop_last=self.args.drop_last)
 
 
 def load_text_encoder(args, device):
@@ -116,38 +132,14 @@ def save_representations(args, text_encoder, dl, split):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    audio_encoder = encoders["audio"]
-    image_encoder = encoders["image"]
-    text_encoder = encoders["text"]
-
-    audio_reps = []
-    image_reps = []
     text_reps = []
-    lang = []
-    cls = []
-    target_text = []
+    lang_embed = []
+    img_cls = []
     idx = []
 
     for ix, batch in enumerate(tqdm(dl)):
-        keys_to_device = ["audio_input_features", "audio_attention_mask",
-                          "image_pixel_values", "text_input_ids",
-                          "text_attention_mask"]
+        keys_to_device = ["text_input_ids", "text_attention_mask"]
         batch = {k: v.to(device) if k in keys_to_device else v for k, v in batch.items()}
-
-        # audio encoder
-        x = audio_encoder(input_features=batch["audio_input_features"],
-                          attention_mask=batch["audio_attention_mask"])
-        x = x["last_hidden_state"]
-        x = x[:, 0, :]
-        x = x.cpu()
-        audio_reps.append(x)
-
-        # image encoder
-        x = image_encoder(pixel_values=batch["image_pixel_values"])
-        x = x["last_hidden_state"]
-        x = x[:, 0, :]
-        x = x.cpu()
-        image_reps.append(x)
 
         # text encoder
         x = text_encoder(input_ids=batch["text_input_ids"],
@@ -158,29 +150,18 @@ def save_representations(args, text_encoder, dl, split):
         x = x.cpu()
         text_reps.append(x)
 
-        lang.append(batch["lang"])
-        cls.append(batch["cls"])
-        target_text.append(batch["target_text"])
+        lang_embed.append(batch["lang_embed"])
+        img_cls.append(batch["img_cls"])
         idx.append(batch["idx"])
-
-    audio_reps = torch.cat(audio_reps, dim=0)
-    torch.save(audio_reps, save_dir / f'audio_{split}.pt')
-
-    image_reps = torch.cat(image_reps, dim=0)
-    torch.save(image_reps, save_dir / f'image_{split}.pt')
 
     text_reps = torch.cat(text_reps, dim=0)
     torch.save(text_reps, save_dir / f'text_{split}.pt')
 
-    with open(save_dir / "lang.txt", 'w') as f:
-        for s in lang:
-            f.write(f"{s}\n")
-    with open(save_dir / "cls.txt", 'w') as f:
-        for s in cls:
-            f.write(f"{s}\n")
-    with open(save_dir / "target_text.txt", 'w') as f:
-        for s in target_text:
-            f.write(f"{s}\n")
+    lang_embed = torch.cat(lang_embed, dim=0)
+    torch.save(lang_embed, save_dir / f'lang_embed_{split}.pt')
+
+    img_cls = torch.cat(img_cls, dim=0)
+    torch.save(img_cls, save_dir / f'img_cls_{split}.pt')
 
     idx = torch.cat(idx, dim=0)
     torch.save(idx, save_dir / f'idx_{split}.pt')

@@ -71,11 +71,11 @@ def parse_args_main():
                         default=Path("zeroshot.csv"),
                         help="Filename for test csv.")
     parser.add_argument("--use_precomputed_representations", type=str_to_bool,
-                        default=False,
+                        default=True,
                         help="Whether to use precomputed representations to \
                               train projection heads.")
     parser.add_argument("--precomputed_rep_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data"),
                         help="Where precomputed representations are saved.")
 
     ### MODEL ARGS ###
@@ -97,6 +97,10 @@ def parse_args_main():
                         choices = ["eos", "bos"], default="eos",
                         help="Whether to use text encoder BOS or EOS embedding \
                               as input to projection head.")
+    parser.add_argument("--lang_embed_d", type=int, default=32,
+                        help="Dimensionality of language embedding.")
+    parser.add_argument("--hidden_layer_d", type=int, default=1024,
+                        help="Dimensionality of language embedding.")
 
     ### TRAINING ARGS ###
     parser.add_argument("--batch_sz_train", type=int, default=300,

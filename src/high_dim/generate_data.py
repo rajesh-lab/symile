@@ -48,12 +48,17 @@ def generate_data(args, n, data_ref):
 
     # generate text given language and class
     data_df["target_text"] = data_df.apply(lambda r: data_ref[r.cls][r.lang], axis=1)
-    def _generate_text(target_text):
-        text = random.choices(all_words, k=len(CLASSES)-1) + [target_text]
-        # randomly permute and concatenate text
-        random.shuffle(text)
+    def _generate_text(r, data_type):
+        if data_type == "overlap":
+            text = random.choices(all_words, k=len(CLASSES)-1) + [r.target_text]
+            # randomly permute and concatenate text
+            random.shuffle(text)
+        elif data_type == "disjoint":
+            text = [target_text]
+
         return " ".join(text)
-    data_df["text"] = data_df.apply(lambda r: _generate_text(r.target_text), axis=1)
+    data_df["text"] = data_df.apply(lambda r: _generate_text(r, args.data_type),
+                                    axis=1)
 
     return data_df
 

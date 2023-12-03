@@ -112,10 +112,10 @@ if __name__ == '__main__':
     dm.setup(stage="fit")
     args.feat_token_id = dm.feat_token_id
     print(f"Saving train tensors...")
-    # save_representations(args, encoders, dm.train_dataloader(), "train")
+    save_representations(args, encoders, dm.train_dataloader(), "train")
     print(f"Saving val tensors...")
     save_representations(args, encoders, dm.val_dataloader(), "val")
 
-    # dm.setup(stage="test")
-    # print(f"Saving test tensors...")
-    # save_representations(args, encoders, dm.test_dataloader(), "test")
+    dm.setup(stage="test")
+    print(f"Saving test tensors...")
+    save_representations(args, encoders, dm.test_dataloader(), "test")
