@@ -22,6 +22,7 @@ python main.py \
     --check_val_every_n_epoch 5 \
     --d 768 \
     --drop_last True \
+    --efficient_loss False \
     --early_stopping True \
     --early_stopping_patience 20 \
     --epochs 50 \
