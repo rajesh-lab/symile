@@ -133,7 +133,7 @@ def save_likelihood_ratio_vs_score(i_p, loss_fn, model, lr_data, save_dir, dim):
     # calculate score
     if loss_fn == "symile":
         score_fn = torch.sum(r_a * r_b * r_c, axis=1)
-    elif loss_fn == "pairwise_infonce":
+    elif loss_fn == "clip":
         score_fn = torch.sum((r_a * r_b) + (r_b * r_c) + (r_a * r_c), axis=1)
 
     # save plot
