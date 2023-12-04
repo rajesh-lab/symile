@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
     save_dir = args.ckpt_save_dir / datetime_now
-    os.mkdir(save_dir)
+    os.makedirs(save_dir)
 
     # compute mutual informations, total correlation, and best accuracy
     # for all values of i_p
