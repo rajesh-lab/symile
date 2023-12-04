@@ -8,31 +8,31 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     ### DATASET ARGS ###
-    parser.add_argument("--pretrain_n", type=int, default=100, #5K
+    parser.add_argument("--pretrain_n", type=int, default=100,
                         help="Number of samples (a, b, c) in pretraining dataset.")
-    parser.add_argument("--pretrain_val_n", type=int, default=1000, #1K
+    parser.add_argument("--pretrain_val_n", type=int, default=1000,
                         help="Number of samples (a, b, c) in pretraining validation dataset.")
-    parser.add_argument("--test_n", type=int, default=100, #5K
+    parser.add_argument("--test_n", type=int, default=100,
                         help="Number of samples (a, b, c) in test dataset.")
-    parser.add_argument("--d_v", type=int, default=2, #1 or 2
+    parser.add_argument("--d_v", type=int, default=2,
                         help="Dimensionality of dataset vectors.")
     parser.add_argument("--d_r", type=int, default=16,
                         help="Dimensionality of representation vectors.")
 
     ### TRAINING ARGS ###
-    parser.add_argument("--batch_sz", type=int, default=100, #1K
+    parser.add_argument("--batch_sz", type=int, default=100,
                         help="Batch size for pretraining.")
     parser.add_argument("--batch_sz_val", type=int, default=1000,
                         help="Val set batch size for pretraining.")
     parser.add_argument("--batch_sz_test", type=int, default=100,
                         help="Test set batch size. Must equal test_n if \
                               evaluation = support.")
-    parser.add_argument("--check_val_every_n_epoch", type=int, default=1, #10
+    parser.add_argument("--check_val_every_n_epoch", type=int, default=1,
                         help="Check val every n train epochs.")
     parser.add_argument("--ckpt_save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/ckpts/spectrum"),
+                        default=Path("/gpfs/scratch/as16583/ckpts/binary"),
                         help="Where to save model checkpoints.")
-    parser.add_argument("--epochs", type=int, default=2, #100
+    parser.add_argument("--epochs", type=int, default=2,
                         help="Number of epochs to train for.")
     parser.add_argument("--hardcode_encoders", type=str_to_bool, default=False,
                         help="Whether to hardcode encoders during training.")
@@ -51,7 +51,7 @@ def parse_args():
                         help="Whether to set batch size equal to full dataset. \
                               Note that if set to True, `batch_sz` param \
                               will be ignored.")
-    parser.add_argument("--wandb", type=str_to_bool, default=False, #True
+    parser.add_argument("--wandb", type=str_to_bool, default=False,
                         help="Whether to use wandb for logging.")
     parser.add_argument("--wandb_run_name", type=str, default=None,
                         help="Run name for wandb for logging.")
