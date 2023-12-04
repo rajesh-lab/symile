@@ -170,7 +170,7 @@ class BinaryModule(pl.LightningModule):
             # [ MIP(r_a[i], r_q[0], r_c[i]) ... MIP(r_a[i], r_q[3], r_c[i]) ]
             # where MIP is the multilinear inner product.
             logits = (r_a * r_c) @ torch.t(self.r_q)
-        elif self.args.loss_fn == "pairwise_infonce":
+        elif self.args.loss_fn == "clip":
             # logits is a (batch_sz, 4) matrix where each row i is
             # [ r_a[i]^T r_c[i] + r_a[i]^T r_q[0] + r_c[i]^T r_q[0] ...
             #   r_a[i]^T r_c[i] + r_a[i]^T r_q[3] + r_c[i]^T r_q[3] ]
@@ -206,7 +206,7 @@ class BinaryModule(pl.LightningModule):
 
         if self.args.loss_fn == "symile":
             X = r_a * r_b * r_c
-        elif self.args.loss_fn == "pairwise_infonce":
+        elif self.args.loss_fn == "clip":
             if self.args.concat_infonce:
                 X = torch.cat((r_a * r_b, r_b * r_c, r_a * r_c), dim=1)
             else:
