@@ -143,6 +143,9 @@ def parse_args_main():
     parser.add_argument("--ckpt_save_dir", type=Path,
                         default=Path("/gpfs/scratch/as16583/ckpts/high_dim_xor"),
                         help="Where to save model checkpoints.")
+    parser.add_argument("--efficient_loss", type=str_to_bool, default=False,
+                        help="Whether to compute logits with only \
+                              (batch_size^2 - batch_size) negatives.")
     parser.add_argument("--drop_last", type=str_to_bool, default=True,
                         help="Whether to drop the last non-full batch of each \
                               DataLoader worker's dataset replica.")

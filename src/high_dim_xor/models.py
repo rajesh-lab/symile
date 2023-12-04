@@ -2,6 +2,7 @@ from argparse import Namespace
 
 import lightning.pytorch as pl
 import numpy as np
+import plotly.express as px
 import torch
 import torch.nn as nn
 from transformers import BertModel, CLIPVisionModel, WhisperModel, XLMRobertaModel
@@ -182,7 +183,8 @@ class SSLModel(pl.LightningModule):
         if self.args.normalize:
             r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
 
-        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp)
+        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp,
+                            self.args.efficient_loss)
 
         return loss, logit_scale_exp
 
@@ -254,6 +256,10 @@ class SSLModel(pl.LightningModule):
             logits = at + (r_a @ torch.t(self.r_i)) + (r_t @ torch.t(self.r_i))
 
         logits = self.logit_scale.exp() * logits
+
+        # save heatmap of the logits
+        fig = px.imshow(logits.cpu().numpy(), aspect="auto")
+        fig.write_image(self.args.save_dir / "logits.png")
 
         # pred_idx is a tensor of length batch_sz where each element is the
         # index of the r_i (across the whole test set) that maximizes the score.
