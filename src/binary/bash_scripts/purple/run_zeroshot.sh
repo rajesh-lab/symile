@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=pretrain_zeroshot
+#SBATCH --job-name=run_zeroshot
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
@@ -18,10 +18,10 @@ python main.py \
     --batch_sz_test 1000 \
     --check_val_every_n_epoch 10 \
     --d_r 16 \
-    --d_v 1 \
+    --d_v 2 \
     --epochs 100 \
     --evaluation zeroshot \
-    --pretrain_n 5000 \
+    --pretrain_n 10000 \
     --pretrain_val_n 1000 \
     --test_n 5000 \
     --wandb True
