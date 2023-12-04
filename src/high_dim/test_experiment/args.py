@@ -8,7 +8,7 @@ def parse_args_save_representations():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/overlap"),
                         help="Directory with dataset csvs.")
     parser.add_argument("--train_csv", type=Path,
                         default=Path("train.csv"),
@@ -20,7 +20,7 @@ def parse_args_save_representations():
                         default=Path("zeroshot.csv"),
                         help="Filename for test csv.")
     parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data/overlap"),
                         help="Directory to save dataset tensors in.")
 
     ### MODEL ARGS ###

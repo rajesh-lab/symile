@@ -8,13 +8,17 @@ def parse_args_generate_data():
     parser = argparse.ArgumentParser()
 
     ### DATA ARGS ###
+    parser.add_argument("--data_type", type=str,
+                        choices = ["overlap", "disjoint"], default="overlap",
+                        help="Whether to allow overlap across languauge and \
+                              meaning (overlap) or not (disjoint).")
     parser.add_argument("--cv_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23"),
                         help="Directory where CommonVoice audio clips are held.")
     parser.add_argument("--data_reference", type=Path,
-                        default=Path("./data/data_reference.json"),
-                        help="json file with class names, ImageNet synset id, \
-                              and language translations.")
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/data_reference.json"),
+                        help="Path to json file with class names, ImageNet synset \
+                              id, and language translations.")
     parser.add_argument("--imagenet_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/imagenet/ILSVRC/Data/CLS-LOC/train"),
                         help="Directory where ImageNet image train data is held.")
@@ -39,7 +43,7 @@ def parse_args_save_representations():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/disjoint"),
                         help="Directory with dataset csvs.")
     parser.add_argument("--train_csv", type=Path,
                         default=Path("train.csv"),
@@ -51,7 +55,7 @@ def parse_args_save_representations():
                         default=Path("zeroshot.csv"),
                         help="Filename for test csv.")
     parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/disjoint"),
                         help="Directory to save dataset tensors in.")
 
     ### MODEL ARGS ###

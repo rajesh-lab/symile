@@ -14,6 +14,8 @@ echo 'generating data...'
 python generate_data.py \
     --pretrain_n 50000 \
     --val_size 0.1 \
-    --test_n 10000
+    --test_n 10000 \
+    --data_type disjoint \
+    --save_dir /gpfs/scratch/as16583/symile/src/high_dim/data/disjoint
 
 echo 'done!'

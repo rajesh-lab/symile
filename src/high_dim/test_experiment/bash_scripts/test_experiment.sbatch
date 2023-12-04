@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=test_experiment
+#SBATCH --job-name=test_experiment_disjoint
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
@@ -13,7 +13,7 @@ cd /gpfs/scratch/as16583/symile/src/high_dim/test_experiment
 
 echo 'training...'
 python test_experiment.py \
-    --data_dir data_dir \
+    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/data/disjoint \
     --batch_sz_train 300 \
     --batch_sz_val 300 \
     --batch_sz_test 300 \
@@ -28,6 +28,6 @@ python test_experiment.py \
     --use_seed True \
     --wandb True \
     --use_precomputed_representations True \
-    --precomputed_rep_dir /gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data
+    --precomputed_rep_dir /gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data/disjoint
 
 echo 'done!'
