@@ -6,10 +6,6 @@ import plotly.express as px
 import torch
 import torch.nn as nn
 from transformers import BertModel, CLIPVisionModel, WhisperModel, XLMRobertaModel
-try:
-    import wandb
-except ImportError:
-    wandb = None
 
 from src.losses import clip, symile
 from src.utils import l2_normalize
@@ -241,7 +237,7 @@ class SSLModel(pl.LightningModule):
         else:
             self.r_i = r_i
 
-    def save_loss_heatmap(self, z_a, z_i, z_t, r_a, r_i, r_t, logit_scale_exp):
+    def save_heatmap(self, z_a, z_i, z_t, r_a, r_i, r_t, logit_scale_exp):
         ### SORT R_A, R_I, R_T ###
         # sort z_a, z_t according to `a_t_order`
         z_a_z_t = torch.stack([z_a, z_t], dim=1) # (bsz, 2)
@@ -325,9 +321,9 @@ class SSLModel(pl.LightningModule):
             r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
 
         # save heatmap of the logits for first batch
-        if batch_idx == 0 and self.args.save_loss_heatmap:
-            self.save_loss_heatmap(batch["z_a"], batch["z_i"], batch["z_t"],
-                                   r_a, r_i, r_t, logit_scale_exp)
+        if batch_idx == 0 and self.args.save_test_heatmap:
+            self.save_heatmap(batch["z_a"], batch["z_i"], batch["z_t"],
+                              r_a, r_i, r_t, logit_scale_exp)
 
         zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"])
 
