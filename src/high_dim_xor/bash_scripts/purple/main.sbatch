@@ -31,9 +31,10 @@ python main.py \
     --limit_train_batches=1.0 \
     --limit_val_batches=1.0 \
     --logit_scale_init 0 \
-    --loss_fn symile \
+    --loss_fn clip \
     --lr 1.0e-3 \
     --normalize True \
+    --save_loss_heatmap True \
     --use_seed True \
     --wandb True \
     --use_precomputed_representations True \
