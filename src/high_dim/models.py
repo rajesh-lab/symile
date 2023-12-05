@@ -2,14 +2,12 @@ from argparse import Namespace
 
 import lightning.pytorch as pl
 import numpy as np
+import plotly.express as px
 import torch
 import torch.nn as nn
 from transformers import BertModel, CLIPVisionModel, WhisperModel, XLMRobertaModel
-try:
-    import wandb
-except ImportError:
-    wandb = None
 
+from src.high_dim.constants import CLASSES
 from src.losses import clip, symile
 from src.utils import l2_normalize
 
@@ -183,7 +181,7 @@ class SSLModel(pl.LightningModule):
         if self.args.normalize:
             r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
 
-        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp)
+        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.efficient_loss)
 
         return loss, logit_scale_exp
 
@@ -216,7 +214,7 @@ class SSLModel(pl.LightningModule):
         Compute or get r_i, which is the image representations for all data samples.
         """
         r_i_list = []
-        z_i_list = []
+        cls_id_list = []
         idx_list = []
 
         for x in self.trainer.datamodule.test_dataloader():
@@ -229,17 +227,47 @@ class SSLModel(pl.LightningModule):
                     )
 
             r_i_list.append(r_i)
-            z_i_list.append(x["z_i"].to(self.device))
-            idx_list.append(x["idx"].to(self.device))
+            cls_id_list += [CLASSES[c] for c in x["cls"]]
+            idx_list.append(x["idx"])
 
-        self.z_i = torch.cat(z_i_list)
-        self.r_i_idx = torch.cat(idx_list)
+        self.cls_id = torch.tensor(cls_id_list).to(self.device)
+        self.r_i_idx = torch.cat(idx_list).to(self.device)
         r_i = torch.cat(r_i_list)
 
         if self.args.normalize:
             [self.r_i] = l2_normalize([r_i])
         else:
             self.r_i = r_i
+
+    def save_heatmap(self, batch_cls, r_a, r_i, r_t, logit_scale_exp):
+        # get indices that would sort r_a, r_i, r_t based on class id
+        batch_cls_id = torch.tensor([CLASSES[c] for c in batch_cls])
+        sorted_indices = torch.argsort(batch_cls_id) # (bsz)
+
+        # use sorted_indices to reorder r_a, r_i, r_t
+        r_a = r_a[sorted_indices]
+        r_i = r_i[sorted_indices]
+        r_t = r_t[sorted_indices]
+
+        ### GET LOGITS ###
+        if self.args.loss_fn == "symile":
+            # logits is a (bsz, bsz) matrix where each row i is
+            # [ MIP(r_a[i], r_i[0], r_t[i]) ... MIP(r_a[i], r_i[bsz-1], r_t[i]) ]
+            # where MIP is the multilinear inner product.
+            logits = (r_a * r_t) @ torch.t(r_i)
+        elif self.args.loss_fn == "clip":
+            # logits is a (bsz, bsz) matrix where each row i is
+            # [ r_a[i]^T r_i[0]     + r_i[0]^T r_t[i]     + r_a[i]^T r_t[i] ...
+            #   r_a[i]^T r_i[bsz-1] + r_i[bsz-1]^T r_t[i] + r_a[i]^T r_t[i] ]
+            at = torch.diagonal(r_a @ torch.t(r_t)).unsqueeze(dim=1) # (bsz, 1)
+            logits = at + (r_a @ torch.t(r_i)) + (r_t @ torch.t(r_i))
+
+        logits = logit_scale_exp * logits
+
+        ### SAVE HEATMAP ###
+        fig = px.imshow(logits.cpu().numpy(), aspect="auto",
+                        color_continuous_scale="blues")
+        fig.write_image(self.args.save_dir / "logits.png")
 
     def zeroshot_accuracy(self, r_a, r_t, batch_idx):
         if self.args.loss_fn == "symile":
@@ -260,15 +288,15 @@ class SSLModel(pl.LightningModule):
         # index of the r_i (across the whole test set) that maximizes the score.
         pred_idx = torch.argmax(logits, dim=1)
 
-        # for each index in pred_idx, we get the label (0 or 1) that corresponds
+        # for each index in pred_idx, we get the class id (label) that corresponds
         # to the r_i at that index; so pred is a tensor of length batch_sz where
-        # each element is the predicted label (0 or 1)
-        pred = self.z_i[pred_idx]
+        # each element is the predicted label.
+        pred = self.cls_id[pred_idx]
 
         # roundabout way to get true labels in case self.r_i_idx is not in order
         matching_indices = torch.nonzero(
             self.r_i_idx.unsqueeze(1) == batch_idx.unsqueeze(0), as_tuple=False)
-        y = self.z_i[matching_indices[:, 0]]
+        y = self.cls_id[matching_indices[:, 0]]
 
         return (torch.sum(y == pred) / len(y)).item()
 
@@ -276,10 +304,14 @@ class SSLModel(pl.LightningModule):
         """
         The zeroshot task is to predict which r_i corresponds to a given r_a, r_t.
         """
-        r_a, _, r_t, _ = self(batch)
+        r_a, r_i, r_t, logit_scale_exp = self(batch)
 
         if self.args.normalize:
-            r_a, r_t = l2_normalize([r_a, r_t])
+            r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
+
+        # save heatmap of the logits for first batch
+        if batch_idx == 0 and self.args.save_test_heatmap:
+            self.save_heatmap(batch["cls"], r_a, r_i, r_t, logit_scale_exp)
 
         zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"])
 

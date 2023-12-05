@@ -19,6 +19,8 @@ python save_representations.py \
     --batch_sz_train 300 \
     --batch_sz_val 300 \
     --batch_sz_test 300 \
-    --drop_last False
+    --drop_last False \
+    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/data/overlap \
+    --save_dir /gpfs/scratch/as16583/symile/src/high_dim/data/overlap
 
 echo 'done!'

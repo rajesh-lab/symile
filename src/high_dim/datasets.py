@@ -73,9 +73,12 @@ class HighDimPrecomputedDataset(Dataset):
         self.audio = torch.load(split_dir / f"audio_{split}.pt")
         self.image = torch.load(split_dir / f"image_{split}.pt")
         self.text = torch.load(split_dir / f"text_{split}.pt")
-        self.z_a = torch.load(split_dir / f"z_a_{split}.pt")
-        self.z_i = torch.load(split_dir / f"z_i_{split}.pt")
-        self.z_t = torch.load(split_dir / f"z_t_{split}.pt")
+        self.lang_df = pd.read_csv(split_dir / "lang.txt",
+                                   header=None, names=["lang"])
+        self.cls_df = pd.read_csv(split_dir / "cls.txt",
+                                  header=None, names=["cls"])
+        self.target_text_df = pd.read_csv(split_dir / "target_text.txt",
+                                          header=None, names=["target_text"])
         self.idx = torch.load(split_dir / f"idx_{split}.pt")
 
     def __len__(self):
@@ -85,9 +88,9 @@ class HighDimPrecomputedDataset(Dataset):
         return {"audio": self.audio[idx],
                 "image": self.image[idx],
                 "text": self.text[idx],
-                "z_a": self.z_a[idx],
-                "z_i": self.z_i[idx],
-                "z_t": self.z_t[idx],
+                "lang": self.lang_df.iloc[idx].lang,
+                "cls": self.cls_df.iloc[idx].cls,
+                "target_text": self.target_text_df.iloc[idx].target_text,
                 "idx": self.idx[idx]}
 
 
