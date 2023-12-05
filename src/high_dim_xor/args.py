@@ -171,6 +171,9 @@ def parse_args_main():
     parser.add_argument("--normalize", type=str_to_bool, default=True,
                         help="Whether to normalize representations, both during \
                               pre-training before loss calculation and during evaluation.")
+    parser.add_argument("--save_loss_heatmap", type=str_to_bool, default=True,
+                        help="Whether to save heatmap of the loss logits for the \
+                              first batch of the test set.")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")
