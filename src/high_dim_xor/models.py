@@ -183,8 +183,7 @@ class SSLModel(pl.LightningModule):
         if self.args.normalize:
             r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
 
-        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp,
-                            self.args.efficient_loss)
+        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.efficient_loss)
 
         return loss, logit_scale_exp
 
@@ -242,6 +241,49 @@ class SSLModel(pl.LightningModule):
         else:
             self.r_i = r_i
 
+    def save_loss_heatmap(self, z_a, z_i, z_t, r_a, r_i, r_t, logit_scale_exp):
+        ### SORT R_A, R_I, R_T ###
+        # sort z_a, z_t according to `a_t_order`
+        z_a_z_t = torch.stack([z_a, z_t], dim=1) # (bsz, 2)
+        a_t_order = torch.tensor([[0, 0], [0, 1], [1, 1], [1, 0]]).to(self.device)
+
+        # give each row in z_a_z_t an order identifier based on a_t_order
+        order_identifier = torch.argmax(
+            (z_a_z_t.unsqueeze(1) == a_t_order).all(dim=-1).long(),
+            dim=1
+        )
+
+        # get indices that would sort r_a and r_t based on order_identifier
+        sorted_indices = torch.argsort(order_identifier) # (bsz)
+
+        # use sorted_indices to reorder r_a and r_t
+        r_a = r_a[sorted_indices]
+        r_t = r_t[sorted_indices]
+
+        # get indices that would sort z_i, and sort r_i accordingly
+        sorted_indices = torch.argsort(z_i)
+        r_i = r_i[sorted_indices]
+
+        ### GET LOGITS ###
+        if self.args.loss_fn == "symile":
+            # logits is a (bsz, bsz) matrix where each row i is
+            # [ MIP(r_a[i], r_i[0], r_t[i]) ... MIP(r_a[i], r_i[bsz-1], r_t[i]) ]
+            # where MIP is the multilinear inner product.
+            logits = (r_a * r_t) @ torch.t(r_i)
+        elif self.args.loss_fn == "clip":
+            # logits is a (bsz, bsz) matrix where each row i is
+            # [ r_a[i]^T r_i[0]     + r_i[0]^T r_t[i]     + r_a[i]^T r_t[i] ...
+            #   r_a[i]^T r_i[bsz-1] + r_i[bsz-1]^T r_t[i] + r_a[i]^T r_t[i] ]
+            at = torch.diagonal(r_a @ torch.t(r_t)).unsqueeze(dim=1) # (bsz, 1)
+            logits = at + (r_a @ torch.t(r_i)) + (r_t @ torch.t(r_i))
+
+        logits = logit_scale_exp * logits
+
+        ### SAVE HEATMAP ###
+        fig = px.imshow(logits.cpu().numpy(), aspect="auto",
+                        color_continuous_scale="blues")
+        fig.write_image(self.args.save_dir / "logits.png")
+
     def zeroshot_accuracy(self, r_a, r_t, batch_idx):
         if self.args.loss_fn == "symile":
             # logits is a (batch_sz, n) matrix where each row i is
@@ -256,10 +298,6 @@ class SSLModel(pl.LightningModule):
             logits = at + (r_a @ torch.t(self.r_i)) + (r_t @ torch.t(self.r_i))
 
         logits = self.logit_scale.exp() * logits
-
-        # save heatmap of the logits
-        fig = px.imshow(logits.cpu().numpy(), aspect="auto")
-        fig.write_image(self.args.save_dir / "logits.png")
 
         # pred_idx is a tensor of length batch_sz where each element is the
         # index of the r_i (across the whole test set) that maximizes the score.
@@ -281,10 +319,15 @@ class SSLModel(pl.LightningModule):
         """
         The zeroshot task is to predict which r_i corresponds to a given r_a, r_t.
         """
-        r_a, _, r_t, _ = self(batch)
+        r_a, r_i, r_t, logit_scale_exp = self(batch)
 
         if self.args.normalize:
-            r_a, r_t = l2_normalize([r_a, r_t])
+            r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
+
+        # save heatmap of the logits for first batch
+        if batch_idx == 0 and self.args.save_loss_heatmap:
+            self.save_loss_heatmap(batch["z_a"], batch["z_i"], batch["z_t"],
+                                   r_a, r_i, r_t, logit_scale_exp)
 
         zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"])
 
