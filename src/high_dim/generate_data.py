@@ -40,7 +40,7 @@ def generate_data(args, n, data_ref):
     data_df["audio_path"] = data_df.apply(lambda r: _sample_audio(r.lang), axis=1)
 
     # sample a class, and then sample an image from that class
-    data_df["cls"] = random.choices(CLASSES, k=n)
+    data_df["cls"] = random.choices(list(CLASSES), k=n)
     def _sample_image(cls):
         image = random.sample(image_paths[cls], 1)[0]
         return args.imagenet_dir / data_ref[cls]["synset_id"] / image
