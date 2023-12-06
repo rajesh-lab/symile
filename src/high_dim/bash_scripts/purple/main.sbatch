@@ -36,9 +36,9 @@ python main.py \
     --use_seed True \
     --wandb True \
     --use_precomputed_representations True \
-    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/data/disjoint \
-    --precomputed_rep_dir /gpfs/scratch/as16583/symile/src/high_dim/data/disjoint \
-    --efficient_loss False \
-    --loss_fn symile
+    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/data/overlap \
+    --precomputed_rep_dir /gpfs/scratch/as16583/symile/src/high_dim/data/overlap \
+    --efficient_loss True \
+    --loss_fn clip
 
 echo 'done!'
