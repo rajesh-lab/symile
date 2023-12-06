@@ -90,6 +90,9 @@ if __name__ == '__main__':
                                         shuffle=True)
 
     # save data
+    if not os.path.exists(args.save_dir):
+        os.makedirs(args.save_dir)
+
     train_df.to_csv(args.save_dir / "train.csv", index=False)
     val_df.to_csv(args.save_dir / "val.csv", index=False)
     zeroshot_df.to_csv(args.save_dir / "zeroshot.csv", index=False)
