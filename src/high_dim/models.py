@@ -213,6 +213,8 @@ class SSLModel(pl.LightningModule):
         """
         Compute or get r_i, which is the image representations for all data samples.
         """
+        CLASSES = CLASSES[self.args.n_classes]
+
         r_i_list = []
         cls_id_list = []
         idx_list = []
@@ -240,6 +242,8 @@ class SSLModel(pl.LightningModule):
             self.r_i = r_i
 
     def save_heatmap(self, batch_cls, r_a, r_i, r_t, logit_scale_exp):
+        CLASSES = CLASSES[self.args.n_classes]
+
         # get indices that would sort r_a, r_i, r_t based on class id
         batch_cls_id = torch.tensor([CLASSES[c] for c in batch_cls])
         sorted_indices = torch.argsort(batch_cls_id) # (bsz)

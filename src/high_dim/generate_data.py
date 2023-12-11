@@ -75,6 +75,8 @@ def generate_data(args, n, data_ref):
 if __name__ == '__main__':
     args = parse_args_generate_data()
 
+    CLASSES = CLASSES[args.n_classes]
+
     data_ref = json.load(open(args.data_reference))
 
     n = args.pretrain_n + args.test_n
