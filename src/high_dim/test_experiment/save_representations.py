@@ -11,20 +11,22 @@ from tqdm import tqdm
 from args import parse_args_save_representations
 
 
-LANGUAGE_EMBED = {"ar": 0, "el": 1, "en": 2, "hi": 3, "ja": 4}
-IMG_CLS = {"butterfly": 0, "cat": 1, "dog": 2, "flamingo": 3, "tiger": 4}
-
-
 class HighDimDataset(Dataset):
     def __init__(self, df):
         self.df = df
+
+        langs = sorted(df["lang"].unique())
+        self.lang_embeddings = {value: idx for idx, value in enumerate(langs)}
+
+        classes = sorted(df["cls"].unique())
+        self.img_classes = {value: idx for idx, value in enumerate(classes)}
 
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, idx):
-        lang_embed = LANGUAGE_EMBED[self.df.iloc[idx].lang]
-        img_cls = IMG_CLS[self.df.iloc[idx].cls]
+        lang_embed = self.lang_embeddings[self.df.iloc[idx].lang]
+        img_cls = self.img_classes[self.df.iloc[idx].cls]
         text = self.df.iloc[idx].text
 
         return {"lang_embed": lang_embed, "img_cls": img_cls, "text": text,

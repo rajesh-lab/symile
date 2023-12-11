@@ -8,7 +8,7 @@ def parse_args_save_representations():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/overlap"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_c2_l5/disjoint"),
                         help="Directory with dataset csvs.")
     parser.add_argument("--train_csv", type=Path,
                         default=Path("train.csv"),
@@ -20,7 +20,7 @@ def parse_args_save_representations():
                         default=Path("zeroshot.csv"),
                         help="Filename for test csv.")
     parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data/overlap"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data_c2_l5/disjoint"),
                         help="Directory to save dataset tensors in.")
 
     ### MODEL ARGS ###
@@ -75,7 +75,7 @@ def parse_args_main():
                         help="Whether to use precomputed representations to \
                               train projection heads.")
     parser.add_argument("--precomputed_rep_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data/disjoint"),
                         help="Where precomputed representations are saved.")
 
     ### MODEL ARGS ###
@@ -97,9 +97,9 @@ def parse_args_main():
                         choices = ["eos", "bos"], default="eos",
                         help="Whether to use text encoder BOS or EOS embedding \
                               as input to projection head.")
-    parser.add_argument("--lang_embed_d", type=int, default=32,
+    parser.add_argument("--lang_embed_d", type=int, default=16,
                         help="Dimensionality of language embedding.")
-    parser.add_argument("--hidden_layer_d", type=int, default=1024,
+    parser.add_argument("--hidden_layer_d", type=int, default=64,
                         help="Dimensionality of language embedding.")
 
     ### TRAINING ARGS ###
