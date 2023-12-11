@@ -9,14 +9,14 @@ def parse_args_generate_data():
 
     ### DATA ARGS ###
     parser.add_argument("--data_type", type=str,
-                        choices = ["overlap", "disjoint"], default="overlap",
+                        choices = ["overlap", "disjoint"], default="disjoint",
                         help="Whether to allow overlap across languauge and \
                               meaning (overlap) or not (disjoint).")
     parser.add_argument("--cv_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23"),
                         help="Directory where CommonVoice audio clips are held.")
     parser.add_argument("--data_reference", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/data_reference.json"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_reference.json"),
                         help="Path to json file with class names, ImageNet synset \
                               id, and language translations.")
     parser.add_argument("--imagenet_dir", type=Path,
