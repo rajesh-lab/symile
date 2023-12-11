@@ -18,7 +18,7 @@ python save_representations.py \
     --batch_sz_val 300 \
     --batch_sz_test 300 \
     --drop_last False \
-    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/data_c2_l2/disjoint \
-    --save_dir /gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data_c2_l2/disjoint
+    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/data_c5_l5_new/disjoint \
+    --save_dir /gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data_c5_l5_new/disjoint
 
 echo 'done!'

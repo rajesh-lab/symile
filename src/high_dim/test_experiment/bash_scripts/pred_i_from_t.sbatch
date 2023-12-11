@@ -13,7 +13,6 @@ cd /gpfs/scratch/as16583/symile/src/high_dim/test_experiment
 
 echo 'training...'
 python pred_i_from_t.py \
-    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/data_c2_l2/disjoint \
     --batch_sz_train 300 \
     --batch_sz_val 300 \
     --batch_sz_test 300 \
@@ -28,6 +27,7 @@ python pred_i_from_t.py \
     --use_seed True \
     --wandb True \
     --use_precomputed_representations True \
-    --precomputed_rep_dir /gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data_c2_l5/disjoint
+    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/data_c5_l5_new/disjoint \
+    --precomputed_rep_dir /gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data_c5_l5_new/disjoint
 
 echo 'done!'

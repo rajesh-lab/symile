@@ -59,8 +59,10 @@ def generate_data(args, n, data_ref):
             classes = set(CLASSES)
             classes.remove(r.cls)
 
-            for l in languages:
+            # we assume n_classes >= n_languages
+            for i in range(len(classes)):
                 c = classes.pop()
+                l = languages.pop()
                 text.append(data_ref[c][l])
 
         # randomly permute and concatenate text
@@ -76,6 +78,7 @@ if __name__ == '__main__':
     args = parse_args_generate_data()
 
     CLASSES = CLASSES[args.n_classes]
+    LANGUAGES = LANGUAGES[args.n_languages]
 
     data_ref = json.load(open(args.data_reference))
 
