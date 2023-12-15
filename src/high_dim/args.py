@@ -12,6 +12,12 @@ def parse_args_generate_data():
                         choices = ["overlap", "disjoint"], default="disjoint",
                         help="Whether to allow overlap across languauge and \
                               meaning (overlap) or not (disjoint).")
+    parser.add_argument("--n_classes", type=int, default=3,
+                        help="Number of classes in data.")
+    parser.add_argument("--n_languages", type=int, default=3,
+                        help="Number of languages in data.")
+    parser.add_argument("--text_len", type=int, default=3,
+                        help="Number of words in generated text.")
     parser.add_argument("--cv_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23"),
                         help="Directory where CommonVoice audio clips are held.")
@@ -33,7 +39,7 @@ def parse_args_generate_data():
     parser.add_argument("--test_n", type=int, default=4,
                         help="Number of samples for zeroshot test set.")
     parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_c3_l3_t3"),
                         help="Directory to save dataset csvs in.")
 
     return parser.parse_args()
@@ -94,8 +100,10 @@ def parse_args_main():
 
     ### DATASET ARGS ###
     parser.add_argument("--data_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/overlap"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/disjoint"),
                         help="Directory with dataset csvs.")
+    parser.add_argument("--n_classes", type=int, default=5,
+                        help="Number of classes in data.")
     parser.add_argument("--train_csv", type=Path,
                         default=Path("train.csv"),
                         help="Filename for train csv.")
@@ -110,7 +118,7 @@ def parse_args_main():
                         help="Whether to use precomputed representations to \
                               train projection heads.")
     parser.add_argument("--precomputed_rep_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/overlap"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/disjoint"),
                         help="Where precomputed representations are saved.")
 
     ### MODEL ARGS ###

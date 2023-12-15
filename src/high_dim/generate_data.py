@@ -50,7 +50,7 @@ def generate_data(args, n, data_ref):
     data_df["target_text"] = data_df.apply(lambda r: data_ref[r.cls][r.lang], axis=1)
     def _generate_text(r, data_type):
         if data_type == "overlap":
-            text = random.choices(all_words, k=len(CLASSES)-1) + [r.target_text]
+            text = random.choices(all_words, k=args.text_len-1) + [r.target_text]
         elif data_type == "disjoint":
             text = [r.target_text]
 
@@ -59,8 +59,7 @@ def generate_data(args, n, data_ref):
             languages = LANGUAGES.copy()
             languages.remove(r.lang)
 
-            # we assume n_classes >= n_languages
-            for i in range(len(classes)):
+            for i in range(args.text_len - 1):
                 c = random.choice(sorted(classes))
                 del classes[c]
                 l = random.choice(languages)

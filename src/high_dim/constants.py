@@ -2,6 +2,7 @@
 LANGUAGES = {
     2: ["el", "en"],
     3: ["el", "en", "hi"],
+    4: ["el", "en", "hi", "ja"],
     5: ["ar", "el", "en", "hi", "ja"]
 }
 
@@ -14,6 +15,12 @@ CLASSES = {
         "butterfly": 0,
         "cat": 1,
         "dog": 2
+    },
+    4: {
+        "butterfly": 0,
+        "cat": 1,
+        "dog": 2,
+        "flamingo": 3
     },
     5: {
         "butterfly": 0,
