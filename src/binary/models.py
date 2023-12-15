@@ -137,15 +137,14 @@ class BinaryModule(pl.LightningModule):
 
     def on_test_start(self):
         """
-        If evaluation is zeroshot, the task is to predict which v_b corresponds
-        to a given v_a, v_c. At test start, we'll compute the representations
-        for each of the four possible "query" vectors v_b.
+        The task is to predict which v_b corresponds to a given v_a, v_c.
+        At test start, we'll compute the representations for each of the four
+        possible "query" vectors v_b.
 
         If d_v == 1, the query vectors are: [0], [1].
         If d_v == 2, the query vectors are: [0,0], [0,1], [1,0], [1,1].
         """
-        if self.args.evaluation == "zeroshot":
-            self.v_q, self.r_q = self.get_query_representations()
+        self.v_q, self.r_q = self.get_query_representations()
 
     def zeroshot_step(self, batch):
         """
@@ -190,43 +189,8 @@ class BinaryModule(pl.LightningModule):
 
         return torch.where(preds == labels, 1, 0).sum() / len(labels)
 
-    def support_step(self, batch):
-        """
-        The support task is to predict whether a given v_a, v_b, v_c is in
-        support or out of support.
-
-        Note that this evaluation step expects the test batch size to equal the
-        test dataset size (i.e. there is only one batch).
-        """
-        v_a, v_b, v_c, y = batch
-        r_a, r_b, r_c, logit_scale_exp = self(v_a, v_b, v_c)
-
-        if self.args.normalize:
-            r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
-
-        if self.args.loss_fn == "symile":
-            X = r_a * r_b * r_c
-        elif self.args.loss_fn == "clip":
-            if self.args.concat_infonce:
-                X = torch.cat((r_a * r_b, r_b * r_c, r_a * r_c), dim=1)
-            else:
-                X = (r_a * r_b) + (r_b * r_c) + (r_a * r_c)
-
-        if self.args.use_logit_scale_eval:
-            X = logit_scale_exp * X
-
-        X_train, X_test, y_train, y_test = train_test_split(X.cpu(), y.cpu(),
-                                                            test_size=0.2)
-        clf = LogisticRegression()
-        clf.fit(X_train, y_train)
-
-        return clf.score(X_test, y_test)
-
     def test_step(self, batch, batch_idx):
-        if self.args.evaluation == "zeroshot":
-            acc = self.zeroshot_step(batch)
-        elif self.args.evaluation == "support":
-            acc = self.support_step(batch)
+        acc = self.zeroshot_step(batch)
 
         self.log("mean_acc", acc, on_step=False, on_epoch=True, sync_dist=True)
         return acc

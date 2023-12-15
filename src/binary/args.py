@@ -25,8 +25,7 @@ def parse_args():
     parser.add_argument("--batch_sz_val", type=int, default=1000,
                         help="Val set batch size for pretraining.")
     parser.add_argument("--batch_sz_test", type=int, default=100,
-                        help="Test set batch size. Must equal test_n if \
-                              evaluation = support.")
+                        help="Test set batch size.")
     parser.add_argument("--check_val_every_n_epoch", type=int, default=1,
                         help="Check val every n train epochs.")
     parser.add_argument("--ckpt_save_dir", type=Path,
@@ -57,16 +56,8 @@ def parse_args():
                         help="Run name for wandb for logging.")
 
     ### EVALUATION ARGS ###
-    parser.add_argument("--concat_infonce", type=str_to_bool, default=True,
-                        help="Whether or not to concatenate (r_a * r_b), (r_b * r_c), (r_a * r_c) for \
-                              downstream classification tasks when loss function is 'pairwise_infonce' \
-                              (alternative is to sum the three terms).")
     parser.add_argument("--enable_progress_bar", type=str_to_bool, default=True,
                         help="Whether to enable or disable the progress bar.")
-    parser.add_argument("--evaluation", type=str,
-                        choices=["zeroshot", "support"],
-                        default="support",
-                        help="Evaluation method to run.")
     parser.add_argument("--use_logit_scale_eval", type=str_to_bool, default=True,
                         help="Whether or not to scale logits by temperature \
                               parameter during evaluation.")
