@@ -54,15 +54,17 @@ def generate_data(args, n, data_ref):
         elif data_type == "disjoint":
             text = [r.target_text]
 
-            languages = set(LANGUAGES)
+            classes = CLASSES.copy()
+            del classes[r.cls]
+            languages = LANGUAGES.copy()
             languages.remove(r.lang)
-            classes = set(CLASSES)
-            classes.remove(r.cls)
 
             # we assume n_classes >= n_languages
             for i in range(len(classes)):
-                c = classes.pop()
-                l = languages.pop()
+                c = random.choice(sorted(classes))
+                del classes[c]
+                l = random.choice(languages)
+                languages.remove(l)
                 text.append(data_ref[c][l])
 
         # randomly permute and concatenate text
