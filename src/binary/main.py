@@ -51,9 +51,9 @@ if __name__ == '__main__':
         loss_results["value"].append(mi["total_corr"])
 
         # accuracy of best predictor
-        acc_results["i_p"].append(i_p)
-        acc_results["loss_fn"].append("best_predictor")
-        acc_results["acc"].append(best_accuracy(i_p, args.d_v))
+        # acc_results["i_p"].append(i_p)
+        # acc_results["loss_fn"].append("best_predictor")
+        # acc_results["acc"].append(best_accuracy(i_p, args.d_v))
 
     # calculate true likelihood ratio p(a,b,c)/p(a)p(b)p(c) for each i_p
     lr_data = likelihood_ratios(args.d_v)
@@ -74,7 +74,7 @@ if __name__ == '__main__':
             setattr(args, "run_save_dir", run_save_dir)
 
             wandb_run_name = args.wandb_run_name if args.wandb_run_name != None \
-                else f"{args.loss_fn}_{args.evaluation}_{datetime_now}"
+                else f"{args.loss_fn}_{datetime_now}"
             if args.wandb:
                 logger = WandbLogger(project="symile", log_model="all",
                                     name=wandb_run_name, save_dir=run_save_dir)
@@ -108,13 +108,12 @@ if __name__ == '__main__':
             acc_results["loss_fn"].append(loss_fn)
             acc_results["acc"].append(test_res["mean_acc"])
 
-            if args.evaluation == "zeroshot":
-                loss_results["i_p"].append(i_p)
-                loss_results["type"].append(f"test_loss_{loss_fn}")
-                loss_results["value"].append(test_res["test_loss_epoch"])
-                loss_results["i_p"].append(i_p)
-                loss_results["type"].append(f"log_n_minus_1_{loss_fn}")
-                loss_results["value"].append(test_res["test_log_n_minus_1"])
+            loss_results["i_p"].append(i_p)
+            loss_results["type"].append(f"test_loss_{loss_fn}")
+            loss_results["value"].append(test_res["test_loss_epoch"])
+            loss_results["i_p"].append(i_p)
+            loss_results["type"].append(f"log_n_minus_1_{loss_fn}")
+            loss_results["value"].append(test_res["test_log_n_minus_1"])
 
             save_test_distribution(dm, i_p_dir, loss_fn, i_p)
             save_likelihood_ratio_vs_score(i_p, loss_fn, model, lr_data[i_p],
@@ -133,8 +132,7 @@ if __name__ == '__main__':
     fig = px.line(acc_df, x="i_p", y="acc", color="loss_fn")
     fig.write_image(save_dir / "acc.png")
 
-    if args.evaluation == "zeroshot":
-        loss_df = pd.DataFrame(loss_results)
-        loss_df.to_csv(save_dir / "loss.csv", index=False)
-        fig = px.line(loss_df, x="i_p", y="value", color="type")
-        fig.write_image(save_dir / "loss.png")
+    loss_df = pd.DataFrame(loss_results)
+    loss_df.to_csv(save_dir / "loss.csv", index=False)
+    fig = px.line(loss_df, x="i_p", y="value", color="type")
+    fig.write_image(save_dir / "loss.png")
