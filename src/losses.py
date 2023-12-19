@@ -111,7 +111,7 @@ def compute_logits(x, y, z):
     return logits
 
 
-def symile(r_a, r_b, r_c, logit_scale, efficient_loss=False):
+def symile(r_a, r_b, r_c, logit_scale, efficient_loss=True):
     if efficient_loss:
         logits_a = logit_scale * compute_logits_efficient(r_a, r_b, r_c)
         logits_b = logit_scale * compute_logits_efficient(r_b, r_a, r_c)
