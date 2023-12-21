@@ -23,7 +23,7 @@ def infonce(u, v, logit_scale):
     labels = torch.arange(logits_u.shape[0]).to(u.device)
     return (F.cross_entropy(logits_u, labels) + F.cross_entropy(logits_v, labels)) / 2.0
 
-def clip(r_a, r_b, r_c, logit_scale, efficient_loss=False):
+def clip(r_a, r_b, r_c, logit_scale, efficient_loss):
     """
     Computes the pairwise InfoNCE loss for a batch of representations.
 
@@ -63,6 +63,7 @@ def compute_logits_efficient(x, y, z):
         logits (torch.Tensor): logits for x of size (batch_size, batch_size).
     """
     # shuffle rows of y and z
+    torch.manual_seed(0)
     y_shuff = y[torch.randperm(y.shape[0])]
     z_shuff = z[torch.randperm(z.shape[0])]
     logits_x = x @ torch.t(y_shuff * z_shuff) # (batch_sz, batch_sz)
@@ -111,7 +112,7 @@ def compute_logits(x, y, z):
     return logits
 
 
-def symile(r_a, r_b, r_c, logit_scale, efficient_loss=True):
+def symile(r_a, r_b, r_c, logit_scale, efficient_loss):
     if efficient_loss:
         logits_a = logit_scale * compute_logits_efficient(r_a, r_b, r_c)
         logits_b = logit_scale * compute_logits_efficient(r_b, r_a, r_c)
