@@ -29,25 +29,25 @@ if __name__ == '__main__':
     print(f"save_dir is {save_dir}")
 
     print("computing mutual informations and total correlation for all values of i_p...")
-    mi_results = {"i_p": [], "value": [], "type": []}
     acc_results = {"i_p": [], "loss_fn": [], "acc": []}
-    if args.save_loss_results:
-        loss_results = {"i_p": [], "type": [], "value": []}
+    mi_results = {"i_p": [], "value": [], "type": []}
+    loss_results = {"i_p": [], "type": [], "value": []}
 
-    for i_p in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
-        # mutual informations and total correlation
-        mi = mutual_informations(args.d_v, i_p)
-        mi["total_corr"] = mi["mi_a_c"] + mi["mi_b_c"] + mi["mi_a_b_given_c"]
+    if args.d_v <= 5:
+        for i_p in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
+            # mutual informations and total correlation
+            mi = mutual_informations(args.d_v, i_p)
+            mi["total_corr"] = mi["mi_a_c"] + mi["mi_b_c"] + mi["mi_a_b_given_c"]
 
-        for k, v in mi.items():
-            mi_results["i_p"].append(i_p)
-            mi_results["type"].append(k)
-            mi_results["value"].append(v)
+            for k, v in mi.items():
+                mi_results["i_p"].append(i_p)
+                mi_results["type"].append(k)
+                mi_results["value"].append(v)
 
-        if args.save_loss_results:
-            loss_results["i_p"].append(i_p)
-            loss_results["type"].append("total_corr")
-            loss_results["value"].append(mi["total_corr"])
+            if args.save_loss_results:
+                loss_results["i_p"].append(i_p)
+                loss_results["type"].append("total_corr")
+                loss_results["value"].append(mi["total_corr"])
 
     if args.save_likelihood_ratios:
         print("calculating true likelihood ratio p(a,b,c)/p(a)p(b)p(c) for each i_p...")
@@ -107,7 +107,7 @@ if __name__ == '__main__':
             acc_results["loss_fn"].append(loss_fn)
             acc_results["acc"].append(test_res["mean_acc"])
 
-            if args.save_loss_results:
+            if args.d_v <= 5 and args.save_loss_results:
                 loss_results["i_p"].append(i_p)
                 loss_results["type"].append(f"test_loss_{loss_fn}")
                 loss_results["value"].append(test_res["test_loss_epoch"])
@@ -123,15 +123,16 @@ if __name__ == '__main__':
             if args.wandb:
                 logger.experiment.finish()
 
-    mi_df = pd.DataFrame(mi_results)
-    mi_df.to_csv(save_dir / "mi.csv", index=False)
-    fig = px.line(mi_df, x="i_p", y="value", color="type")
-    fig.write_image(save_dir / "mi.png")
-
     acc_df = pd.DataFrame(acc_results)
     acc_df.to_csv(save_dir / "acc.csv", index=False)
     fig = px.line(acc_df, x="i_p", y="acc", color="loss_fn")
     fig.write_image(save_dir / "acc.png")
+
+    if args.d_v <= 5:
+        mi_df = pd.DataFrame(mi_results)
+        mi_df.to_csv(save_dir / "mi.csv", index=False)
+        fig = px.line(mi_df, x="i_p", y="value", color="type")
+        fig.write_image(save_dir / "mi.png")
 
     if args.save_loss_results:
         loss_df = pd.DataFrame(loss_results)
