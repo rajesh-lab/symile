@@ -14,7 +14,7 @@ def parse_args():
                         help="Number of samples (a, b, c) in pretraining validation dataset.")
     parser.add_argument("--test_n", type=int, default=100,
                         help="Number of samples (a, b, c) in test dataset.")
-    parser.add_argument("--d_v", type=int, default=2,
+    parser.add_argument("--d_v", type=int, default=3,
                         help="Dimensionality of dataset vectors.")
     parser.add_argument("--d_r", type=int, default=16,
                         help="Dimensionality of representation vectors.")
@@ -31,6 +31,9 @@ def parse_args():
     parser.add_argument("--ckpt_save_dir", type=Path,
                         default=Path("/gpfs/scratch/as16583/ckpts/binary"),
                         help="Where to save model checkpoints.")
+    parser.add_argument("--efficient_loss", type=str_to_bool, default=False,
+                        help="Whether to compute logits with only \
+                              (batch_size^2 - batch_size) negatives.")
     parser.add_argument("--epochs", type=int, default=2,
                         help="Number of epochs to train for.")
     parser.add_argument("--hardcode_encoders", type=str_to_bool, default=False,
@@ -43,6 +46,11 @@ def parse_args():
     parser.add_argument("--normalize", type=str_to_bool, default=True,
                         help="Whether to normalize representations, both during \
                               pre-training before loss calculation and during evaluation.")
+    parser.add_argument("--save_likelihood_ratios", type=str_to_bool, default=False,
+                        help="Whether to save true likelihood ratio \
+                              p(a,b,c)/p(a)p(b)p(c) for each i_p.")
+    parser.add_argument("--save_loss_results", type=str_to_bool, default=False,
+                        help="Whether to save loss results.")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")
