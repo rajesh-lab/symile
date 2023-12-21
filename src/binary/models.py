@@ -2,11 +2,10 @@ from argparse import Namespace
 
 import lightning.pytorch as pl
 import numpy as np
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
 import torch
 import torch.nn as nn
 
+from utils import get_vector_support
 from src.losses import clip, symile
 from src.utils import l2_normalize
 
@@ -86,7 +85,7 @@ class BinaryModule(pl.LightningModule):
         if self.args.normalize:
             r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
 
-        loss = self.loss_fn(r_a, r_b, r_c, logit_scale_exp)
+        loss = self.loss_fn(r_a, r_b, r_c, logit_scale_exp, self.args.efficient_loss)
         return loss, logit_scale_exp
 
     def training_step(self, batch, batch_idx):
@@ -112,22 +111,22 @@ class BinaryModule(pl.LightningModule):
     def get_query_representations(self):
         """
         Get representations for the four possible "query" vectors v_b.
-        If d_v == 1, the query vectors are: [0], [1].
-        If d_v == 2, the query vectors are: [0,0], [0,1], [1,0], [1,1].
+
+        For example:
+        - if d_v == 1, the query vectors are: [0], [1]
+        - if d_v == 2, the query vectors are: [0,0], [0,1], [1,0], [1,1]
 
         Returns:
-            v_q (torch.Tensor): query vectors in Tensor of size (4, d_v).
-            r_q (torch.Tensor): query representations of size (4, d_r) where
-                                    q[0] = f([0,0]), q[1] = f([0,1]),
-                                    q[2] = f([1,0]), q[3] = f([1,1]).
+            v_q (torch.Tensor): query vectors in Tensor of size (2^d, d_v).
+            r_q (torch.Tensor): query representations of size (2^d, d_r). For
+                                example, if d = 2:
+                                    r_q[0] = f([0,0]), r_q[1] = f([0,1]),
+                                    r_q[2] = f([1,0]), r_q[3] = f([1,1]).
         """
-        if self.args.d_v == 1:
-            v_q = torch.Tensor([[0], [1]]).to(self.device)
-        elif self.args.d_v == 2:
-            v_q = torch.stack((torch.Tensor([0,0]),
-                               torch.Tensor([0,1]),
-                               torch.Tensor([1,0]),
-                               torch.Tensor([1,1])), dim=0).to(self.device)
+        v_q = get_vector_support(self.args.d_v)
+        v_q = [torch.tensor(v) for v in v_q]
+        v_q = torch.stack(v_q, dim=0).to(torch.float32).to(self.device)
+
         r_q = self.encoders.f_b(v_q)
 
         if self.args.normalize:
@@ -138,11 +137,12 @@ class BinaryModule(pl.LightningModule):
     def on_test_start(self):
         """
         The task is to predict which v_b corresponds to a given v_a, v_c.
-        At test start, we'll compute the representations for each of the four
+        At test start, we'll compute the representations for each of the
         possible "query" vectors v_b.
 
-        If d_v == 1, the query vectors are: [0], [1].
-        If d_v == 2, the query vectors are: [0,0], [0,1], [1,0], [1,1].
+        For example:
+        - if d_v == 1, the query vectors are: [0], [1]
+        - if d_v == 2, the query vectors are: [0,0], [0,1], [1,0], [1,1]
         """
         self.v_q, self.r_q = self.get_query_representations()
 
@@ -156,7 +156,7 @@ class BinaryModule(pl.LightningModule):
         if self.args.normalize:
             r_a, r_b, r_c = l2_normalize([r_a, r_b, r_c])
 
-        loss = self.loss_fn(r_a, r_b, r_c, logit_scale_exp)
+        loss = self.loss_fn(r_a, r_b, r_c, logit_scale_exp, self.args.efficient_loss)
         log_n_minus_1 = np.log(len(batch[0])-1)
         self.log("test_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
@@ -184,7 +184,7 @@ class BinaryModule(pl.LightningModule):
             return torch.argmax(torch.where(r == self.v_q, 1, 0).sum(dim=1))
         if self.args.d_v == 1:
             labels = torch.squeeze(v_b)
-        elif self.args.d_v == 2:
+        else:
             labels = torch.vmap(_get_label)(v_b)
 
         return torch.where(preds == labels, 1, 0).sum() / len(labels)
