@@ -1,9 +1,17 @@
+from itertools import product
+
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import torch
 
-from information_measures import prob_c_1d, prob_c_given_a_b_1d, \
-                                 prob_c_2d, prob_c_given_a_b_2d
+
+def get_vector_support(d):
+    """
+    Generate all possible values for a binary vector with dimension d.
+    """
+    binary_combinations = product([0, 1], repeat=d)
+    return [np.array(c) for c in binary_combinations]
 
 
 def save_test_distribution(dm, save_dir, loss_fn, i_p):
@@ -52,7 +60,7 @@ def save_test_distribution(dm, save_dir, loss_fn, i_p):
     fig.write_image(save_dir / f"test_dist_{loss_fn}_i_p_{i_p}.png")
 
 
-def likelihood_ratios(dim):
+def likelihood_ratios(d):
     """
     Calculate the true likelihood ratio p(a,b,c)/p(a)p(b)p(c) = p(c|a,b)/p(c)
     for all possible values of a, b, c and all possible values of i_p.
@@ -61,32 +69,19 @@ def likelihood_ratios(dim):
     for i_p in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
         data[i_p] = {"abc": [], "value": []}
 
-        if dim == 1:
-            for a in [0, 1]:
-                for b in [0, 1]:
-                    for c in [0, 1]:
-                        p_c_given_a_b = prob_c_given_a_b_1d(a, b, c, i_p)
-                        p_c = prob_c_1d(c, i_p)
-                        lr = p_c_given_a_b / p_c if p_c != 0 else 0
-                        data[i_p]["abc"].append(str(a)+str(b)+str(c))
-                        data[i_p]["value"].append(lr)
-
-        elif dim == 2:
-            for a_1 in [0, 1]:
-                for a_2 in [0, 1]:
-                    for b_1 in [0, 1]:
-                        for b_2 in [0, 1]:
-                            for c_1 in [0, 1]:
-                                for c_2 in [0, 1]:
-                                    p_c_given_a_b = prob_c_given_a_b_2d(
-                                        a_1, a_2, b_1, b_2, c_1, c_2, i_p
-                                    )
-                                    p_c = prob_c_2d(c_1, c_2, i_p)
-                                    lr = p_c_given_a_b / p_c if p_c != 0 else 0
-                                    data[i_p]["abc"].append(
-                                        str(a_1)+str(a_2)+str(b_1)+str(b_2)+str(c_1)+str(c_2)
-                                    )
-                                    data[i_p]["value"].append(lr)
+        A = get_vector_support(d)
+        B = A.copy()
+        C = A.copy()
+        for a in A:
+            for b in B:
+                for c in C:
+                    p_c_given_a_b = prob_c_given_a_b(a, b, c, i_p)
+                    p_c = prob_c(c, d, i_p)
+                    lr = p_c_given_a_b / p_c if p_c != 0 else 0
+                    data[i_p]["abc"].append(
+                        "".join(np.concatenate((a, b, c)).astype(str))
+                    )
+                    data[i_p]["value"].append(lr)
     return data
 
 
@@ -145,3 +140,161 @@ def save_likelihood_ratio_vs_score(i_p, loss_fn, model, lr_data, save_dir, dim):
     fig = px.bar(df, x="abc", y="value", color="type", barmode="group")
     fig.update_xaxes(tickfont_size=6)
     fig.write_image(save_dir / f"lr_vs_score_{loss_fn}_{i_p}.png")
+
+
+########################
+# INFORMATION MEASURES #
+########################
+
+
+def prob_i(i, i_p):
+    return (i_p**i) * ((1-i_p)**(1-i))
+
+
+def c_definition(a, b, i):
+    """
+    Returns c = (a XOR b)^i * a^(1-i)
+    """
+    if i == 1:
+        return np.logical_xor(a, b).astype(int)
+    elif i == 0:
+        return a
+
+
+def indicator_c(a, b, c, i):
+    return (c == c_definition(a, b, i)).astype(int)
+
+
+def prob_c_given_a(a, c, d, i_p):
+    """
+    Computes p(c|a) = (0.5)^d * sum_{b_1,...,b_d,i} p(i)
+        \prod_{j=1}^d ind[ c_j = (a_j XOR b_j)^i * a_j^(1-i) ]
+    """
+    B = get_vector_support(d)
+    I = [0, 1]
+
+    sum = 0
+    for b in B:
+        for i in I:
+            ind_c = indicator_c(a, b, c, i)
+            prod = np.prod(ind_c)
+            p_i = prob_i(i, i_p)
+            sum += p_i * prod
+    return (0.5)**d * sum
+
+
+def prob_c_given_b(b, c, d, i_p):
+    """
+    Computes p(c|b) = (0.5)^d * sum_{a_1,...,a_d,i} p(i)
+        \prod_{j=1}^d ind[ c_j = (a_j XOR b_j)^i * a_j^(1-i) ]
+    """
+    A = get_vector_support(d)
+    I = [0, 1]
+
+    sum = 0
+    for a in A:
+        for i in I:
+            ind_c = indicator_c(a, b, c, i)
+            prod = np.prod(ind_c)
+            p_i = prob_i(i, i_p)
+            sum += p_i * prod
+    return (0.5)**d * sum
+
+
+def prob_c(c, d, i_p):
+    """
+    Computes p(c) = (0.5)^{2d} * sum_{a_1,...,a_d,b_1,...,b_d,i} p(i)
+        \prod_{j=1}^d ind[ c_j = (a_j XOR b_j)^i * a_j^(1-i) ]
+    """
+    A = get_vector_support(d)
+    B = A.copy()
+    I = [0, 1]
+    sum = 0
+    for a in A:
+        for b in B:
+            for i in I:
+                ind_c = indicator_c(a, b, c, i)
+                prod = np.prod(ind_c)
+                p_i = prob_i(i, i_p)
+                sum += p_i * prod
+    return (0.5)**(2*d) * sum
+
+
+def prob_c_given_a_b(a, b, c, i_p):
+    """
+    Computes p(c|a,b) = sum_{i} p(i)
+        \prod_{j=1}^d ind[ c_j = (a_j XOR b_j)^i * a_j^(1-i) ]
+    """
+    I = [0, 1]
+    sum = 0
+    for i in I:
+        ind_c = indicator_c(a, b, c, i)
+        prod = np.prod(ind_c)
+        p_i = prob_i(i, i_p)
+        sum += p_i * prod
+    return sum
+
+
+def MI_a_c(d, i_p):
+    """
+    Computes mutual information between a and c:
+    MI(a;c) = (0.5)^d * sum_{a,c} p(c|a) log[p(c|a)/p(c)]
+    """
+    A = get_vector_support(d)
+    C = A.copy()
+    sum = 0
+    for a in A:
+        for c in C:
+            p_c_given_a = prob_c_given_a(a, c, d, i_p)
+            p_c = prob_c(c, d, i_p)
+            if p_c_given_a != 0:
+                sum += p_c_given_a * np.log(p_c_given_a/p_c)
+    return (0.5)**d * sum
+
+
+def MI_b_c(d, i_p):
+    """
+    Computes mutual information between b and c:
+    MI(b;c) = (0.5)^d * sum_{b,c} p(c|a) log[p(c|b)/p(c)]
+    """
+    B = get_vector_support(d)
+    C = B.copy()
+    sum = 0
+    for b in B:
+        for c in C:
+            p_c_given_b = prob_c_given_b(b, c, d, i_p)
+            p_c = prob_c(c, d, i_p)
+            if p_c_given_b != 0:
+                sum += p_c_given_b * np.log(p_c_given_b/p_c)
+    return (0.5)**d * sum
+
+
+def MI_a_b_given_c(d, i_p):
+    """
+    Computes mutual information between a and b given c:
+    MI(a;b|c) = (0.5)^{2d} * sum_{a,b,c} p(c|a,b)
+        log[ [p(c|a,b) * p(c)] / [p(c|a) * p(c|b)] ]
+    """
+    A = get_vector_support(d)
+    B = A.copy()
+    C = A.copy()
+    sum = 0
+    for a in A:
+        for b in B:
+            for c in C:
+                p_c_given_a_b = prob_c_given_a_b(a, b, c, i_p)
+                p_c_given_a = prob_c_given_a(a, c, d, i_p)
+                p_c_given_b = prob_c_given_b(b, c, d, i_p)
+                p_c = prob_c(c, d, i_p)
+                if p_c_given_a_b != 0:
+                    sum += p_c_given_a_b * np.log(
+                            (p_c_given_a_b * p_c) / (p_c_given_a * p_c_given_b)
+                        )
+    return (0.5)**(2*d) * sum
+
+
+def mutual_informations(d, i_p):
+    mi_a_c = MI_a_c(d, i_p)
+    mi_b_c = MI_b_c(d, i_p)
+    mi_a_b_given_c = MI_a_b_given_c(d, i_p)
+    return {"mi_a_c": mi_a_c, "mi_b_c": mi_b_c, "mi_a_b_given_c": mi_a_b_given_c}
