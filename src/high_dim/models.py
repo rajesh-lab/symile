@@ -175,12 +175,6 @@ class SSLModel(pl.LightningModule):
         return torch.optim.AdamW(self.parameters(), lr=self.args.lr,
                                  weight_decay=self.args.weight_decay)
 
-    def on_train_start(self):
-        """
-        Compute or get r_i, which is the image representations for all data samples.
-        """
-        self.save_image_representations("val")
-
     def _shared_step(self, batch, batch_idx):
         r_a, r_i, r_t, logit_scale_exp = self(batch)
 
@@ -210,13 +204,10 @@ class SSLModel(pl.LightningModule):
 
         log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
 
-        zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"], "val")
-
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
         self.log("log_n_minus_1", log_n_minus_1,
                  on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
-        self.log("val_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)
 
         return loss
 
@@ -224,7 +215,7 @@ class SSLModel(pl.LightningModule):
         """
         Compute or get r_i, which is the image representations for all data samples.
         """
-        self.save_image_representations("test")
+        self.save_image_representations()
 
     def save_heatmap(self, batch_cls, r_a, r_i, r_t, logit_scale_exp):
         classes = CLASSES[self.args.n_classes]
@@ -270,7 +261,7 @@ class SSLModel(pl.LightningModule):
         fig = px.imshow(it.cpu().numpy(), aspect="auto", color_continuous_scale="blues")
         fig.write_image(self.args.save_dir / "dotproduct_it.png")
 
-    def save_image_representations(self, stage):
+    def save_image_representations(self):
         """
         Compute or get r_i, which is the image representations for all data samples.
         """
@@ -280,12 +271,7 @@ class SSLModel(pl.LightningModule):
         cls_id_list = []
         idx_list = []
 
-        if stage == "val":
-            dataloader = self.trainer.datamodule.val_dataloader()
-        elif stage == "test":
-            dataloader = self.trainer.datamodule.test_dataloader()
-
-        for x in dataloader:
+        for x in self.trainer.datamodule.test_dataloader():
 
             if self.args.use_precomputed_representations:
                 r_i = self.image_encoder(x["image"].to(self.device))
@@ -298,27 +284,20 @@ class SSLModel(pl.LightningModule):
             cls_id_list += [classes[c] for c in x["cls"]]
             idx_list.append(x["idx"])
 
-        if stage == "val":
-            self.cls_id_val = torch.tensor(cls_id_list).to(self.device)
-            self.r_i_idx_val = torch.cat(idx_list).to(self.device)
-        elif stage == "test":
-            self.cls_id_test = torch.tensor(cls_id_list).to(self.device)
-            self.r_i_idx_test = torch.cat(idx_list).to(self.device)
+        self.cls_id_test = torch.tensor(cls_id_list).to(self.device)
+        self.r_i_idx_test = torch.cat(idx_list).to(self.device)
 
         r_i = torch.cat(r_i_list)
 
         if self.args.normalize:
             [r_i] = l2_normalize([r_i])
 
-        if stage == "val":
-            self.r_i_val = r_i
-        elif stage == "test":
-            self.r_i_test = r_i
+        self.r_i_test = r_i
 
-    def zeroshot_accuracy(self, r_a, r_t, batch_idx, stage):
-        r_i = self.r_i_val if stage == "val" else self.r_i_test
-        cls_id = self.cls_id_val if stage == "val" else self.cls_id_test
-        r_i_idx = self.r_i_idx_val if stage == "val" else self.r_i_idx_test
+    def zeroshot_accuracy(self, r_a, r_t, batch_idx):
+        r_i = self.r_i_test
+        cls_id = self.cls_id_test
+        r_i_idx = self.r_i_idx_test
 
         if self.args.loss_fn == "symile":
             # logits is a (batch_sz, n) matrix where each row i is
@@ -360,6 +339,6 @@ class SSLModel(pl.LightningModule):
         if batch_idx == 0 and self.args.save_test_heatmap:
             self.save_heatmap(batch["cls"], r_a, r_i, r_t, logit_scale_exp)
 
-        zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"], "test")
+        zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"])
 
         self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)
