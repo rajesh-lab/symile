@@ -3,16 +3,18 @@ import os
 import lightning.pytorch as pl
 import pandas as pd
 import torch
+import torchaudio
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertTokenizer, XLMRobertaTokenizer, \
-                         BertModel, XLMRobertaModel
+                         BertModel, XLMRobertaModel, \
+                         WhisperFeatureExtractor, WhisperModel
 from tqdm import tqdm
 
 from args import parse_args_save_representations
 
 
 class HighDimDataset(Dataset):
-    def __init__(self, df):
+    def __init__(self, df, audio_feat_extractor):
         self.df = df
 
         langs = sorted(df["lang"].unique())
@@ -21,16 +23,34 @@ class HighDimDataset(Dataset):
         classes = sorted(df["cls"].unique())
         self.img_classes = {value: idx for idx, value in enumerate(classes)}
 
+        self.audio_feat_extractor = audio_feat_extractor
+
     def __len__(self):
         return len(self.df)
+
+    def get_audio(self, path):
+        # downsample to 16kHz, as expected by Whisper, before passing to feature extractor
+        waveform, sr = torchaudio.load(path)
+        resampler = torchaudio.transforms.Resample(sr, self.audio_feat_extractor.sampling_rate)
+        waveform = torch.squeeze(resampler(waveform))
+        audio = self.audio_feat_extractor(
+                        waveform,
+                        return_attention_mask=True,
+                        return_tensors="pt",
+                        sampling_rate=self.audio_feat_extractor.sampling_rate,
+                        do_normalize=True
+                    )
+        return {"input_features": torch.squeeze(audio.input_features),
+                "attention_mask": torch.squeeze(audio.attention_mask)}
 
     def __getitem__(self, idx):
         lang_embed = self.lang_embeddings[self.df.iloc[idx].lang]
         img_cls = self.img_classes[self.df.iloc[idx].cls]
+        audio = self.get_audio(self.df.iloc[idx].audio_path)
         text = self.df.iloc[idx].text
 
-        return {"lang_embed": lang_embed, "img_cls": img_cls, "text": text,
-                "idx": idx}
+        return {"lang_embed": lang_embed, "img_cls": img_cls, "audio": audio,
+                "text": text, "idx": idx}
 
 
 class Collator:
@@ -41,6 +61,9 @@ class Collator:
     def __init__(self, txt_tokenizer):
         self.txt_tokenizer = txt_tokenizer
     def __call__(self, batch):
+        audio_input_features = torch.stack([s["audio"]["input_features"] for s in batch])
+        audio_attention_mask = torch.stack([s["audio"]["attention_mask"] for s in batch])
+
         text_list = [s["text"] for s in batch]
         text = self.txt_tokenizer(text=text_list, return_tensors="pt",
                                   padding=True, truncation=True)
@@ -49,7 +72,9 @@ class Collator:
         img_cls = torch.Tensor([s["img_cls"] for s in batch])
         idx = torch.Tensor([s["idx"] for s in batch])
 
-        batched_data = {"text_input_ids": text["input_ids"],
+        batched_data = {"audio_input_features": audio_input_features,
+                        "audio_attention_mask": audio_attention_mask,
+                        "text_input_ids": text["input_ids"],
                         "text_attention_mask": text["attention_mask"],
                         "lang_embed": lang_embed, "img_cls": img_cls, "idx": idx}
 
@@ -60,6 +85,7 @@ class BaseDataModule(pl.LightningDataModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
+        self.audio_feat_extractor = WhisperFeatureExtractor.from_pretrained(args.audio_model_id)
 
         # from max_num_worker_suggest in DataLoader docs
         self.num_workers = len(os.sched_getaffinity(0))
@@ -87,13 +113,13 @@ class HighDimDataModule(BaseDataModule):
         self.text_tokenization()
 
         df_train = pd.read_csv(self.args.data_dir / self.args.train_csv)
-        self.ds_train = HighDimDataset(df_train)
+        self.ds_train = HighDimDataset(df_train, self.audio_feat_extractor)
 
         df_val = pd.read_csv(self.args.data_dir / self.args.val_csv)
-        self.ds_val = HighDimDataset(df_val)
+        self.ds_val = HighDimDataset(df_val, self.audio_feat_extractor)
 
         df_test = pd.read_csv(self.args.data_dir / self.args.test_csv)
-        self.ds_test = HighDimDataset(df_test)
+        self.ds_test = HighDimDataset(df_test, self.audio_feat_extractor)
 
     def train_dataloader(self):
         return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train,
@@ -129,19 +155,39 @@ def load_text_encoder(args, device):
     return text_encoder
 
 
-def save_representations(args, text_encoder, dl, split):
+def load_audio_encoder(args, device):
+    enc = WhisperModel.from_pretrained(args.audio_model_id).encoder.to(device)
+
+    for p in enc.parameters():
+        p.requires_grad = False
+    enc.eval()
+
+    return enc
+
+
+def save_representations(args, text_encoder, audio_encoder, dl, split):
     save_dir = args.save_dir / split
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
+    audio_reps = []
     text_reps = []
     lang_embed = []
     img_cls = []
     idx = []
 
     for ix, batch in enumerate(tqdm(dl)):
-        keys_to_device = ["text_input_ids", "text_attention_mask"]
+        keys_to_device = ["audio_input_features", "audio_attention_mask",
+                          "text_input_ids", "text_attention_mask"]
         batch = {k: v.to(device) if k in keys_to_device else v for k, v in batch.items()}
+
+        # audio encoder
+        x = audio_encoder(input_features=batch["audio_input_features"],
+                          attention_mask=batch["audio_attention_mask"])
+        x = x["last_hidden_state"]
+        x = x[:, 0, :]
+        x = x.cpu()
+        audio_reps.append(x)
 
         # text encoder
         x = text_encoder(input_ids=batch["text_input_ids"],
@@ -155,6 +201,9 @@ def save_representations(args, text_encoder, dl, split):
         lang_embed.append(batch["lang_embed"])
         img_cls.append(batch["img_cls"])
         idx.append(batch["idx"])
+
+    audio_reps = torch.cat(audio_reps, dim=0)
+    torch.save(audio_reps, save_dir / f'audio_{split}.pt')
 
     text_reps = torch.cat(text_reps, dim=0)
     torch.save(text_reps, save_dir / f'text_{split}.pt')
@@ -174,6 +223,7 @@ if __name__ == '__main__':
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     text_encoder = load_text_encoder(args, device)
+    audio_encoder = load_audio_encoder(args, device)
 
     dm = HighDimDataModule(args)
     dm.prepare_data()
@@ -181,10 +231,10 @@ if __name__ == '__main__':
     dm.setup(stage="fit")
     args.feat_token_id = dm.feat_token_id
     print(f"Saving train tensors...")
-    save_representations(args, text_encoder, dm.train_dataloader(), "train")
+    save_representations(args, text_encoder, audio_encoder, dm.train_dataloader(), "train")
     print(f"Saving val tensors...")
-    save_representations(args, text_encoder, dm.val_dataloader(), "val")
+    save_representations(args, text_encoder, audio_encoder, dm.val_dataloader(), "val")
 
     dm.setup(stage="test")
     print(f"Saving test tensors...")
-    save_representations(args, text_encoder, dm.test_dataloader(), "test")
+    save_representations(args, text_encoder, audio_encoder, dm.test_dataloader(), "test")

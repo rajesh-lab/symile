@@ -1,5 +1,5 @@
 """
-predict class using text embedding and audio embedding
+predict class using text embedding and a language embedding
 """
 from argparse import Namespace
 from datetime import datetime
@@ -21,7 +21,6 @@ from save_representations import BaseDataModule, HighDimDataModule
 class HighDimPrecomputedDataset(Dataset):
     def __init__(self, dataset_dir, split):
         split_dir = dataset_dir / f"{split}"
-        self.audio = torch.load(split_dir / f"audio_{split}.pt")
         self.text = torch.load(split_dir / f"text_{split}.pt")
         self.lang_embed = torch.load(split_dir / f"lang_embed_{split}.pt")
         self.img_cls = torch.load(split_dir / f"img_cls_{split}.pt")
@@ -31,8 +30,7 @@ class HighDimPrecomputedDataset(Dataset):
         return len(self.text)
 
     def __getitem__(self, idx):
-        return {"audio": self.audio[idx],
-                "text": self.text[idx],
+        return {"text": self.text[idx],
                 "lang_embed": self.lang_embed[idx],
                 "img_cls": self.img_cls[idx],
                 "idx": self.idx[idx]}
@@ -73,14 +71,17 @@ class SSLModel(pl.LightningModule):
 
         self.args = Namespace(**args)
 
-        self.fc1 = nn.Linear(768+384, self.args.hidden_layer_d)
+        self.lang_embedding = nn.Embedding(5, self.args.lang_embed_d).to(self.device)
+        self.fc1 = nn.Linear(self.args.d + self.args.lang_embed_d, self.args.hidden_layer_d)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(self.args.hidden_layer_d, 5)
 
     def forward(self, x):
         if self.args.use_precomputed_representations:
-            # x["text"] has shape (b, d)
-            input_tensor = torch.cat((x["text"], x["audio"]), dim=1)
+            # x["text"] has shape (b, d); x["lang_embed"] has shape (b)
+            lang_embed = self.lang_embedding(x["lang_embed"].to(torch.int))
+
+            input_tensor = torch.cat((x["text"], lang_embed), dim=1)
 
             x = self.fc1(input_tensor)
             x = self.relu(x)
@@ -129,7 +130,6 @@ class SSLModel(pl.LightningModule):
 
 
 def main(args, trainer):
-
     if args.use_precomputed_representations:
         dm = HighDimPrecomputedDataModule(args)
     else:
@@ -138,14 +138,12 @@ def main(args, trainer):
     args.feat_token_id = dm.feat_token_id
 
     model = SSLModel(**vars(args))
-
     trainer.fit(model, datamodule=dm)
 
     trainer.test(ckpt_path="best", datamodule=dm)
 
 
 if __name__ == '__main__':
-
     os.environ['WANDB_CACHE_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
     os.environ['WANDB_CONFIG_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
     os.environ['WANDB_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
