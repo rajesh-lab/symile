@@ -39,7 +39,7 @@ def parse_args_generate_data():
     parser.add_argument("--test_n", type=int, default=4,
                         help="Number of samples for zeroshot test set.")
     parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_c3_l3_t3"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/data_c3_l3_t3"),
                         help="Directory to save dataset csvs in.")
 
     return parser.parse_args()
