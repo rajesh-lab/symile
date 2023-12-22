@@ -63,7 +63,6 @@ def compute_logits_efficient(x, y, z):
         logits (torch.Tensor): logits for x of size (batch_size, batch_size).
     """
     # shuffle rows of y and z
-    torch.manual_seed(0)
     y_shuff = y[torch.randperm(y.shape[0])]
     z_shuff = z[torch.randperm(z.shape[0])]
     logits_x = x @ torch.t(y_shuff * z_shuff) # (batch_sz, batch_sz)
