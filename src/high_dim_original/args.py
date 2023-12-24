@@ -26,10 +26,14 @@ def parse_args_generate_data():
                         choices = ["overlap", "disjoint"], default="disjoint",
                         help="Whether to allow overlap across languauge and \
                               meaning (overlap) or not (disjoint).")
-    parser.add_argument("--text_len", type=int, default=2,
+    parser.add_argument("--n_classes", type=int, default=3,
+                        help="Number of classes in data.")
+    parser.add_argument("--n_languages", type=int, default=3,
+                        help="Number of languages in data.")
+    parser.add_argument("--text_len", type=int, default=3,
                         help="Number of words in generated text.")
     parser.add_argument("--cv_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/adriel/cv/cv"),
+                        default=Path("/gpfs/data/ranganathlab/adriel/cv/cv-corpus-14.0-2023-06-23"),
                         help="Directory where CommonVoice audio clips are held.")
     parser.add_argument("--data_reference", type=Path,
                         default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_reference.json"),

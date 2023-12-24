@@ -4,62 +4,11 @@ from pathlib import Path
 from src.utils import str_to_bool
 
 
-def parse_args_source_data():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--data_reference", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_reference.json"),
-                        help="Path to json file with class names, ImageNet synset \
-                              id, and language translations.")
-    parser.add_argument("--imagenet_classmapping_path", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/imagenet/LOC_synset_mapping.txt"),
-                        help="Path to ImageNet synset mapping txt file.")
-
-    return parser.parse_args()
-
-
-def parse_args_generate_data():
-    parser = argparse.ArgumentParser()
-
-    ### DATA ARGS ###
-    parser.add_argument("--data_type", type=str,
-                        choices = ["overlap", "disjoint"], default="disjoint",
-                        help="Whether to allow overlap across languauge and \
-                              meaning (overlap) or not (disjoint).")
-    parser.add_argument("--text_len", type=int, default=2,
-                        help="Number of words in generated text.")
-    parser.add_argument("--cv_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/adriel/cv/cv"),
-                        help="Directory where CommonVoice audio clips are held.")
-    parser.add_argument("--data_reference", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_reference.json"),
-                        help="Path to json file with class names, ImageNet synset \
-                              id, and language translations.")
-    parser.add_argument("--imagenet_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/imagenet/ILSVRC/Data/CLS-LOC/train"),
-                        help="Directory where ImageNet image train data is held.")
-
-    ### SYMILE ARGS ###
-    parser.add_argument("--pretrain_n", type=int, default=6,
-                        help="Number of samples for combined pretrain train and \
-                              val sets.")
-    parser.add_argument("--val_size", type=float, default=0.5,
-                        help="Should be between 0.0 and 1.0. Represents the \
-                              proportion of pretrain data to include in val split.")
-    parser.add_argument("--test_n", type=int, default=4,
-                        help="Number of samples for zeroshot test set.")
-    parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/data_c3_l3_t3"),
-                        help="Directory to save dataset csvs in.")
-
-    return parser.parse_args()
-
-
 def parse_args_save_representations():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/disjoint"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_c2_l5/disjoint"),
                         help="Directory with dataset csvs.")
     parser.add_argument("--train_csv", type=Path,
                         default=Path("train.csv"),
@@ -71,7 +20,7 @@ def parse_args_save_representations():
                         default=Path("zeroshot.csv"),
                         help="Filename for test csv.")
     parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/disjoint"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data_c2_l5/disjoint"),
                         help="Directory to save dataset tensors in.")
 
     ### MODEL ARGS ###
@@ -110,10 +59,8 @@ def parse_args_main():
 
     ### DATASET ARGS ###
     parser.add_argument("--data_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/disjoint"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data"),
                         help="Directory with dataset csvs.")
-    parser.add_argument("--n_classes", type=int, default=5,
-                        help="Number of classes in data.")
     parser.add_argument("--train_csv", type=Path,
                         default=Path("train.csv"),
                         help="Filename for train csv.")
@@ -128,7 +75,7 @@ def parse_args_main():
                         help="Whether to use precomputed representations to \
                               train projection heads.")
     parser.add_argument("--precomputed_rep_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/disjoint"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data/disjoint"),
                         help="Where precomputed representations are saved.")
 
     ### MODEL ARGS ###
@@ -150,6 +97,10 @@ def parse_args_main():
                         choices = ["eos", "bos"], default="eos",
                         help="Whether to use text encoder BOS or EOS embedding \
                               as input to projection head.")
+    parser.add_argument("--lang_embed_d", type=int, default=16,
+                        help="Dimensionality of language embedding.")
+    parser.add_argument("--hidden_layer_d", type=int, default=64,
+                        help="Dimensionality of language embedding.")
 
     ### TRAINING ARGS ###
     parser.add_argument("--batch_sz_train", type=int, default=300,
@@ -171,9 +122,6 @@ def parse_args_main():
     parser.add_argument("--early_stopping_patience", type=int, default=20,
                         help="Number of val checks with no improvement after \
                               which pre-training will be stopped.")
-    parser.add_argument("--efficient_loss", type=str_to_bool, default=False,
-                        help="Whether to compute logits with only \
-                              (batch_size^2 - batch_size) negatives.")
     parser.add_argument("--epochs", type=int, default=2,
                         help="Number of epochs to pretrain for.")
     parser.add_argument("--freeze_encoders", type=str_to_bool, default=True,
@@ -191,9 +139,6 @@ def parse_args_main():
     parser.add_argument("--normalize", type=str_to_bool, default=True,
                         help="Whether to normalize representations, both during \
                               pre-training before loss calculation and during evaluation.")
-    parser.add_argument("--save_test_heatmap", type=str_to_bool, default=True,
-                        help="Whether to save heatmap of the logits for the \
-                              first batch of the test set.")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")

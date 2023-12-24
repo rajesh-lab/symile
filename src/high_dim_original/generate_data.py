@@ -5,7 +5,9 @@ We use images from the ImageNet Large Scale Visual Recognition Challenge (ILSVRC
 We use audio and text from the Common Voice Corpus 14.0. Each audio clip in the
 dataset is an MP3 file that consists of a sentence being read aloud. Each text
 snippet in the dataset is the transcript of an audio clip in the Common Voice
-Corpus. We sample data only from the Common Voice train splits.
+Corpus. We sample data only from the Common Voice train splits. The number of
+samples in the train splits for each language are: Arabic (28,445),
+English (1,046,353), Greek (1,919), Hindi (4,575), Japanese (6,797).
 """
 import json
 import os
@@ -15,14 +17,11 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from args import parse_args_generate_data
-from src.high_dim.constants import LANGUAGES
+from src.high_dim.constants import *
 
 
 def generate_data(args, n, data_ref):
     data_df = pd.DataFrame({})
-
-    CLASSES = list(data_ref.keys())
-    assert len(CLASSES) == 1000, "There should be 1000 ImageNet classes."
 
     # get all possible audio and image paths, and all possible words
     audio_paths = {}
@@ -56,13 +55,13 @@ def generate_data(args, n, data_ref):
             text = [r.target_text]
 
             classes = CLASSES.copy()
-            classes.remove(r.cls)
+            del classes[r.cls]
             languages = LANGUAGES.copy()
             languages.remove(r.lang)
 
             for i in range(args.text_len - 1):
-                c = random.choice(classes)
-                classes.remove(c)
+                c = random.choice(sorted(classes))
+                del classes[c]
                 l = random.choice(languages)
                 languages.remove(l)
                 text.append(data_ref[c][l])
@@ -78,6 +77,9 @@ def generate_data(args, n, data_ref):
 
 if __name__ == '__main__':
     args = parse_args_generate_data()
+
+    CLASSES = CLASSES[args.n_classes]
+    LANGUAGES = LANGUAGES[args.n_languages]
 
     data_ref = json.load(open(args.data_reference))
 
