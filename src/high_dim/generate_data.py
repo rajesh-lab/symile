@@ -28,9 +28,15 @@ def generate_data(args, n, data_ref):
     audio_paths = {}
     for l in LANGUAGES:
         audio_paths[l] = os.listdir(args.cv_dir / f"{l}/clips")
+    for lang, paths in audio_paths.items():
+        if "-" in paths:
+            paths.remove("-")
+            print(f"removing '-' from {lang} audio paths")
+
     image_paths = {}
     for c in CLASSES:
         image_paths[c] = os.listdir(args.imagenet_dir / data_ref[c]["synset_id"])
+
     all_words = [data_ref[c][l] for c in CLASSES for l in LANGUAGES]
 
     # sample a language, and then sample an audio clip in that language
