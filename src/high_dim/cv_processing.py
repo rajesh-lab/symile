@@ -11,7 +11,7 @@ from constants import LANGUAGES
 if __name__ == '__main__':
     args = parse_args_generate_data()
 
-    for lang in ["he", "ko", "te", "th", "uk", "ur"]:
+    for lang in LANGUAGES:
         print(f"Working on {lang}...")
 
         pt = args.cv_dir / lang / "clip_durations.tsv"
