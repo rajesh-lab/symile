@@ -235,6 +235,24 @@ def prob_c_given_a_b(a, b, c, i_p):
     return sum
 
 
+def prob_a_given_c(a, c, d, i_p):
+    """
+    Computes p(a|c) = (0.5)^d * p(c|a) / p(c)
+    """
+    p_c_given_a = prob_c_given_a(a, c, d, i_p)
+    p_c = prob_c(c, d, i_p)
+    return (0.5)**d * (p_c_given_a / p_c)
+
+
+def prob_a_given_c_b(a, b, c, d, i_p):
+    """
+    Computes p(a|c,b) = (0.5)^d * p(c|a,b) / p(c|b)
+    """
+    p_c_given_a_b = prob_c_given_a_b(a, b, c, i_p)
+    p_c_given_b = prob_c_given_b(b, c, d, i_p)
+    return (0.5)**d * (p_c_given_a_b / p_c_given_b)
+
+
 def MI_a_c(d, i_p):
     """
     Computes mutual information between a and c:
@@ -293,8 +311,35 @@ def MI_a_b_given_c(d, i_p):
     return (0.5)**(2*d) * sum
 
 
+def MI_c_b_given_a(d, i_p):
+    """
+    Computes mutual information between c and b given a:
+    MI(c;b|a) = (0.5)^{2d} * sum_{a,b,c} p(c|a,b)
+        log[ [p(a|c,b) * p(c|b)] / [p(a|c) * p(c)] ]
+    """
+    A = get_vector_support(d)
+    B = A.copy()
+    C = A.copy()
+    sum = 0
+    for a in A:
+        for b in B:
+            for c in C:
+                p_c_given_a_b = prob_c_given_a_b(a, b, c, i_p)
+                p_a_given_c_b = prob_a_given_c_b(a, b, c, d, i_p)
+                p_a_given_c = prob_a_given_c(a, c, d, i_p)
+                p_c_given_b = prob_c_given_b(b, c, d, i_p)
+                p_c = prob_c(c, d, i_p)
+                if p_c_given_a_b != 0:
+                    sum += p_c_given_a_b * np.log(
+                            (p_a_given_c_b * p_c_given_b) / (p_a_given_c * p_c)
+                        )
+    return (0.5)**(2*d) * sum
+
+
 def mutual_informations(d, i_p):
     mi_a_c = MI_a_c(d, i_p)
     mi_b_c = MI_b_c(d, i_p)
     mi_a_b_given_c = MI_a_b_given_c(d, i_p)
-    return {"mi_a_c": mi_a_c, "mi_b_c": mi_b_c, "mi_a_b_given_c": mi_a_b_given_c}
+    mi_c_b_given_a = MI_c_b_given_a(d, i_p)
+    return {"mi_a_c": mi_a_c, "mi_b_c": mi_b_c,
+            "mi_a_b_given_c": mi_a_b_given_c, "mi_c_b_given_a": mi_c_b_given_a}
