@@ -70,12 +70,11 @@ class SSLModel(pl.LightningModule):
 
         self.fc1 = nn.Linear(self.args.d, self.args.hidden_layer_d)
         self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(self.args.hidden_layer_d, 5)
+        self.fc2 = nn.Linear(self.args.hidden_layer_d, 1000)
 
     def forward(self, x):
         if self.args.use_precomputed_representations:
             # x["text"] has shape (b, d)
-            # input_tensor = torch.cat((x["text"], lang_embed), dim=1)
             x = self.fc1(x["text"])
             x = self.relu(x)
             x = self.fc2(x)
@@ -89,7 +88,7 @@ class SSLModel(pl.LightningModule):
                                  weight_decay=self.args.weight_decay)
 
     def _shared_step(self, batch, batch_idx):
-        logits = self(batch) # (b, 5)
+        logits = self(batch) # (b, 1000)
         labels = batch["img_cls"].long() # (b)
 
         loss = nn.CrossEntropyLoss()
@@ -112,7 +111,7 @@ class SSLModel(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
-        logits = self(batch) # (b, 5)
+        logits = self(batch) # (b, 1000)
         labels = batch["img_cls"].long() # (b)
 
         pred = torch.argmax(logits, dim=1)
