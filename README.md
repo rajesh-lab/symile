@@ -4,6 +4,11 @@
 - `./src/`: project library
 - `./tests/`: tests for project library -->
 
+### Table of Contents
+- [Set up environment](#environment)
+- [Binary data experiments](#binary)
+
+<a name="environment"></a>
 ## 0. Set up environment
 <!--
 #### create environment
@@ -26,6 +31,7 @@ From the root directory, run
 (symile-env) > pip install -e .
 ```
 
+<a name="binary"></a>
 ## 1. Run binary data experiments
 
 The below command runs a suite of binary data experiments according to the below data generating process:
