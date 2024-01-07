@@ -48,7 +48,7 @@ First, `cd` into `src/binary/`. Then run:
 * `--check_val_every_n_epoch 10`: check val every n train epochs.
 * `--d_r 16`: dimensionality of representation vectors.
 * `--d_v 5`: dimensionality of dataset vectors.
-* `--efficient_loss True`: whether to compute logits with only (batch_size^2 - batch_size) negatives.
+* `--efficient_loss True`: whether to compute logits with only (bsz^2 - bsz) negatives.
 * `--epochs 100`
 * `--logit_scale_init -0.3`: value used to initialize the learned logit_scale. CLIP used np.log(1 / 0.07) = 2.65926.
 * `--lr 1.0e-1`: learning rate.
