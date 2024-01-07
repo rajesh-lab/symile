@@ -36,9 +36,9 @@ Run binary data experiment according to the below data generating process:
 (symile-env) > python main.py
 ```
 
-### Mutual information and total correlation
+### Calculate information terms
 
-The following command runs a script that calculates $I(\mathbf{a};\mathbf{c}), I(\mathbf{b};\mathbf{c}), I(\mathbf{a};\mathbf{b}|\mathbf{c}), I(\mathbf{c};b|\mathbf{a}), TC(\mathbf{a},\mathbf{b},\mathbf{c})$ for each $\hat{p} \in \{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0\}$.
+The following command runs a script that calculates $I(\mathbf{a};\mathbf{c}), I(\mathbf{b};\mathbf{c}), I(\mathbf{a};\mathbf{b}|\mathbf{c}), I(\mathbf{c};\mathbf{b}|\mathbf{a}),$ and $TC(\mathbf{a},\mathbf{b},\mathbf{c})$ for each $`\hat{p} \in \{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0\}`$:
 
 ```
 (symile-env) > python informations.py [FLAGS]
