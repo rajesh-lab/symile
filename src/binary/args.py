@@ -4,6 +4,18 @@ from pathlib import Path
 from src.utils import str_to_bool
 
 
+def parse_args_informations():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--d_v", type=int, default=2,
+                        help="Dimensionality of binary vectors.")
+
+    parser.add_argument("--save_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/ckpts/binary"),
+                        help="Where to save information results.")
+
+    return parser.parse_args()
+
 def parse_args():
     parser = argparse.ArgumentParser()
 
@@ -20,7 +32,7 @@ def parse_args():
                         help="Dimensionality of representation vectors.")
 
     ### TRAINING ARGS ###
-    parser.add_argument("--batch_sz", type=int, default=100,
+    parser.add_argument("--batch_sz_train", type=int, default=100,
                         help="Batch size for pretraining.")
     parser.add_argument("--batch_sz_val", type=int, default=1000,
                         help="Val set batch size for pretraining.")
@@ -36,8 +48,6 @@ def parse_args():
                               (batch_size^2 - batch_size) negatives.")
     parser.add_argument("--epochs", type=int, default=2,
                         help="Number of epochs to train for.")
-    parser.add_argument("--hardcode_encoders", type=str_to_bool, default=False,
-                        help="Whether to hardcode encoders during training.")
     parser.add_argument("--logit_scale_init", type=float, default=-0.3,
                         help="Value used to initialize the learned logit_scale. \
                               CLIP used np.log(1 / 0.07) = 2.65926.")
@@ -49,8 +59,6 @@ def parse_args():
     parser.add_argument("--save_likelihood_ratios", type=str_to_bool, default=False,
                         help="Whether to save true likelihood ratio \
                               p(a,b,c)/p(a)p(b)p(c) for each i_p.")
-    parser.add_argument("--save_loss_results", type=str_to_bool, default=False,
-                        help="Whether to save loss results.")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")
