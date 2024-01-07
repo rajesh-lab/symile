@@ -54,10 +54,6 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")
-    parser.add_argument("--use_full_dataset", type=str_to_bool, default=False,
-                        help="Whether to set batch size equal to full dataset. \
-                              Note that if set to True, `batch_sz` param \
-                              will be ignored.")
     parser.add_argument("--wandb", type=str_to_bool, default=False,
                         help="Whether to use wandb for logging.")
     parser.add_argument("--wandb_run_name", type=str, default=None,

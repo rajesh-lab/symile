@@ -95,11 +95,10 @@ class BinaryDataModule(pl.LightningDataModule):
         self.ds_val = BinaryDataset(self.args.d_v, self.args.pretrain_val_n,
                                     self.args.i_p)
         self.ds_test = BinaryDataset(self.args.d_v, self.args.test_n,
-                                        self.args.i_p)
+                                     self.args.i_p)
 
     def train_dataloader(self):
-        batch_sz = self.args.pretrain_n if self.args.use_full_dataset else self.args.batch_sz
-        return DataLoader(self.ds_train, batch_size=batch_sz, shuffle=True,
+        return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train, shuffle=True,
                           num_workers=self.num_workers, drop_last=True)
 
     def val_dataloader(self):
