@@ -11,7 +11,7 @@ from src.utils import l2_normalize
 
 
 class LinearEncoders(nn.Module):
-    def __init__(self, d_v, d_r, hardcode_encoders):
+    def __init__(self, d_v, d_r):
         """
         Initialize linear encoders that generate representations r_a, r_b, r_c
         from input vectors v_a, v_b, v_c.
@@ -26,25 +26,13 @@ class LinearEncoders(nn.Module):
         self.f_a = nn.Linear(d_v, d_r, bias=True)
         self.f_b = nn.Linear(d_v, d_r, bias=True)
         self.f_c = nn.Linear(d_v, d_r, bias=True)
-        if hardcode_encoders:
-            with torch.no_grad():
-                weight_ab = torch.zeros(d_r, d_v).fill_diagonal_(2)
-                self.f_a.weight = nn.Parameter(weight_ab, requires_grad=False)
-                self.f_b.weight = nn.Parameter(weight_ab, requires_grad=False)
-                self.f_a.bias = nn.Parameter(torch.full((d_r,), -1.0), requires_grad=False)
-                self.f_b.bias = nn.Parameter(torch.full((d_r,), -1.0), requires_grad=False)
-                weight_c = torch.zeros(d_r, d_v).fill_diagonal_(-2)
-                self.f_c.weight = nn.Parameter(weight_c, requires_grad=False)
-                self.f_c.bias = nn.Parameter(torch.full((d_r,), 1.0), requires_grad=False)
 
     def forward(self, v_a, v_b, v_c):
         """
         Args:
-            v_a, v_b, v_c (torch.Tensor): each of size (n, d_v) (v_c is optional).
+            v_a, v_b, v_c (torch.Tensor): each of size (n, d_v).
         Returns:
-            r_a, r_b, r_c (torch.Tensor): each of size (n, d_r) (v_c could be None).
-            self.logit_scale.exp() (torch.Tensor): temperature parameter as a
-                a log-parameterized multiplicative scalar (see CLIP).
+            r_a, r_b, r_c (torch.Tensor): each of size (n, d_r).
         """
         r_a = self.f_a(v_a)
         r_b = self.f_b(v_b)
@@ -64,8 +52,7 @@ class BinaryModule(pl.LightningModule):
         self.args = Namespace(**args)
         self.loss_fn = symile if self.args.loss_fn == "symile" else clip
 
-        self.encoders = LinearEncoders(self.args.d_v, self.args.d_r,
-                                       self.args.hardcode_encoders)
+        self.encoders = LinearEncoders(self.args.d_v, self.args.d_r)
 
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
