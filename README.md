@@ -10,6 +10,8 @@
 
 TODO: use requirements.txt or pyproject.toml: https://github.com/pypa/packaging.python.org/issues/685#issuecomment-1321616748 and https://venthur.de/2022-12-18-python-packaging.html#:~:text=requirements.,-txt&text=txt%20are%20still%20needed%20if,same%20as%20defined%20in%20pyproject.
 
+TODO: wandb instructions?
+
 #### activate environment
 
 ```
@@ -26,25 +28,43 @@ From the root directory, run
 
 ## 1. Run binary data experiments
 
-Run binary data experiment according to the below data generating process:
+The below command runs a suite of binary data experiments according to the below data generating process:
 
 [TODO: insert screenshot, or latex for DGP from Section 5.1.]
 
-`cd` into `src/synthetic_data/` and set experiment parameters in `args.py`. Then run:
+First, `cd` into `src/binary/`. Then run:
 
 ```
-(symile-env) > python main.py
+(symile-env) > python main.py [FLAGS]
 ```
 
-### Mutual information and total correlation
+**Flags (with values used in the paper)**
+* `--train_n 10000`
+* `--val_n 1000`
+* `--test_n 5000`
+* `--bsz_train 1000`
+* `--bsz_val 1000`
+* `--bsz_test 1000`
+* `--check_val_every_n_epoch 10`: check val every n train epochs.
+* `--d_r 16`: dimensionality of representation vectors.
+* `--d_v 5`: dimensionality of dataset vectors.
+* `--efficient_loss True`: whether to compute logits with only (bsz^2 - bsz) negatives.
+* `--epochs 100`
+* `--logit_scale_init -0.3`: value used to initialize the learned logit_scale. CLIP used np.log(1 / 0.07) = 2.65926.
+* `--lr 1.0e-1`: learning rate.
+* `--num_runs 10`: number of runs to run, each with a different seed.
+* `--save_dir .`: where to save model checkpoints and results.
+* `--wandb True`: whether to use wandb for logging.
 
-The following command runs a script that calculates $I(\mathbf{a};\mathbf{c}), I(\mathbf{b};\mathbf{c}), I(\mathbf{a};\mathbf{b}|\mathbf{c}), I(\mathbf{c};b|\mathbf{a}), TC(\mathbf{a},\mathbf{b},\mathbf{c})$ for each $\hat{p} \in \{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0\}$.
+### Calculate information terms
+
+The following command runs a script that calculates $I(\mathbf{a};\mathbf{c}), I(\mathbf{b};\mathbf{c}), I(\mathbf{a};\mathbf{b}|\mathbf{c}), I(\mathbf{c};\mathbf{b}|\mathbf{a}),$ and $TC(\mathbf{a},\mathbf{b},\mathbf{c})$ for each $`\hat{p} \in \{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0\}`$:
 
 ```
 (symile-env) > python informations.py [FLAGS]
 ```
 
-**Required flags**
+**Flags**
 * `--d_v`: dimensionality of $\mathbf{a}$, $\mathbf{b}$, and $\mathbf{c}$.
 * `--save_dir`: directory in which results will be saved. TODO: Eventually have: `Default is current directory`.
 
