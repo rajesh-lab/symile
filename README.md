@@ -24,15 +24,29 @@ From the root directory, run
 (symile-env) > pip install -e .
 ```
 
-## 1. Run synthetic dataset experiments
+## 1. Run binary data experiments
 
-For experiment details, see [this document](https://www.overleaf.com/7416843814fymsbdxpsrxy).
+Run binary data experiment according to the below data generating process:
+
+[TODO: insert screenshot, or latex for DGP from Section 5.1.]
 
 `cd` into `src/synthetic_data/` and set experiment parameters in `args.py`. Then run:
 
 ```
 (symile-env) > python main.py
 ```
+
+### Mutual information and total correlation
+
+The following command runs a script that calculates $I(\mathbf{a};\mathbf{c}), I(\mathbf{b};\mathbf{c}), I(\mathbf{a};\mathbf{b}|\mathbf{c}), I(\mathbf{c};b|\mathbf{a}), TC(\mathbf{a},\mathbf{b},\mathbf{c})$ for each $\hat{p} \in \{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0\}$.
+
+```
+(symile-env) > python informations.py [FLAGS]
+```
+
+**Required flags**
+* `--d_v`: dimensionality of $\mathbf{a}$, $\mathbf{b}$, and $\mathbf{c}$.
+* `--save_dir`: directory in which results will be saved. TODO: Eventually have: `Default is current directory`.
 
 ## 2. Run SYMILE dataset experiments
 
