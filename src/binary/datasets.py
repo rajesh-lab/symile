@@ -11,28 +11,28 @@ class BinaryDataset(Dataset):
     """
     Generate n samples of data (v_a, v_b, v_c) according to the below.
 
-    i ~ Bernoulli(i_p)
+    i ~ Bernoulli(p_hat)
     dim(v_a) = dim(v_b) = dim(v_c) = d
     v_a[j], v_b[j] ~ Bernoulli(0.5)
     v_c[j] = (v_a[j] XOR v_b[j])^i * v_a[j]^(1-i)
     """
-    def __init__(self, d, n, i_p):
+    def __init__(self, d, n, p_hat):
         """
         Args:
             d (int): dimensionality for each of the vectors v_a, v_b, v_c.
             n (int): number of data samples to generate.
-            i_p (float): Bernoulli distribution parameter for i.
+            p_hat (float): Bernoulli distribution parameter for i.
         """
-        self.v_a, self.v_b, self.v_c = self.generate_data(d, n, i_p)
+        self.v_a, self.v_b, self.v_c = self.generate_data(d, n, p_hat)
 
-    def generate_data(self, d, n, i_p):
+    def generate_data(self, d, n, p_hat):
         """
         Returns:
             v_a, v_b, v_c: each is an torch.Tensor of size (n, d).
         """
         v_a = bernoulli.rvs(0.5, size=(n, d))
         v_b = bernoulli.rvs(0.5, size=(n, d))
-        i = bernoulli.rvs(i_p, size=n)
+        i = bernoulli.rvs(p_hat, size=n)
 
         xor = np.bitwise_xor(v_a, v_b)
 
@@ -90,21 +90,21 @@ class BinaryDataModule(pl.LightningDataModule):
         self.num_workers = len(os.sched_getaffinity(0))
 
     def setup(self, stage):
-        self.ds_train = BinaryDataset(self.args.d_v, self.args.pretrain_n,
-                                      self.args.i_p)
-        self.ds_val = BinaryDataset(self.args.d_v, self.args.pretrain_val_n,
-                                    self.args.i_p)
+        self.ds_train = BinaryDataset(self.args.d_v, self.args.train_n,
+                                      self.args.p_hat)
+        self.ds_val = BinaryDataset(self.args.d_v, self.args.val_n,
+                                    self.args.p_hat)
         self.ds_test = BinaryDataset(self.args.d_v, self.args.test_n,
-                                     self.args.i_p)
+                                     self.args.p_hat)
 
     def train_dataloader(self):
-        return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train, shuffle=True,
+        return DataLoader(self.ds_train, batch_size=self.args.bsz_train, shuffle=True,
                           num_workers=self.num_workers, drop_last=True)
 
     def val_dataloader(self):
-        return DataLoader(self.ds_val, batch_size=self.args.pretrain_val_n,
+        return DataLoader(self.ds_val, batch_size=self.args.bsz_val,
                           num_workers=self.num_workers, drop_last=True)
 
     def test_dataloader(self):
-        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
+        return DataLoader(self.ds_test, batch_size=self.args.bsz_test,
                           num_workers=self.num_workers, drop_last=True)

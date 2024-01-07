@@ -13,51 +13,36 @@ from pytorch_lightning.loggers import WandbLogger
 from args import parse_args
 from datasets import BinaryDataModule
 from models import BinaryModule
-from utils import likelihood_ratios, mutual_informations, \
-                  save_likelihood_ratio_vs_score, save_test_distribution
 
 
-if __name__ == '__main__':
-    if os.getenv('SINGULARITY_CONTAINER'):
-        os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
+def main(seed, save_dir, args):
+    """
+    Runs models first for symile, then for clip. For each of the two loss
+    functions, runs for each value of p_hat.
+    """
+    print(f"using seed {seed}")
 
-    args = parse_args()
+    res = {"seed": [], "p_hat": [], "loss_fn": [], "acc": []}
 
-    datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_dir = args.ckpt_save_dir / datetime_now
-    os.makedirs(save_dir)
-    print(f"save_dir is {save_dir}")
-
-    acc_results = {"i_p": [], "loss_fn": [], "acc": []}
-
-    if args.save_likelihood_ratios:
-        print("calculating true likelihood ratio p(a,b,c)/p(a)p(b)p(c) for each i_p...")
-        lr_data = likelihood_ratios(args.d_v)
-
-    print("training...")
     for loss_fn in ["symile", "clip"]:
-        for i_p in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
-            if args.use_seed:
-                seed_everything(args.seed, workers=True)
 
-            i_p_dir = save_dir / f"i_p_{i_p}"
-            if not os.path.exists(i_p_dir):
-                os.mkdir(i_p_dir)
+        for p_hat in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
+
+            seed_everything(seed, workers=True)
 
             datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
             run_save_dir = save_dir / datetime_now
             if not os.path.exists(run_save_dir):
                 os.makedirs(run_save_dir)
 
-            setattr(args, "i_p", i_p)
+            setattr(args, "p_hat", p_hat)
             setattr(args, "loss_fn", loss_fn)
             setattr(args, "run_save_dir", run_save_dir)
 
-            wandb_run_name = args.wandb_run_name if args.wandb_run_name != None \
-                else f"{args.loss_fn}_{datetime_now}"
             if args.wandb:
                 logger = WandbLogger(project="symile", log_model="all",
-                                    name=wandb_run_name, save_dir=run_save_dir)
+                                    name=f"{loss_fn}_{datetime_now}",
+                                    save_dir=run_save_dir)
             else:
                 logger = False
 
@@ -68,15 +53,15 @@ if __name__ == '__main__':
             trainer = Trainer(
                 callbacks=[checkpoint_callback],
                 check_val_every_n_epoch=args.check_val_every_n_epoch,
-                deterministic=args.use_seed,
-                enable_progress_bar=args.enable_progress_bar,
+                deterministic=True,
+                enable_progress_bar=True,
                 log_every_n_steps=1,
                 logger=logger,
                 max_epochs=args.epochs,
                 num_sanity_val_steps=0
             )
 
-            print(f"\n***** Running {loss_fn} with i_p = {i_p}... *****\n")
+            print(f"\n***** running {loss_fn} with p_hat = {p_hat}... *****\n")
 
             dm = BinaryDataModule(args)
             model = BinaryModule(**vars(args))
@@ -84,19 +69,39 @@ if __name__ == '__main__':
             trainer.fit(model, datamodule=dm)
             test_res = trainer.test(ckpt_path="best", datamodule=dm)[0]
 
-            acc_results["i_p"].append(i_p)
-            acc_results["loss_fn"].append(loss_fn)
-            acc_results["acc"].append(test_res["mean_acc"])
-
-            if args.save_likelihood_ratios:
-                save_test_distribution(dm, i_p_dir, loss_fn, i_p)
-                save_likelihood_ratio_vs_score(i_p, loss_fn, model, lr_data[i_p],
-                                               i_p_dir, dim=args.d_v)
+            res["seed"].append(seed)
+            res["p_hat"].append(p_hat)
+            res["loss_fn"].append(loss_fn)
+            res["acc"].append(test_res["mean_acc"])
 
             if args.wandb:
                 logger.experiment.finish()
 
-    acc_df = pd.DataFrame(acc_results)
+    return res
+
+
+if __name__ == '__main__':
+    if os.getenv('SINGULARITY_CONTAINER'):
+        os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
+
+    args = parse_args()
+
+    datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_dir = args.save_dir / datetime_now
+    os.makedirs(save_dir)
+    print(f"\nResults will be saved in {save_dir}.\n")
+
+    all_results = {"seed": [], "p_hat": [], "loss_fn": [], "acc": []}
+
+    for seed in range(args.num_runs):
+        res = main(seed, save_dir, args)
+
+        for k in res:
+            all_results[k] += res[k]
+
+    acc_df = pd.DataFrame(all_results)
     acc_df.to_csv(save_dir / "acc.csv", index=False)
-    fig = px.line(acc_df, x="i_p", y="acc", color="loss_fn")
-    fig.write_image(save_dir / "acc.png")
+
+    if args.num_runs == 1:
+        fig = px.line(acc_df, x="p_hat", y="acc", color="loss_fn")
+        fig.write_image(save_dir / "acc.png")

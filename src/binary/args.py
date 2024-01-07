@@ -16,14 +16,15 @@ def parse_args_informations():
 
     return parser.parse_args()
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
 
     ### DATASET ARGS ###
-    parser.add_argument("--pretrain_n", type=int, default=100,
-                        help="Number of samples (a, b, c) in pretraining dataset.")
-    parser.add_argument("--pretrain_val_n", type=int, default=1000,
-                        help="Number of samples (a, b, c) in pretraining validation dataset.")
+    parser.add_argument("--train_n", type=int, default=100,
+                        help="Number of samples (a, b, c) in train dataset.")
+    parser.add_argument("--val_n", type=int, default=1000,
+                        help="Number of samples (a, b, c) in val dataset.")
     parser.add_argument("--test_n", type=int, default=100,
                         help="Number of samples (a, b, c) in test dataset.")
     parser.add_argument("--d_v", type=int, default=3,
@@ -32,17 +33,14 @@ def parse_args():
                         help="Dimensionality of representation vectors.")
 
     ### TRAINING ARGS ###
-    parser.add_argument("--batch_sz_train", type=int, default=100,
+    parser.add_argument("--bsz_train", type=int, default=100,
                         help="Batch size for pretraining.")
-    parser.add_argument("--batch_sz_val", type=int, default=1000,
+    parser.add_argument("--bsz_val", type=int, default=1000,
                         help="Val set batch size for pretraining.")
-    parser.add_argument("--batch_sz_test", type=int, default=100,
+    parser.add_argument("--bsz_test", type=int, default=100,
                         help="Test set batch size.")
     parser.add_argument("--check_val_every_n_epoch", type=int, default=1,
                         help="Check val every n train epochs.")
-    parser.add_argument("--ckpt_save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/ckpts/binary"),
-                        help="Where to save model checkpoints.")
     parser.add_argument("--efficient_loss", type=str_to_bool, default=False,
                         help="Whether to compute logits with only \
                               (batch_size^2 - batch_size) negatives.")
@@ -53,25 +51,14 @@ def parse_args():
                               CLIP used np.log(1 / 0.07) = 2.65926.")
     parser.add_argument("--lr", type=float, default=1.0e-1,
                         help="Learning rate.")
-    parser.add_argument("--normalize", type=str_to_bool, default=True,
-                        help="Whether to normalize representations, both during \
-                              pre-training before loss calculation and during evaluation.")
-    parser.add_argument("--save_likelihood_ratios", type=str_to_bool, default=False,
-                        help="Whether to save true likelihood ratio \
-                              p(a,b,c)/p(a)p(b)p(c) for each i_p.")
-    parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--use_seed", type=str_to_bool, default=True,
-                        help="Whether to use a seed for reproducibility.")
+    parser.add_argument("--save_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/ckpts/binary"),
+                        help="Where to save model checkpoints and results.")
     parser.add_argument("--wandb", type=str_to_bool, default=False,
                         help="Whether to use wandb for logging.")
-    parser.add_argument("--wandb_run_name", type=str, default=None,
-                        help="Run name for wandb for logging.")
 
     ### EVALUATION ARGS ###
-    parser.add_argument("--enable_progress_bar", type=str_to_bool, default=True,
-                        help="Whether to enable or disable the progress bar.")
-    parser.add_argument("--use_logit_scale_eval", type=str_to_bool, default=True,
-                        help="Whether or not to scale logits by temperature \
-                              parameter during evaluation.")
+    parser.add_argument("--num_runs", type=int, default=2,
+                        help="Number of runs to run, each with a different seed.")
 
     return parser.parse_args()
