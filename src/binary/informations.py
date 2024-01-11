@@ -1,8 +1,10 @@
 """
-TODO
+This script calculates I(a,c), I(b,c), I(a;b|c), I(c;b|a), and TC(a,b,c)
+for each p_hat in {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0}.
 """
 from datetime import datetime
 import os
+import time
 
 import numpy as np
 import pandas as pd
@@ -10,6 +12,10 @@ import plotly.express as px
 
 from args import parse_args_informations
 from utils import get_vector_support
+
+
+def arr_as_str(vector):
+    return "".join(map(str, vector))
 
 
 def prob_i(i, p_hat):
@@ -48,6 +54,20 @@ def prob_c_given_a(a, c, d, p_hat):
     return (0.5)**d * sum
 
 
+def prob_c_given_a_df(d, p_hat):
+    A = get_vector_support(d)
+    C = A.copy()
+    p_c_given_a_dict = {"a": [], "c": [], "p_c_given_a": []}
+    for a in A:
+        for c in C:
+            p_c_given_a = prob_c_given_a(a, c, d, p_hat)
+
+            p_c_given_a_dict["a"].append(arr_as_str(a))
+            p_c_given_a_dict["c"].append(arr_as_str(c))
+            p_c_given_a_dict["p_c_given_a"].append(p_c_given_a)
+    return pd.DataFrame(p_c_given_a_dict)
+
+
 def prob_c_given_b(b, c, d, p_hat):
     """
     Computes p(c|b) = (0.5)^d * sum_{a_1,...,a_d,i} p(i)
@@ -64,6 +84,20 @@ def prob_c_given_b(b, c, d, p_hat):
             p_i = prob_i(i, p_hat)
             sum += p_i * prod
     return (0.5)**d * sum
+
+
+def prob_c_given_b_df(d, p_hat):
+    B = get_vector_support(d)
+    C = B.copy()
+    p_c_given_b_dict = {"b": [], "c": [], "p_c_given_b": []}
+    for b in B:
+        for c in C:
+            p_c_given_b = prob_c_given_b(b, c, d, p_hat)
+
+            p_c_given_b_dict["b"].append(arr_as_str(b))
+            p_c_given_b_dict["c"].append(arr_as_str(c))
+            p_c_given_b_dict["p_c_given_b"].append(p_c_given_b)
+    return pd.DataFrame(p_c_given_b_dict)
 
 
 def prob_c(c, d, p_hat):
@@ -85,6 +119,17 @@ def prob_c(c, d, p_hat):
     return (0.5)**(2*d) * sum
 
 
+def prob_c_df(d, p_hat):
+    C = get_vector_support(d)
+    p_c_dict = {"c": [], "p_c": []}
+    for c in C:
+        p_c = prob_c(c, d, p_hat)
+
+        p_c_dict["c"].append(arr_as_str(c))
+        p_c_dict["p_c"].append(p_c)
+    return pd.DataFrame(p_c_dict)
+
+
 def prob_c_given_a_b(a, b, c, p_hat):
     """
     Computes p(c|a,b) = sum_{i} p(i)
@@ -100,15 +145,6 @@ def prob_c_given_a_b(a, b, c, p_hat):
     return sum
 
 
-def prob_a_given_c(a, c, d, p_hat):
-    """
-    Computes p(a|c) = (0.5)^d * p(c|a) / p(c)
-    """
-    p_c_given_a = prob_c_given_a(a, c, d, p_hat)
-    p_c = prob_c(c, d, p_hat)
-    return (0.5)**d * (p_c_given_a / p_c)
-
-
 def prob_a_given_c_b(a, b, c, d, p_hat):
     """
     Computes p(a|c,b) = (0.5)^d * p(c|a,b) / p(c|b)
@@ -118,7 +154,37 @@ def prob_a_given_c_b(a, b, c, d, p_hat):
     return (0.5)**d * (p_c_given_a_b / p_c_given_b)
 
 
-def MI_a_c(d, p_hat):
+def prob_c_given_a_b_and_prob_a_given_c_b_df(d, p_hat):
+    A = get_vector_support(d)
+    B = A.copy()
+    C = A.copy()
+    p_c_given_a_b_dict = {"a": [], "b": [], "c": [], "p_c_given_a_b": []}
+    p_a_given_c_b_dict = {"a": [], "b": [], "c": [], "p_a_given_c_b": []}
+    for a in A:
+        for b in B:
+            for c in C:
+                p_c_given_a_b = prob_c_given_a_b(a, b, c, p_hat)
+                p_c_given_a_b_dict["a"].append(arr_as_str(a))
+                p_c_given_a_b_dict["b"].append(arr_as_str(b))
+                p_c_given_a_b_dict["c"].append(arr_as_str(c))
+                p_c_given_a_b_dict["p_c_given_a_b"].append(p_c_given_a_b)
+
+                p_a_given_c_b = prob_a_given_c_b(a, b, c, d, p_hat)
+                p_a_given_c_b_dict["a"].append(arr_as_str(a))
+                p_a_given_c_b_dict["b"].append(arr_as_str(b))
+                p_a_given_c_b_dict["c"].append(arr_as_str(c))
+                p_a_given_c_b_dict["p_a_given_c_b"].append(p_a_given_c_b)
+    return pd.DataFrame(p_c_given_a_b_dict), pd.DataFrame(p_a_given_c_b_dict)
+
+
+def prob_a_given_c(d, p_c_given_a, p_c):
+    """
+    Computes p(a|c) = (0.5)^d * p(c|a) / p(c)
+    """
+    return (0.5)**d * (p_c_given_a / p_c)
+
+
+def MI_a_c(d, p_c_given_a_df, p_c_df):
     """
     Computes mutual information between a and c:
     MI(a;c) = (0.5)^d * sum_{a,c} p(c|a) log[p(c|a)/p(c)]
@@ -128,14 +194,22 @@ def MI_a_c(d, p_hat):
     sum = 0
     for a in A:
         for c in C:
-            p_c_given_a = prob_c_given_a(a, c, d, p_hat)
-            p_c = prob_c(c, d, p_hat)
+            a = arr_as_str(a)
+            c = arr_as_str(c)
+
+            p_c_given_a = p_c_given_a_df[
+                    (p_c_given_a_df["a"]==a) & (p_c_given_a_df["c"]==c)
+                ].p_c_given_a.item()
+
+            p_c = p_c_df[p_c_df["c"]==c].p_c.item()
+
             if p_c_given_a != 0:
                 sum += p_c_given_a * np.log(p_c_given_a/p_c)
+
     return (0.5)**d * sum
 
 
-def MI_b_c(d, p_hat):
+def MI_b_c(d, p_c_given_b_df, p_c_df):
     """
     Computes mutual information between b and c:
     MI(b;c) = (0.5)^d * sum_{b,c} p(c|a) log[p(c|b)/p(c)]
@@ -145,14 +219,23 @@ def MI_b_c(d, p_hat):
     sum = 0
     for b in B:
         for c in C:
-            p_c_given_b = prob_c_given_b(b, c, d, p_hat)
-            p_c = prob_c(c, d, p_hat)
+            b = arr_as_str(b)
+            c = arr_as_str(c)
+
+            p_c_given_b = p_c_given_b_df[
+                    (p_c_given_b_df["b"]==b) & (p_c_given_b_df["c"]==c)
+                ].p_c_given_b.item()
+
+            p_c = p_c_df[p_c_df["c"]==c].p_c.item()
+
             if p_c_given_b != 0:
-                sum += p_c_given_b * np.log(p_c_given_b/p_c)
+                sum += p_c_given_b * (
+                    np.log(p_c_given_b) - np.log(p_c)
+                )
     return (0.5)**d * sum
 
 
-def MI_a_b_given_c(d, p_hat):
+def MI_a_b_given_c(d, p_c_given_a_b_df, p_c_given_a_df, p_c_given_b_df, p_c_df):
     """
     Computes mutual information between a and b given c:
     MI(a;b|c) = (0.5)^{2d} * sum_{a,b,c} p(c|a,b)
@@ -165,18 +248,32 @@ def MI_a_b_given_c(d, p_hat):
     for a in A:
         for b in B:
             for c in C:
-                p_c_given_a_b = prob_c_given_a_b(a, b, c, p_hat)
-                p_c_given_a = prob_c_given_a(a, c, d, p_hat)
-                p_c_given_b = prob_c_given_b(b, c, d, p_hat)
-                p_c = prob_c(c, d, p_hat)
+                a = arr_as_str(a)
+                b = arr_as_str(b)
+                c = arr_as_str(c)
+
+                p_c_given_a_b = p_c_given_a_b_df[
+                    (p_c_given_a_b_df["a"]==a) & (p_c_given_a_b_df["b"]==b) & (p_c_given_a_b_df["c"]==c)
+                ].p_c_given_a_b.item()
+
+                p_c_given_a = p_c_given_a_df[
+                    (p_c_given_a_df["a"]==a) & (p_c_given_a_df["c"]==c)
+                ].p_c_given_a.item()
+
+                p_c_given_b = p_c_given_b_df[
+                    (p_c_given_b_df["b"]==b) & (p_c_given_b_df["c"]==c)
+                ].p_c_given_b.item()
+
+                p_c = p_c_df[p_c_df["c"]==c].p_c.item()
+
                 if p_c_given_a_b != 0:
-                    sum += p_c_given_a_b * np.log(
-                            (p_c_given_a_b * p_c) / (p_c_given_a * p_c_given_b)
-                        )
+                    sum += p_c_given_a_b * (
+                        np.log(p_c_given_a_b) + np.log(p_c) - np.log(p_c_given_a) - np.log(p_c_given_b)
+                    )
     return (0.5)**(2*d) * sum
 
 
-def MI_c_b_given_a(d, p_hat):
+def MI_c_b_given_a(d, p_c_given_a_b_df, p_a_given_c_b_df, p_c_given_b_df, p_c_df, p_c_given_a_df):
     """
     Computes mutual information between c and b given a:
     MI(c;b|a) = (0.5)^{2d} * sum_{a,b,c} p(c|a,b)
@@ -189,28 +286,63 @@ def MI_c_b_given_a(d, p_hat):
     for a in A:
         for b in B:
             for c in C:
-                p_c_given_a_b = prob_c_given_a_b(a, b, c, p_hat)
-                p_a_given_c_b = prob_a_given_c_b(a, b, c, d, p_hat)
-                p_a_given_c = prob_a_given_c(a, c, d, p_hat)
-                p_c_given_b = prob_c_given_b(b, c, d, p_hat)
-                p_c = prob_c(c, d, p_hat)
+                a = arr_as_str(a)
+                b = arr_as_str(b)
+                c = arr_as_str(c)
+
+                p_c_given_a_b = p_c_given_a_b_df[
+                    (p_c_given_a_b_df["a"]==a) & (p_c_given_a_b_df["b"]==b) & (p_c_given_a_b_df["c"]==c)
+                ].p_c_given_a_b.item()
+
+                p_c_given_b = p_c_given_b_df[
+                    (p_c_given_b_df["b"]==b) & (p_c_given_b_df["c"]==c)
+                ].p_c_given_b.item()
+
+                p_c = p_c_df[p_c_df["c"]==c].p_c.item()
+
+                p_a_given_c_b = p_a_given_c_b_df[
+                    (p_a_given_c_b_df["a"]==a) & (p_a_given_c_b_df["b"]==b) & (p_a_given_c_b_df["c"]==c)
+                ].p_a_given_c_b.item()
+
+                p_c_given_a = p_c_given_a_df[
+                    (p_c_given_a_df["a"]==a) & (p_c_given_a_df["c"]==c)
+                ].p_c_given_a.item()
+
+                p_a_given_c = prob_a_given_c(d, p_c_given_a, p_c)
+
                 if p_c_given_a_b != 0:
-                    sum += p_c_given_a_b * np.log(
-                            (p_a_given_c_b * p_c_given_b) / (p_a_given_c * p_c)
-                        )
+                    sum += p_c_given_a_b * (
+                        np.log(p_a_given_c_b) + np.log(p_c_given_b) - np.log(p_a_given_c) - np.log(p_c)
+                    )
     return (0.5)**(2*d) * sum
 
 
 def mutual_informations(d, p_hat):
-    mi_a_c = MI_a_c(d, p_hat)
-    mi_b_c = MI_b_c(d, p_hat)
-    mi_a_b_given_c = MI_a_b_given_c(d, p_hat)
-    mi_c_b_given_a = MI_c_b_given_a(d, p_hat)
+    print("creating dataframes...")
+    p_c_given_a_df = prob_c_given_a_df(d, p_hat)
+    p_c_given_b_df = prob_c_given_b_df(d, p_hat)
+    p_c_df = prob_c_df(d, p_hat)
+    p_c_given_a_b_df, p_a_given_c_b_df = prob_c_given_a_b_and_prob_a_given_c_b_df(d, p_hat)
+
+    print("computing mi_a_c...")
+    mi_a_c = MI_a_c(d, p_c_given_a_df, p_c_df)
+
+    print("computing mi_b_c...")
+    mi_b_c = MI_b_c(d, p_c_given_b_df, p_c_df)
+
+    print("computing mi_a_b_given_c...")
+    mi_a_b_given_c = MI_a_b_given_c(d, p_c_given_a_b_df, p_c_given_a_df, p_c_given_b_df, p_c_df)
+
+    print("computing mi_c_b_given_a...")
+    mi_c_b_given_a = MI_c_b_given_a(d, p_c_given_a_b_df, p_a_given_c_b_df, p_c_given_b_df, p_c_df, p_c_given_a_df)
+
     return {"mi_a_c": mi_a_c, "mi_b_c": mi_b_c,
             "mi_a_b_given_c": mi_a_b_given_c, "mi_c_b_given_a": mi_c_b_given_a}
 
 
 if __name__ == '__main__':
+    start = time.time()
+
     args = parse_args_informations()
 
     datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -237,3 +369,7 @@ if __name__ == '__main__':
 
     fig = px.line(mi_df, x="p_hat", y="value", color="type")
     fig.write_image(save_dir / "mi.png")
+
+    end = time.time()
+    total_time = end - start
+    print(f"Script took {total_time:.4f} seconds")
