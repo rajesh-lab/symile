@@ -54,7 +54,7 @@ def main(seed, save_dir, args):
                 callbacks=[checkpoint_callback],
                 check_val_every_n_epoch=args.check_val_every_n_epoch,
                 deterministic=True,
-                enable_progress_bar=True,
+                enable_progress_bar=False,
                 log_every_n_steps=1,
                 logger=logger,
                 max_epochs=args.epochs,
@@ -93,15 +93,13 @@ if __name__ == '__main__':
 
     all_results = {"seed": [], "p_hat": [], "loss_fn": [], "acc": []}
 
-    for seed in range(args.num_runs):
-        res = main(seed, save_dir, args)
+    res = main(args.seed, save_dir, args)
 
-        for k in res:
-            all_results[k] += res[k]
+    for k in res:
+        all_results[k] += res[k]
 
     acc_df = pd.DataFrame(all_results)
     acc_df.to_csv(save_dir / "acc.csv", index=False)
 
-    if args.num_runs == 1:
-        fig = px.line(acc_df, x="p_hat", y="acc", color="loss_fn")
-        fig.write_image(save_dir / "acc.png")
+    fig = px.line(acc_df, x="p_hat", y="acc", color="loss_fn")
+    fig.write_image(save_dir / "acc.png")

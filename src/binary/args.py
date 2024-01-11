@@ -52,13 +52,12 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=1.0e-1,
                         help="Learning rate.")
     parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/ckpts/binary"),
+                        default=Path("/gpfs/scratch/as16583/ckpts/binary/final"),
                         help="Where to save model checkpoints and results.")
     parser.add_argument("--wandb", type=str_to_bool, default=False,
                         help="Whether to use wandb for logging.")
 
     ### EVALUATION ARGS ###
-    parser.add_argument("--num_runs", type=int, default=2,
-                        help="Number of runs to run, each with a different seed.")
+    parser.add_argument("--seed", type=int, default=0)
 
     return parser.parse_args()
