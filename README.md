@@ -74,6 +74,8 @@ The following command runs a script that calculates $I(\mathbf{a};\mathbf{c}), I
 * `--d_v`: dimensionality of $\mathbf{a}$, $\mathbf{b}$, and $\mathbf{c}$.
 * `--save_dir`: directory in which results will be saved. TODO: Eventually have: `Default is current directory`.
 
+Running this script for `d_v = 5` takes about 1.5 hours.
+
 ## 2. Run SYMILE dataset experiments
 
 ### Generate data
