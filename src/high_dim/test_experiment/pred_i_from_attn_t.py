@@ -1,6 +1,3 @@
-"""
-predict class using text embedding and audio embedding
-"""
 from argparse import Namespace
 from datetime import datetime
 import os
@@ -13,28 +10,35 @@ from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import Dataset, DataLoader
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-from args import parse_args_main
+from args_attn import parse_args_main
 from save_representations import BaseDataModule, HighDimDataModule
 
 
 class HighDimPrecomputedDataset(Dataset):
     def __init__(self, dataset_dir, split):
         split_dir = dataset_dir / f"{split}"
-        self.audio = torch.load(split_dir / f"audio_{split}.pt")
-        self.text = torch.load(split_dir / f"text_{split}.pt")
+        self.word_1 = torch.load(split_dir / f"word_1_{split}.pt")
+        self.word_2 = torch.load(split_dir / f"word_2_{split}.pt")
+        self.word_3 = torch.load(split_dir / f"word_3_{split}.pt")
+        self.word_4 = torch.load(split_dir / f"word_4_{split}.pt")
+        self.word_5 = torch.load(split_dir / f"word_5_{split}.pt")
         self.lang_embed = torch.load(split_dir / f"lang_embed_{split}.pt")
-        self.img_cls = torch.load(split_dir / f"img_cls_{split}.pt")
+        self.cls_id = torch.load(split_dir / f"cls_id_{split}.pt")
         self.idx = torch.load(split_dir / f"idx_{split}.pt")
 
     def __len__(self):
-        return len(self.text)
+        return len(self.word_1)
 
     def __getitem__(self, idx):
-        return {"audio": self.audio[idx],
-                "text": self.text[idx],
+        return {"word_1": self.word_1[idx],
+                "word_2": self.word_2[idx],
+                "word_3": self.word_3[idx],
+                "word_4": self.word_4[idx],
+                "word_5": self.word_5[idx],
                 "lang_embed": self.lang_embed[idx],
-                "img_cls": self.img_cls[idx],
+                "cls_id": self.cls_id[idx],
                 "idx": self.idx[idx]}
 
 
@@ -73,14 +77,27 @@ class SSLModel(pl.LightningModule):
 
         self.args = Namespace(**args)
 
-        self.fc1 = nn.Linear(768+384, self.args.hidden_layer_d)
+        self.lang_embedding = nn.Embedding(5, self.args.d).to(self.device)
+        self.fc1 = nn.Linear(self.args.d, self.args.hidden_layer_d)
         self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(self.args.hidden_layer_d, 1000)
+        self.fc2 = nn.Linear(self.args.hidden_layer_d, 50)
 
     def forward(self, x):
         if self.args.use_precomputed_representations:
-            # x["text"] has shape (b, d)
-            input_tensor = torch.cat((x["text"], x["audio"]), dim=1)
+            # x["word_<i>"] has shape (b, d); x["lang_embed"] has shape (b)
+            lang_embed = self.lang_embedding(x["lang_embed"].to(torch.int))
+
+            dot_products = []
+            for i in range(1, 6):
+                dot_products.append(torch.sum(lang_embed * x[f"word_{i}"], dim=1))
+            dot_products = torch.stack(dot_products, dim=-1)
+            softmax = F.softmax(dot_products, dim=-1)
+
+            weighted_sum = []
+            for i in range(1, 6):
+                weighted_sum.append(softmax[:, i-1].unsqueeze(dim=1) * x[f"word_{i}"])
+            weighted_sum = torch.stack(weighted_sum, dim=-1)
+            input_tensor = torch.sum(weighted_sum, dim=-1)
 
             x = self.fc1(input_tensor)
             x = self.relu(x)
@@ -95,8 +112,8 @@ class SSLModel(pl.LightningModule):
                                  weight_decay=self.args.weight_decay)
 
     def _shared_step(self, batch, batch_idx):
-        logits = self(batch) # (b, 5)
-        labels = batch["img_cls"].long() # (b)
+        logits = self(batch) # (b, 1000)
+        labels = batch["cls_id"].long() # (b)
 
         loss = nn.CrossEntropyLoss()
         return loss(logits, labels)
@@ -118,8 +135,8 @@ class SSLModel(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
-        logits = self(batch) # (b, 5)
-        labels = batch["img_cls"].long() # (b)
+        logits = self(batch) # (b, 1000)
+        labels = batch["cls_id"].long() # (b)
 
         pred = torch.argmax(logits, dim=1)
 
@@ -129,7 +146,6 @@ class SSLModel(pl.LightningModule):
 
 
 def main(args, trainer):
-
     if args.use_precomputed_representations:
         dm = HighDimPrecomputedDataModule(args)
     else:
@@ -138,14 +154,12 @@ def main(args, trainer):
     args.feat_token_id = dm.feat_token_id
 
     model = SSLModel(**vars(args))
-
     trainer.fit(model, datamodule=dm)
 
     trainer.test(ckpt_path="best", datamodule=dm)
 
 
 if __name__ == '__main__':
-
     os.environ['WANDB_CACHE_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
     os.environ['WANDB_CONFIG_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
     os.environ['WANDB_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'

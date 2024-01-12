@@ -6,67 +6,45 @@ import lightning.pytorch as pl
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
+import numpy as np
 import pandas as pd
 from pytorch_lightning.loggers import WandbLogger
 from lightning.pytorch.utilities import grad_norm
 from torch.utils.data import Dataset, DataLoader
 import torch
-import torchaudio
 import torch.nn as nn
-import torch.nn.functional as F
 
 from transformers import BertTokenizer, XLMRobertaTokenizer, \
                          BertModel, XLMRobertaModel, \
-                         WhisperFeatureExtractor, WhisperModel, \
-                         MT5EncoderModel, T5Tokenizer
-
-from transformers import AutoModelForSequenceClassification
+                         MT5EncoderModel, T5Tokenizer, \
+                         WhisperModel
 
 from args import parse_args_main
-from src.utils import l2_normalize
+from src.high_dim.constants import LANGUAGES
 
 
 class HighDimDataset(Dataset):
-    def __init__(self, df, audio_feat_extractor):
+    def __init__(self, df, data_dir, split):
         self.df = df
-
-        langs = sorted(df["lang"].unique())
-        self.lang_embeddings = {value: idx for idx, value in enumerate(langs)}
-
-        words = sorted(df["text"].unique())
-        self.word_indices = {value: idx for idx, value in enumerate(words)}
-
-        self.audio_feat_extractor = audio_feat_extractor
+        self.split_dir = data_dir / f"{split}"
 
     def __len__(self):
         return len(self.df)
 
-    def get_audio(self, path):
-        # downsample to 16kHz, as expected by Whisper, before passing to feature extractor
-        waveform, sr = torchaudio.load(path)
-        resampler = torchaudio.transforms.Resample(sr, self.audio_feat_extractor.sampling_rate)
-        waveform = torch.squeeze(resampler(waveform))
-        audio = self.audio_feat_extractor(
-                        waveform,
-                        return_attention_mask=True,
-                        return_tensors="pt",
-                        sampling_rate=self.audio_feat_extractor.sampling_rate,
-                        do_normalize=True
-                    )
-        return {"input_features": torch.squeeze(audio.input_features),
-                "attention_mask": torch.squeeze(audio.attention_mask)}
-
     def __getitem__(self, idx):
-        lang_embed = self.lang_embeddings[self.df.iloc[idx].lang]
-        word_idx = self.word_indices[self.df.iloc[idx].text]
-        cls_id = self.df.iloc[idx].cls_id
-        # audio = self.get_audio(self.df.iloc[idx].audio_path)
+        audio = np.load(self.split_dir / f"audio/{self.df.iloc[idx].audio_filename}.npy")
+        lang = self.df.iloc[idx].lang
+        lang_id = LANGUAGES[lang]
+
         text = self.df.iloc[idx].text
 
-        return {"lang_embed": lang_embed, "cls_id": cls_id,
-                "word_idx": word_idx,
-                # "audio": audio,
-                "text": text, "idx": idx}
+        cls_id = self.df.iloc[idx].cls_id
+
+        return {"audio": audio,
+                "lang": lang,
+                "lang_id": lang_id,
+                "text": text,
+                "cls_id": cls_id}
 
 
 class Collator:
@@ -77,26 +55,22 @@ class Collator:
     def __init__(self, txt_tokenizer):
         self.txt_tokenizer = txt_tokenizer
     def __call__(self, batch):
-        # audio_input_features = torch.stack([s["audio"]["input_features"] for s in batch])
-        # audio_attention_mask = torch.stack([s["audio"]["attention_mask"] for s in batch])
+        audio = torch.tensor(np.stack([s["audio"] for s in batch]))
 
         text_list = [s["text"] for s in batch]
         text = self.txt_tokenizer(text=text_list, return_tensors="pt",
                                   padding=True, truncation=True)
 
-        lang_embed = torch.tensor([s["lang_embed"] for s in batch])
-        word_idx = torch.tensor([s["word_idx"] for s in batch])
+        lang = [s["lang"] for s in batch]
+        lang_id = torch.tensor([s["lang_id"] for s in batch])
         cls_id = torch.tensor([s["cls_id"] for s in batch])
-        idx = torch.tensor([s["idx"] for s in batch])
 
         batched_data = {
-            # "audio_input_features": audio_input_features,
-            # "audio_attention_mask": audio_attention_mask,
+            "audio": audio,
             "text": text,
-            # "text_input_ids": text["input_ids"],
-            # "text_attention_mask": text["attention_mask"],
-            "lang_embed": lang_embed, "cls_id": cls_id, "idx": idx,
-            "word_idx": word_idx}
+            "lang": lang,
+            "lang_id": lang_id,
+            "cls_id": cls_id}
 
         return batched_data
 
@@ -105,7 +79,6 @@ class BaseDataModule(pl.LightningDataModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.audio_feat_extractor = WhisperFeatureExtractor.from_pretrained(args.audio_model_id)
 
         # from max_num_worker_suggest in DataLoader docs
         self.num_workers = len(os.sched_getaffinity(0))
@@ -127,13 +100,13 @@ class HighDimDataModule(BaseDataModule):
         self.text_tokenization()
 
         df_train = pd.read_csv(self.args.data_dir / self.args.train_csv)
-        self.ds_train = HighDimDataset(df_train, self.audio_feat_extractor)
+        self.ds_train = HighDimDataset(df_train, self.args.data_dir, "train")
 
         df_val = pd.read_csv(self.args.data_dir / self.args.val_csv)
-        self.ds_val = HighDimDataset(df_val, self.audio_feat_extractor)
+        self.ds_val = HighDimDataset(df_val, self.args.data_dir, "val")
 
         df_test = pd.read_csv(self.args.data_dir / self.args.test_csv)
-        self.ds_test = HighDimDataset(df_test, self.audio_feat_extractor)
+        self.ds_test = HighDimDataset(df_test, self.args.data_dir, "test")
 
     def train_dataloader(self):
         return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train,
@@ -155,47 +128,17 @@ class HighDimDataModule(BaseDataModule):
                           drop_last=self.args.drop_last)
 
 
-class ProjectionHead(nn.Module):
-    def __init__(self, hidden_size, d):
-        super().__init__()
-        self.layer_norm = nn.LayerNorm(hidden_size)
-        self.linear_projection = nn.Linear(hidden_size, d, bias=False)
-
-    def forward(self, x):
-        x = self.layer_norm(x)
-        x = self.linear_projection(x)
-        return x
-
-
 class AudioEncoder(nn.Module):
     def __init__(self, model_id, d):
         super().__init__()
-        self.encoder = WhisperModel.from_pretrained(model_id).encoder
+        encoder = WhisperModel.from_pretrained(model_id).encoder
 
-        for p in self.encoder.parameters():
-            p.requires_grad = False
-        self.encoder.eval()
+        self.fc = nn.Linear(encoder.config.hidden_size, d, bias=True)
 
-        self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d)
-
-    def forward(self, input_features, attention_mask):
-        """
-        Args:
-            input_features (torch.Tensor): shape (batch_sz, 80, 3000)
-            attention_mask (torch.Tensor): shape (batch_sz, 3000)
-        Returns:
-            x (torch.Tensor): shape (batch_sz, d)
-        """
-        x = self.encoder(input_features=input_features, attention_mask=attention_mask)
-        x = x["last_hidden_state"]
-
-        # select first embedding as done by ImageBind:
-        # https://github.com/facebookresearch/ImageBind/blob/95d27c7fd5a8362f3527e176c3a80ae5a4d880c0/imagebind/models/imagebind_model.py#L391C3-L391C3
-        x = x[:, 0, :]
-
-        x = self.projection_head(x)
+    def forward(self, x):
+        x = self.fc(x)
+        x = x.mean(dim=1)
         return x
-
 
 class TextEncoder(nn.Module):
     def __init__(self, model_id):
@@ -205,23 +148,10 @@ class TextEncoder(nn.Module):
         elif model_id == "xlm-roberta-base":
             self.encoder = XLMRobertaModel.from_pretrained(model_id)
 
-        # for p in self.encoder.parameters():
-        #     p.requires_grad = False
-        # self.encoder.eval()
-
     def forward(self, x):
-        """
-        If not using precomputed tensors:
-            Args:
-                x (dict): keys are "input_ids" and "attention_mask":
-                    input_ids (torch.Tensor): shape (batch_sz, len_longest_seq)
-                    attention_mask (torch.Tensor): shape (batch_sz, len_longest_seq)
-            Returns:
-                x (torch.Tensor): shape (batch_sz, d)
-        """
         x = self.encoder(**x)
+        x = x[1] # get pooled output
         return x
-
 
 class SSLModel(pl.LightningModule):
     def __init__(self, **args):
@@ -230,46 +160,29 @@ class SSLModel(pl.LightningModule):
 
         self.args = Namespace(**args)
 
+        self.audio_encoder = AudioEncoder(self.args.audio_model_id, self.args.d)
+        self.audio_layer_norm = nn.LayerNorm(self.args.d)
+
         self.text_encoder = TextEncoder(self.args.text_model_id)
-        # self.text_linear1 = nn.Linear(self.args.d, self.args.d, bias=True)
-        # self.text_relu = nn.ReLU()
-        # self.text_linear2 = nn.Linear(self.args.d, self.args.d, bias=True)
-
-        # self.audio_encoder = AudioEncoder(self.args.audio_model_id, self.args.d)
-
-        self.lang_embedding = nn.Embedding(5, self.args.d)
-
-        self.lang_layer_norm = nn.LayerNorm(self.args.d)
         self.text_layer_norm = nn.LayerNorm(self.args.d)
-        # self.audio_layer_norm = nn.LayerNorm(self.args.d)
-        self.fc1 = nn.Linear(self.args.d, 1000, bias=True)
+
+        self.classifier = nn.Linear(self.args.d, self.args.num_classes, bias=True)
 
     def forward(self, x):
-        lang_embed = self.lang_embedding(x["lang_embed"].to(torch.int))
-        lang_embed = self.lang_layer_norm(lang_embed)
+        r_a = self.audio_encoder(x["audio"])
+        r_a = self.audio_layer_norm(r_a)
 
         r_t = self.text_encoder(x["text"])
-        r_t = r_t[1] # get pooled output
-        # r_t = self.text_linear1(r_t)
-        # r_t = self.text_relu(r_t)
-        # r_t = self.text_linear2(r_t)
         r_t = self.text_layer_norm(r_t)
 
-        # input_tensor = r_t * r_a
-        input_tensor = r_t * lang_embed
+        input_tensor = r_a * r_t
 
-        x = self.fc1(input_tensor)
-
+        x = self.classifier(input_tensor)
         return x
 
     def configure_optimizers(self):
-        assert self.args.weight_decay == 0.0
-        return torch.optim.AdamW(self.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
-
-    # def on_after_backward(self):
-    #     norm = torch.nn.utils.clip_grad_norm_(self.text_encoder.parameters(), float('inf'))
-    #     print("norm: ", norm)
-    #     self.log("grad_norm", norm, on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
+        return torch.optim.AdamW(self.parameters(), lr=self.args.lr,
+                                 weight_decay=self.args.weight_decay)
 
     def _shared_step(self, batch, batch_idx):
         logits = self(batch) # (b, num_classes)
@@ -277,29 +190,31 @@ class SSLModel(pl.LightningModule):
 
         pred = torch.argmax(logits, dim=1)
         acc = torch.sum(pred == labels) / len(labels)
-        self.log("train_accuracy", acc, sync_dist=True, prog_bar=True)
 
         loss = nn.CrossEntropyLoss()
-        return loss(logits, labels)
+        return loss(logits, labels), acc
 
     def training_step(self, batch, batch_idx):
-        loss = self._shared_step(batch, batch_idx)
+        loss, acc = self._shared_step(batch, batch_idx)
 
         self.log("train_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
 
+        self.log("train_accuracy", acc, sync_dist=True, prog_bar=True)
+
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss = self._shared_step(batch, batch_idx)
+        loss, acc = self._shared_step(batch, batch_idx)
 
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
+        self.log("val_accuracy", acc, sync_dist=True, prog_bar=True)
 
         return loss
 
     def test_step(self, batch, batch_idx):
-        logits = self(batch) # (b, 1000)
+        logits = self(batch) # (b, num_classes)
         labels = batch["cls_id"].long() # (b)
 
         pred = torch.argmax(logits, dim=1)

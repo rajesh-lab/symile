@@ -42,17 +42,15 @@ def parse_args_save_representations():
                               as input to projection head.")
 
     ### TRAINING ARGS ###
-    parser.add_argument("--batch_sz_train", type=int, default=1,
+    parser.add_argument("--batch_sz_train", type=int, default=300,
                         help="Train batch size for pretraining.")
-    parser.add_argument("--batch_sz_val", type=int, default=1,
+    parser.add_argument("--batch_sz_val", type=int, default=300,
                         help="Val set batch size for pretraining.")
-    parser.add_argument("--batch_sz_test", type=int, default=1,
+    parser.add_argument("--batch_sz_test", type=int, default=300,
                         help="Test set batch size.")
     parser.add_argument("--drop_last", type=str_to_bool, default=False,
                         help="Whether to drop the last non-full batch of each \
                               DataLoader worker's dataset replica.")
-
-    parser.add_argument("--split", type=str)
 
     return parser.parse_args()
 
@@ -62,7 +60,7 @@ def parse_args_main():
 
     ### DATASET ARGS ###
     parser.add_argument("--data_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data/t2_50k/disjoint"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data/t5_50cls_attn/disjoint"),
                         help="Directory with dataset csvs.")
     parser.add_argument("--train_csv", type=Path,
                         default=Path("train.csv"),
@@ -78,7 +76,7 @@ def parse_args_main():
                         help="Whether to use precomputed representations to \
                               train projection heads.")
     parser.add_argument("--precomputed_rep_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data/t2_50k/disjoint"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/test_experiment/data/t5_50cls_attn/disjoint"),
                         help="Where precomputed representations are saved.")
 
     ### MODEL ARGS ###
@@ -97,7 +95,6 @@ def parse_args_main():
     parser.add_argument("--d", type=int, default=768,
                         help="Dimensionality used by the linear projection heads \
                               of all three encoders.")
-    parser.add_argument("--num_classes", type=int, default=50)
     parser.add_argument("--text_embedding", type=str,
                         choices = ["eos", "bos"], default="eos",
                         help="Whether to use text encoder BOS or EOS embedding \
@@ -143,7 +140,7 @@ def parse_args_main():
     parser.add_argument("--loss_fn", type=str,
                         choices = ["symile", "clip"], default="symile",
                         help="Loss function to use for training.")
-    parser.add_argument("--lr", type=float, default=1.0e-4,
+    parser.add_argument("--lr", type=float, default=1.0e-3,
                         help="Learning rate.")
     parser.add_argument("--normalize", type=str_to_bool, default=True,
                         help="Whether to normalize representations, both during \
@@ -153,7 +150,7 @@ def parse_args_main():
                         help="Whether to use a seed for reproducibility.")
     parser.add_argument("--wandb", type=str_to_bool, default=False,
                         help="Whether to use wandb for logging.")
-    parser.add_argument("--weight_decay", type=float, default=0.0,
+    parser.add_argument("--weight_decay", type=float, default=0.1,
                         help="Weight decay coefficient used by AdamW optimizer.")
 
     ### DEBUGGING ARGS ###

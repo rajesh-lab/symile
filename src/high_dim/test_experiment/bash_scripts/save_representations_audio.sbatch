@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=save_representations_t5_audio_50cls
+#SBATCH --job-name=save_representations_t2_audio
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
@@ -18,7 +18,7 @@ python save_representations_audio.py \
     --batch_sz_val 1 \
     --batch_sz_test 1 \
     --drop_last False \
-    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/data/t5_50cls/disjoint \
-    --save_dir /gpfs/scratch/as16583/symile/src/high_dim/data/t5_50cls/disjoint
+    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/data/t2/disjoint \
+    --save_dir /gpfs/scratch/as16583/symile/src/high_dim/data/t2/disjoint
 
 echo 'done!'
