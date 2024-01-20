@@ -1,4 +1,5 @@
 from argparse import Namespace
+import json
 
 import lightning.pytorch as pl
 import numpy as np
@@ -7,35 +8,17 @@ import torch
 import torch.nn as nn
 from transformers import BertModel, CLIPVisionModel, WhisperModel, XLMRobertaModel
 
-from src.high_dim.constants import CLASSES
 from src.losses import clip, symile
 from src.utils import l2_normalize
 
 
-class ProjectionHead(nn.Module):
-    def __init__(self, hidden_size, d, layer_norm_eps):
-        super().__init__()
-        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-        self.linear_projection = nn.Linear(hidden_size, d, bias=False)
-
-    def forward(self, x):
-        x = self.layer_norm(x)
-        x = self.linear_projection(x)
-        return x
-
-
 class AudioEncoder(nn.Module):
-    def __init__(self, model_id, d, freeze_encoders):
+    def __init__(self, model_id, d):
         super().__init__()
-        self.encoder = WhisperModel.from_pretrained(model_id).encoder
+        enc = WhisperModel.from_pretrained(model_id).encoder
 
-        if freeze_encoders:
-            for p in self.encoder.parameters():
-                p.requires_grad = False
-            self.encoder.eval()
-
-        self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
-                                              self.encoder.layer_norm.eps)
+        self.fc = nn.Linear(enc.config.hidden_size, d, bias=True)
+        self.layer_norm = nn.LayerNorm(d)
 
     def forward(self, x):
         """
@@ -45,31 +28,19 @@ class AudioEncoder(nn.Module):
         Returns:
             x (torch.Tensor): shape (batch_sz, d)
         """
-        if type(x) is dict: # not using precomputed tensors
-            x = self.encoder(input_features=x["input_features"],
-                             attention_mask=x["attention_mask"])
-            x = x["last_hidden_state"]
-
-            # select first embedding as done by ImageBind:
-            # https://github.com/facebookresearch/ImageBind/blob/95d27c7fd5a8362f3527e176c3a80ae5a4d880c0/imagebind/models/imagebind_model.py#L391C3-L391C3
-            x = x[:, 0, :]
-
-        x = self.projection_head(x)
+        x = self.fc(x)
+        x = x.mean(dim=1)
+        x = self.layer_norm(x)
         return x
 
 
 class ImageEncoder(nn.Module):
-    def __init__(self, model_id, d, freeze_encoders):
+    def __init__(self, model_id, d):
         super().__init__()
-        self.encoder = CLIPVisionModel.from_pretrained(model_id)
+        enc = CLIPVisionModel.from_pretrained(model_id)
 
-        if freeze_encoders:
-            for p in self.encoder.parameters():
-                p.requires_grad = False
-            self.encoder.eval()
-
-        self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
-                                              self.encoder.config.layer_norm_eps)
+        self.fc = nn.Linear(enc.config.hidden_size, d, bias=True)
+        self.layer_norm = nn.LayerNorm(d)
 
     def forward(self, x):
         """
@@ -78,35 +49,20 @@ class ImageEncoder(nn.Module):
         Returns:
             x (torch.Tensor): shape (batch_sz, d)
         """
-        if type(x) is dict: # not using precomputed tensors
-            x = self.encoder(pixel_values=x["pixel_values"])
-            x = x["last_hidden_state"]
-
-            # select first embedding as done by transformers' CLIP and ImageBind:
-            # https://github.com/huggingface/transformers/blob/41aef33758ae166291d72bc381477f2db84159cf/src/transformers/models/clip/modeling_clip.py#L894
-            # https://github.com/facebookresearch/ImageBind/blob/95d27c7fd5a8362f3527e176c3a80ae5a4d880c0/imagebind/models/imagebind_model.py#L380
-            x = x[:, 0, :]
-
-        x = self.projection_head(x)
+        x = self.fc(x)
+        x = self.layer_norm(x)
         return x
 
 
 class TextEncoder(nn.Module):
-    def __init__(self, model_id, d, freeze_encoders, feat_token_id):
+    def __init__(self, model_id, d):
         super().__init__()
-        self.feat_token_id = feat_token_id
         if model_id == "bert-base-multilingual-cased":
             self.encoder = BertModel.from_pretrained(model_id)
         elif model_id == "xlm-roberta-base":
             self.encoder = XLMRobertaModel.from_pretrained(model_id)
 
-        if freeze_encoders:
-            for p in self.encoder.parameters():
-                p.requires_grad = False
-            self.encoder.eval()
-
-        self.projection_head = ProjectionHead(self.encoder.config.hidden_size, d,
-                                              self.encoder.config.layer_norm_eps)
+        self.layer_norm = nn.LayerNorm(d)
 
     def forward(self, x):
         """
@@ -118,19 +74,9 @@ class TextEncoder(nn.Module):
             Returns:
                 x (torch.Tensor): shape (batch_sz, d)
         """
-        if type(x) is dict: # not using precomputed tensors
-            x_arg = x
-            x = self.encoder(input_ids=x_arg["input_ids"],
-                             attention_mask=x_arg["attention_mask"])
-            x = x["last_hidden_state"] # shape (batch_sz, len_longest_seq, d)
-
-            # take features from EOS or BOS embedding. x has shape (b, l, d).
-            # argmax returns first index of feat_token_id in case pad_token_id is
-            # equal to feat_token_id.
-            x = x[torch.arange(x.shape[0]),
-                (x_arg["input_ids"] == self.feat_token_id).int().argmax(dim=-1)] # (b, d)
-
-        x = self.projection_head(x) # (b, d)
+        x = self.encoder(**x)
+        x = x[1] # get pooled output
+        x = self.layer_norm(x)
         return x
 
 
@@ -142,13 +88,9 @@ class SSLModel(pl.LightningModule):
         self.args = Namespace(**args)
         self.loss_fn = symile if self.args.loss_fn == "symile" else clip
 
-        self.audio_encoder = AudioEncoder(self.args.audio_model_id, self.args.d,
-                                          self.args.freeze_encoders)
-        self.image_encoder = ImageEncoder(self.args.image_model_id, self.args.d,
-                                          self.args.freeze_encoders)
-        self.text_encoder = TextEncoder(self.args.text_model_id, self.args.d,
-                                        self.args.freeze_encoders,
-                                        self.args.feat_token_id)
+        self.audio_encoder = AudioEncoder(self.args.audio_model_id, self.args.d)
+        self.image_encoder = ImageEncoder(self.args.image_model_id, self.args.d)
+        self.text_encoder = TextEncoder(self.args.text_model_id, self.args.d)
 
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
@@ -159,16 +101,9 @@ class SSLModel(pl.LightningModule):
             self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
 
     def forward(self, x):
-        if self.args.use_precomputed_representations:
-            r_a = self.audio_encoder(x["audio"])
-            r_i = self.image_encoder(x["image"])
-            r_t = self.text_encoder(x["text"])
-        else:
-            r_a = self.audio_encoder({"input_features": x["audio_input_features"],
-                                      "attention_mask": x["audio_attention_mask"]})
-            r_i = self.image_encoder({"pixel_values": x["image_pixel_values"]})
-            r_t = self.text_encoder({"input_ids": x["text_input_ids"],
-                                     "attention_mask": x["text_attention_mask"]})
+        r_a = self.audio_encoder(x["audio"])
+        r_i = self.image_encoder(x["image"])
+        r_t = self.text_encoder(x["text"])
         return r_a, r_i, r_t, self.logit_scale.exp()
 
     def configure_optimizers(self):
@@ -178,8 +113,7 @@ class SSLModel(pl.LightningModule):
     def _shared_step(self, batch, batch_idx):
         r_a, r_i, r_t, logit_scale_exp = self(batch)
 
-        if self.args.normalize:
-            r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
+        # r_a, r_i, r_t = l2_normalize([r_a, r_i, r_t])
 
         return r_a, r_i, r_t, logit_scale_exp
 
@@ -190,10 +124,15 @@ class SSLModel(pl.LightningModule):
 
         log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
 
+        # zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"], batch["lang"], batch["cls"], "train", lang_and_cls_acc=False)
+
         self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
                       on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
         self.log("log_n_minus_1", log_n_minus_1,
                  on_step=False, on_epoch=True, sync_dist=False, prog_bar=False)
+
+        # self.log("train_accuracy", zeroshot_acc, sync_dist=True, prog_bar=False)
+        # self.log_dict(cls_acc, on_step=True, on_epoch=True, sync_dist=True, prog_bar=False)
 
         return loss
 
@@ -202,20 +141,25 @@ class SSLModel(pl.LightningModule):
 
         loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.efficient_loss)
 
-        log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
+        # log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
+
+        # zeroshot_acc = self.zeroshot_accuracy(
+        #     r_a, r_t, batch["idx"], batch["lang"], batch["cls"], "val", lang_and_cls_acc=False
+        # )
 
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
-        self.log("log_n_minus_1", log_n_minus_1,
-                 on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
+
+        # self.log("val_accuracy", zeroshot_acc,
+        #          on_step=True, on_epoch=True, sync_dist=True, prog_bar=False)
 
         return loss
 
-    def on_test_start(self):
-        """
-        Compute or get r_i, which is the image representations for all data samples.
-        """
-        self.save_image_representations()
+    # def on_fit_start(self):
+    #     """
+    #     Compute or get r_i, which is the image representations for all data samples.
+    #     """
+        # self.save_image_representations()
 
     def save_heatmap(self, batch_cls, r_a, r_i, r_t, logit_scale_exp):
         classes = CLASSES[self.args.n_classes]
@@ -265,39 +209,103 @@ class SSLModel(pl.LightningModule):
         """
         Compute or get r_i, which is the image representations for all data samples.
         """
-        classes = CLASSES[self.args.n_classes]
-
+        # NOTE: if calculating accuracy for train, then make sure that dataloader shuffle is False!
+        # train
         r_i_list = []
         cls_id_list = []
         idx_list = []
-
-        for x in self.trainer.datamodule.test_dataloader():
-
-            if self.args.use_precomputed_representations:
-                r_i = self.image_encoder(x["image"].to(self.device))
-            else:
-                r_i = self.image_encoder(
-                    {"pixel_values": x["image_pixel_values"].to(self.device)}
-                    )
+        for x in self.trainer.datamodule.train_dataloader():
+            r_i = self.image_encoder(x["image"].to(self.device))
 
             r_i_list.append(r_i)
-            cls_id_list += [classes[c] for c in x["cls"]]
+            cls_id_list.append(x["cls_id"])
             idx_list.append(x["idx"])
+        self.r_i_train = torch.cat(r_i_list)
+        self.cls_id_train = torch.cat(cls_id_list).to(self.device)
+        self.r_i_idx_train = torch.cat(idx_list).to(self.device)
 
-        self.cls_id_test = torch.tensor(cls_id_list).to(self.device)
+        # val
+        r_i_list = []
+        cls_id_list = []
+        idx_list = []
+        for x in self.trainer.datamodule.val_dataloader():
+            r_i = self.image_encoder(x["image"].to(self.device))
+
+            r_i_list.append(r_i)
+            cls_id_list.append(x["cls_id"])
+            idx_list.append(x["idx"])
+        self.r_i_val = torch.cat(r_i_list)
+        self.cls_id_val = torch.cat(cls_id_list).to(self.device)
+        self.r_i_idx_val = torch.cat(idx_list).to(self.device)
+
+        # test
+        r_i_list = []
+        cls_id_list = []
+        idx_list = []
+        for x in self.trainer.datamodule.test_dataloader():
+            r_i = self.image_encoder(x["image"].to(self.device))
+
+            r_i_list.append(r_i)
+            cls_id_list.append(x["cls_id"])
+            idx_list.append(x["idx"])
+        self.r_i_test = torch.cat(r_i_list)
+        self.cls_id_test = torch.cat(cls_id_list).to(self.device)
         self.r_i_idx_test = torch.cat(idx_list).to(self.device)
 
-        r_i = torch.cat(r_i_list)
+        # [r_i] = l2_normalize([r_i])
 
-        if self.args.normalize:
-            [r_i] = l2_normalize([r_i])
+    def acc_per_lang(self, y_true, y_pred, batch_lang):
+        acc_per_lang = {}
 
-        self.r_i_test = r_i
+        for lang in ["ar", "en", "ja", "ko", "uk"]:
+            lang_indices = np.array(batch_lang) == lang
+            lang_pred = y_pred[lang_indices]
+            lang_true = y_true[lang_indices]
 
-    def zeroshot_accuracy(self, r_a, r_t, batch_idx):
-        r_i = self.r_i_test
-        cls_id = self.cls_id_test
-        r_i_idx = self.r_i_idx_test
+            correct_predictions = torch.sum((lang_pred == lang_true).to(torch.int))
+            total_samples = len(lang_pred)
+
+            if total_samples > 0:
+                acc_per_lang[lang + "_acc"] = (correct_predictions / total_samples).item()
+            else:
+                acc_per_lang[lang + "_acc"] = 0.0  # avoid division by zero if no samples
+
+        return acc_per_lang
+
+    def acc_per_class(self, y_true, y_pred, batch_cls):
+        data_ref = json.load(open(self.args.data_reference))
+
+        acc_per_cls = {}
+
+        for cls in data_ref.keys():
+            cls_indices = np.array(batch_cls) == cls
+            cls_pred = y_pred[cls_indices]
+            cls_true = y_true[cls_indices]
+
+            correct_predictions = torch.sum((cls_pred == cls_true).to(torch.int))
+            total_samples = len(cls_pred)
+
+            if total_samples > 0:
+                acc_per_cls[cls + "_acc"] = (correct_predictions / total_samples).item()
+            else:
+                acc_per_cls[cls + "_acc"] = 0.0  # avoid division by zero if no samples
+
+        return acc_per_cls
+
+    def zeroshot_accuracy(self, r_a, r_t, batch_idx, batch_lang, batch_cls, split, lang_and_cls_acc=False):
+        # NOTE: if calculating accuracy for train, then make sure that dataloader shuffle is False!
+        if split == "train":
+            r_i = self.r_i_train
+            cls_id = self.cls_id_train
+            r_i_idx = self.r_i_idx_train
+        elif split == "val":
+            r_i = self.r_i_val
+            cls_id = self.cls_id_val
+            r_i_idx = self.r_i_idx_val
+        elif split == "test":
+            r_i = self.r_i_test
+            cls_id = self.cls_id_test
+            r_i_idx = self.r_i_idx_test
 
         if self.args.loss_fn == "symile":
             # logits is a (batch_sz, n) matrix where each row i is
@@ -327,7 +335,14 @@ class SSLModel(pl.LightningModule):
             r_i_idx.unsqueeze(1) == batch_idx.unsqueeze(0), as_tuple=False)
         y = cls_id[matching_indices[:, 0]]
 
-        return (torch.sum(y == pred) / len(y)).item()
+        zeroshot_acc = (torch.sum(y == pred) / len(y)).item()
+
+        if lang_and_cls_acc:
+            lang_acc = self.acc_per_lang(y, pred, batch_lang)
+            cls_acc = self.acc_per_class(y, pred, batch_cls)
+            return zeroshot_acc, lang_acc, cls_acc
+        else:
+            return zeroshot_acc
 
     def test_step(self, batch, batch_idx):
         """
@@ -339,6 +354,10 @@ class SSLModel(pl.LightningModule):
         if batch_idx == 0 and self.args.save_test_heatmap:
             self.save_heatmap(batch["cls"], r_a, r_i, r_t, logit_scale_exp)
 
-        zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"])
+        # zeroshot_acc, lang_acc, cls_acc = self.zeroshot_accuracy(
+        #     r_a, r_t, batch["idx"], batch["lang"], batch["cls"], "test", lang_and_cls_acc=True
+        # )
 
-        self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)
+        # self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)
+        # self.log_dict(lang_acc, on_step=True, on_epoch=True)
+        # self.log_dict(cls_acc, on_step=True, on_epoch=True)

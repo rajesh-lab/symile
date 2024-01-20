@@ -11,19 +11,20 @@ from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
 
 from args import parse_args_main
-from datasets import HighDimDataModule, HighDimPrecomputedDataModule
+from datasets import HighDimDataModule
 from models import SSLModel
 
 
 def main(args, trainer):
-    if args.use_precomputed_representations:
-        dm = HighDimPrecomputedDataModule(args)
-    else:
-        dm = HighDimDataModule(args)
+    dm = HighDimDataModule(args)
     dm.setup(stage="fit")
-    args.feat_token_id = dm.feat_token_id
 
-    model = SSLModel(**vars(args))
+    if args.load_from_ckpt == "None":
+        print("Training from scratch!")
+        model = SSLModel(**vars(args))
+    else:
+        print("Loading checkpoint from ", args.load_from_ckpt)
+        model = SSLModel.load_from_checkpoint(args.load_from_ckpt)
     trainer.fit(model, datamodule=dm)
 
     trainer.test(ckpt_path="best", datamodule=dm)
@@ -51,7 +52,7 @@ if __name__ == '__main__':
     print("\nSaving to: ", save_dir)
 
     if args.wandb:
-        logger = WandbLogger(project="symile", log_model="all", save_dir=args.ckpt_save_dir)
+        logger = WandbLogger(project="symile", log_model=False, save_dir=args.ckpt_save_dir)
     else:
         logger = False
 
@@ -77,7 +78,8 @@ if __name__ == '__main__':
         log_every_n_steps=1,
         logger=logger,
         max_epochs=args.epochs,
-        num_sanity_val_steps=0
+        num_sanity_val_steps=0,
+        profiler="simple"
     )
 
     main(args, trainer)

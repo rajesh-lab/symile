@@ -1,42 +1,27 @@
 import os
 
 import lightning.pytorch as pl
+import numpy as np
 import pandas as pd
 from PIL import Image
 import torch
 import torchaudio
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertTokenizer, CLIPImageProcessor, \
-                         WhisperFeatureExtractor, XLMRobertaTokenizer
+                         WhisperFeatureExtractor, XLMRobertaTokenizer, \
+                         MT5EncoderModel, T5Tokenizer
+
+
+from src.high_dim.constants import LANGUAGES
+
 
 class HighDimDataset(Dataset):
-    def __init__(self, df, audio_feat_extractor, img_processor):
+    def __init__(self, df, data_dir, split):
         self.df = df
-        self.audio_feat_extractor = audio_feat_extractor
-        self.img_processor = img_processor
+        self.split_dir = data_dir / f"{split}"
 
     def __len__(self):
         return len(self.df)
-
-    def get_audio(self, path):
-        # downsample to 16kHz, as expected by Whisper, before passing to feature extractor
-        waveform, sr = torchaudio.load(path)
-        resampler = torchaudio.transforms.Resample(sr, self.audio_feat_extractor.sampling_rate)
-        waveform = torch.squeeze(resampler(waveform))
-        audio = self.audio_feat_extractor(
-                        waveform,
-                        return_attention_mask=True,
-                        return_tensors="pt",
-                        sampling_rate=self.audio_feat_extractor.sampling_rate,
-                        do_normalize=True
-                    )
-        return {"input_features": torch.squeeze(audio.input_features),
-                "attention_mask": torch.squeeze(audio.attention_mask)}
-
-    def get_image(self, path):
-        image = Image.open(path)
-        image = self.img_processor(images=image, return_tensors="pt")
-        return {"pixel_values": torch.squeeze(image.pixel_values)}
 
     def __getitem__(self, idx):
         """
@@ -53,46 +38,25 @@ class HighDimDataset(Dataset):
                 - target_text: (str) with target text.
                 - idx: (int) unique identifier for data sample.
         """
-        audio = self.get_audio(self.df.iloc[idx].audio_path)
-        image = self.get_image(self.df.iloc[idx].image_path)
+        audio = np.load(self.split_dir / f"audio/{self.df.iloc[idx].audio_filename}.npy")
+
+        image = np.load(self.split_dir / f"image/{self.df.iloc[idx].image_filename}.npy")
+
         text = self.df.iloc[idx].text
-        lang = self.df.iloc[idx].lang
+
         cls = self.df.iloc[idx].cls
+        cls_id = self.df.iloc[idx].cls_id
+
+        lang = self.df.iloc[idx].lang
+        lang_id = LANGUAGES[lang]
+
         target_text = self.df.iloc[idx].target_text
 
-        item_dict = {"audio": audio, "image": image, "text": text,
-                     "lang": lang, "cls": cls, "target_text": target_text,
-                     "idx": idx}
-
-        return item_dict
-
-
-class HighDimPrecomputedDataset(Dataset):
-    def __init__(self, dataset_dir, split):
-        split_dir = dataset_dir / f"{split}"
-        self.audio = torch.load(split_dir / f"audio_{split}.pt")
-        self.image = torch.load(split_dir / f"image_{split}.pt")
-        self.text = torch.load(split_dir / f"text_{split}.pt")
-        self.lang_df = pd.read_csv(split_dir / "lang.txt",
-                                   header=None, names=["lang"])
-        self.cls_df = pd.read_csv(split_dir / "cls.txt",
-                                  header=None, names=["cls"])
-        self.target_text_df = pd.read_csv(split_dir / "target_text.txt",
-                                          header=None, names=["target_text"])
-        self.idx = torch.load(split_dir / f"idx_{split}.pt")
-
-    def __len__(self):
-        return len(self.audio)
-
-    def __getitem__(self, idx):
-        return {"audio": self.audio[idx],
-                "image": self.image[idx],
-                "text": self.text[idx],
-                "lang": self.lang_df.iloc[idx].lang,
-                "cls": self.cls_df.iloc[idx].cls,
-                "target_text": self.target_text_df.iloc[idx].target_text,
-                "idx": self.idx[idx]}
-
+        return {"audio": audio, "image": image, "text": text,
+                "cls": cls, "cls_id": cls_id,
+                "lang": lang, "lang_id": lang_id,
+                "target_text": target_text,
+                "idx": idx}
 
 class Collator:
     """
@@ -120,39 +84,39 @@ class Collator:
                 - z_t: torch.Tensor of shape (batch_sz) with z_t used in data generating process
                 - idx: torch.Tensor of shape (batch_sz) with unique identifier for data sample
         """
-        audio_input_features = torch.stack([s["audio"]["input_features"] for s in batch])
-        audio_attention_mask = torch.stack([s["audio"]["attention_mask"] for s in batch])
+        audio = torch.tensor(np.stack([s["audio"] for s in batch]))
 
-        image_pixel_values = torch.stack([s["image"]["pixel_values"] for s in batch])
+        image = torch.tensor(np.stack([s["image"] for s in batch]))
 
         text_list = [s["text"] for s in batch]
         text = self.txt_tokenizer(text=text_list, return_tensors="pt",
                                   padding=True, truncation=True)
 
         lang = [s["lang"] for s in batch]
+        lang_id = torch.tensor([s["lang_id"] for s in batch])
+
         cls = [s["cls"] for s in batch]
+        cls_id = torch.tensor([s["cls_id"] for s in batch])
+
         target_text = [s["target_text"] for s in batch]
-        idx = torch.Tensor([s["idx"] for s in batch])
 
-        batched_data = {"audio_input_features": audio_input_features,
-                        "audio_attention_mask": audio_attention_mask,
-                        "image_pixel_values": image_pixel_values,
-                        "text_input_ids": text["input_ids"],
-                        "text_attention_mask": text["attention_mask"],
-                        "lang": lang,
-                        "cls": cls,
-                        "target_text": target_text,
-                        "idx": idx}
+        idx = torch.tensor([s["idx"] for s in batch])
 
-        return batched_data
+        return {"audio": audio,
+                "image": image,
+                "text": text,
+                "lang": lang,
+                "lang_id": lang_id,
+                "cls": cls,
+                "cls_id": cls_id,
+                "target_text": target_text,
+                "idx": idx}
 
 
 class BaseDataModule(pl.LightningDataModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.audio_feat_extractor = WhisperFeatureExtractor.from_pretrained(args.audio_model_id)
-        self.img_processor = CLIPImageProcessor.from_pretrained(args.image_model_id)
 
         # from max_num_worker_suggest in DataLoader docs
         self.num_workers = len(os.sched_getaffinity(0))
@@ -172,16 +136,10 @@ class BaseDataModule(pl.LightningDataModule):
         """
         if self.args.text_model_id == "bert-base-multilingual-cased":
             self.txt_tokenizer = BertTokenizer.from_pretrained(self.args.text_model_id)
-            if self.args.text_embedding == "eos":
-                self.feat_token_id = self.txt_tokenizer.sep_token_id
-            elif self.args.text_embedding == "bos":
-                self.feat_token_id = self.txt_tokenizer.cls_token_id
         elif self.args.text_model_id == "xlm-roberta-base":
             self.txt_tokenizer = XLMRobertaTokenizer.from_pretrained(self.args.text_model_id)
-            if self.args.text_embedding == "eos":
-                self.feat_token_id = self.txt_tokenizer.eos_token_id
-            elif self.args.text_embedding == "bos":
-                self.feat_token_id = self.txt_tokenizer.bos_token_id
+        elif self.args.text_model_id == "google/mt5-base" or self.args.text_model_id == "google/mt5-small":
+            self.txt_tokenizer =tokenizer = T5Tokenizer.from_pretrained(self.args.text_model_id)
 
 
 class HighDimDataModule(BaseDataModule):
@@ -192,13 +150,13 @@ class HighDimDataModule(BaseDataModule):
         self.text_tokenization()
 
         df_train = pd.read_csv(self.args.data_dir / self.args.train_csv)
-        self.ds_train = HighDimDataset(df_train, self.audio_feat_extractor, self.img_processor)
+        self.ds_train = HighDimDataset(df_train, self.args.data_dir, "train")
 
         df_val = pd.read_csv(self.args.data_dir / self.args.val_csv)
-        self.ds_val = HighDimDataset(df_val, self.audio_feat_extractor, self.img_processor)
+        self.ds_val = HighDimDataset(df_val, self.args.data_dir, "val")
 
         df_test = pd.read_csv(self.args.data_dir / self.args.test_csv)
-        self.ds_test = HighDimDataset(df_test, self.audio_feat_extractor, self.img_processor)
+        self.ds_test = HighDimDataset(df_test, self.args.data_dir, "test")
 
     def train_dataloader(self):
         return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train,
@@ -217,32 +175,4 @@ class HighDimDataModule(BaseDataModule):
         return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
                           num_workers=self.num_workers,
                           collate_fn=Collator(self.txt_tokenizer),
-                          drop_last=self.args.drop_last)
-
-
-class HighDimPrecomputedDataModule(BaseDataModule):
-    def __init__(self, args):
-        super().__init__(args)
-
-    def setup(self, stage):
-        self.text_tokenization()
-
-        self.ds_train = HighDimPrecomputedDataset(self.args.precomputed_rep_dir, "train")
-        self.ds_val = HighDimPrecomputedDataset(self.args.precomputed_rep_dir, "val")
-        self.ds_test = HighDimPrecomputedDataset(self.args.precomputed_rep_dir, "test")
-
-    def train_dataloader(self):
-        return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train,
-                          shuffle=True,
-                          num_workers=self.num_workers,
-                          drop_last=self.args.drop_last)
-
-    def val_dataloader(self):
-        return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
-                          num_workers=self.num_workers,
-                          drop_last=self.args.drop_last)
-
-    def test_dataloader(self):
-        return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
-                          num_workers=self.num_workers,
                           drop_last=self.args.drop_last)

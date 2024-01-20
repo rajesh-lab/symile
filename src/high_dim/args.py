@@ -110,10 +110,8 @@ def parse_args_main():
 
     ### DATASET ARGS ###
     parser.add_argument("--data_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/disjoint"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/t2_50cls/disjoint"),
                         help="Directory with dataset csvs.")
-    parser.add_argument("--n_classes", type=int, default=5,
-                        help="Number of classes in data.")
     parser.add_argument("--train_csv", type=Path,
                         default=Path("train.csv"),
                         help="Filename for train csv.")
@@ -123,13 +121,10 @@ def parse_args_main():
     parser.add_argument("--test_csv", type=Path,
                         default=Path("zeroshot.csv"),
                         help="Filename for test csv.")
-    parser.add_argument("--use_precomputed_representations", type=str_to_bool,
-                        default=True,
-                        help="Whether to use precomputed representations to \
-                              train projection heads.")
-    parser.add_argument("--precomputed_rep_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/disjoint"),
-                        help="Where precomputed representations are saved.")
+    parser.add_argument("--data_reference", type=Path,
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_reference_50.json"),
+                        help="Path to json file with class names, ImageNet synset \
+                              id, and language translations.")
 
     ### MODEL ARGS ###
     parser.add_argument("--audio_model_id", type=str,
@@ -171,13 +166,11 @@ def parse_args_main():
     parser.add_argument("--early_stopping_patience", type=int, default=20,
                         help="Number of val checks with no improvement after \
                               which pre-training will be stopped.")
-    parser.add_argument("--efficient_loss", type=str_to_bool, default=False,
+    parser.add_argument("--efficient_loss", type=str_to_bool, default=True,
                         help="Whether to compute logits with only \
                               (batch_size^2 - batch_size) negatives.")
     parser.add_argument("--epochs", type=int, default=2,
                         help="Number of epochs to pretrain for.")
-    parser.add_argument("--freeze_encoders", type=str_to_bool, default=True,
-                        help="Whether to freeze encoders during pretraining.")
     parser.add_argument("--freeze_logit_scale", type=str_to_bool, default=False,
                         help="Whether to freeze logit scale during pretraining.")
     parser.add_argument("--logit_scale_init", type=float, default=0,
@@ -188,10 +181,7 @@ def parse_args_main():
                         help="Loss function to use for training.")
     parser.add_argument("--lr", type=float, default=1.0e-3,
                         help="Learning rate.")
-    parser.add_argument("--normalize", type=str_to_bool, default=True,
-                        help="Whether to normalize representations, both during \
-                              pre-training before loss calculation and during evaluation.")
-    parser.add_argument("--save_test_heatmap", type=str_to_bool, default=True,
+    parser.add_argument("--save_test_heatmap", type=str_to_bool, default=False,
                         help="Whether to save heatmap of the logits for the \
                               first batch of the test set.")
     parser.add_argument("--seed", type=int, default=0)
@@ -199,7 +189,7 @@ def parse_args_main():
                         help="Whether to use a seed for reproducibility.")
     parser.add_argument("--wandb", type=str_to_bool, default=False,
                         help="Whether to use wandb for logging.")
-    parser.add_argument("--weight_decay", type=float, default=0.1,
+    parser.add_argument("--weight_decay", type=float, default=0.0,
                         help="Weight decay coefficient used by AdamW optimizer.")
 
     ### DEBUGGING ARGS ###
@@ -211,5 +201,9 @@ def parse_args_main():
                         help="How much of val dataset to check. Useful \
                               when debugging. 1.0 is default used by Trainer. \
                               Set to 0.1 to check 10% of dataset.")
+
+    parser.add_argument("--load_from_ckpt", type=str,
+                        default=None,
+                        help="Checkpoint to load from.")
 
     return parser.parse_args()
