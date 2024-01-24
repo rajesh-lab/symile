@@ -371,5 +371,5 @@ if __name__ == '__main__':
     fig.write_image(save_dir / "mi.png")
 
     end = time.time()
-    total_time = end - start
-    print(f"Script took {total_time:.4f} seconds")
+    total_time = (end - start)/60
+    print(f"Script took {total_time:.4f} minutes")
