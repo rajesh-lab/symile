@@ -4,6 +4,7 @@ sampled using XOR.
 """
 from datetime import datetime
 import os
+import time
 
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -17,7 +18,6 @@ from models import SSLModel
 
 def main(args, trainer):
     dm = HighDimDataModule(args)
-    dm.setup(stage="fit")
 
     if args.load_from_ckpt == "None":
         print("Training from scratch!")
@@ -31,6 +31,8 @@ def main(args, trainer):
 
 
 if __name__ == '__main__':
+    start = time.time()
+
     if os.getenv('SINGULARITY_CONTAINER'):
         os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
     else:
@@ -79,7 +81,11 @@ if __name__ == '__main__':
         logger=logger,
         max_epochs=args.epochs,
         num_sanity_val_steps=0,
-        profiler="simple"
+        profiler=None
     )
 
     main(args, trainer)
+
+    end = time.time()
+    total_time = (end - start)/60
+    print(f"Script took {total_time:.4f} minutes")
