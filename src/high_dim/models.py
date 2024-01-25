@@ -3,7 +3,6 @@ import json
 
 import lightning.pytorch as pl
 import numpy as np
-import plotly.express as px
 import torch
 import torch.nn as nn
 from transformers import BertModel, CLIPVisionModel, WhisperModel, XLMRobertaModel
@@ -29,7 +28,6 @@ class AudioEncoder(nn.Module):
             x (torch.Tensor): shape (batch_sz, d)
         """
         x = self.fc(x)
-        x = x.mean(dim=1)
         x = self.layer_norm(x)
         return x
 
@@ -124,15 +122,10 @@ class SSLModel(pl.LightningModule):
 
         log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
 
-        # zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"], batch["lang"], batch["cls"], "train", lang_and_cls_acc=False)
-
         self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
                       on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
         self.log("log_n_minus_1", log_n_minus_1,
                  on_step=False, on_epoch=True, sync_dist=False, prog_bar=False)
-
-        # self.log("train_accuracy", zeroshot_acc, sync_dist=True, prog_bar=False)
-        # self.log_dict(cls_acc, on_step=True, on_epoch=True, sync_dist=True, prog_bar=False)
 
         return loss
 
@@ -141,88 +134,41 @@ class SSLModel(pl.LightningModule):
 
         loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.efficient_loss)
 
-        # log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
-
-        # zeroshot_acc = self.zeroshot_accuracy(
-        #     r_a, r_t, batch["idx"], batch["lang"], batch["cls"], "val", lang_and_cls_acc=False
-        # )
+        zeroshot_acc = self.zeroshot_accuracy(
+            r_a, r_t, batch["idx"], batch["lang"], batch["cls"], "val", lang_and_cls_acc=False
+        )
 
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
-
-        # self.log("val_accuracy", zeroshot_acc,
-        #          on_step=True, on_epoch=True, sync_dist=True, prog_bar=False)
+        self.log("val_accuracy", zeroshot_acc,
+                 on_step=True, on_epoch=True, sync_dist=True, prog_bar=False)
 
         return loss
 
-    # def on_fit_start(self):
-    #     """
-    #     Compute or get r_i, which is the image representations for all data samples.
-    #     """
-        # self.save_image_representations()
-
-    def save_heatmap(self, batch_cls, r_a, r_i, r_t, logit_scale_exp):
-        classes = CLASSES[self.args.n_classes]
-
-        # get indices that would sort r_a, r_i, r_t based on class id
-        batch_cls_id = torch.tensor([classes[c] for c in batch_cls])
-        sorted_indices = torch.argsort(batch_cls_id) # (bsz)
-
-        # use sorted_indices to reorder r_a, r_i, r_t
-        r_a = r_a[sorted_indices]
-        r_i = r_i[sorted_indices]
-        r_t = r_t[sorted_indices]
-
-        ### GET LOGITS ###
-        if self.args.loss_fn == "symile":
-            # logits is a (bsz, bsz) matrix where each row i is
-            # [ MIP(r_a[i], r_i[0], r_t[i]) ... MIP(r_a[i], r_i[bsz-1], r_t[i]) ]
-            # where MIP is the multilinear inner product.
-            logits = (r_a * r_t) @ torch.t(r_i)
-        elif self.args.loss_fn == "clip":
-            # logits is a (bsz, bsz) matrix where each row i is
-            # [ r_a[i]^T r_i[0]     + r_i[0]^T r_t[i]     + r_a[i]^T r_t[i] ...
-            #   r_a[i]^T r_i[bsz-1] + r_i[bsz-1]^T r_t[i] + r_a[i]^T r_t[i] ]
-            at = torch.diagonal(r_a @ torch.t(r_t)).unsqueeze(dim=1) # (bsz, 1)
-            logits = at + (r_a @ torch.t(r_i)) + (r_t @ torch.t(r_i))
-
-        logits = logit_scale_exp * logits
-
-        ### SAVE HEATMAP ###
-        fig = px.imshow(logits.cpu().numpy(), aspect="auto",
-                        color_continuous_scale="blues")
-        fig.write_image(self.args.save_dir / "logits.png")
-
-        ### SAVE PAIRWISE HEATMAPS ###
-        ai = r_a @ torch.t(r_i) # (bsz, bsz)
-        at = r_a @ torch.t(r_t) # (bsz, bsz)
-        it = r_i @ torch.t(r_t) # (bsz, bsz)
-
-        fig = px.imshow(ai.cpu().numpy(), aspect="auto", color_continuous_scale="blues")
-        fig.write_image(self.args.save_dir / "dotproduct_ai.png")
-        fig = px.imshow(at.cpu().numpy(), aspect="auto", color_continuous_scale="blues")
-        fig.write_image(self.args.save_dir / "dotproduct_at.png")
-        fig = px.imshow(it.cpu().numpy(), aspect="auto", color_continuous_scale="blues")
-        fig.write_image(self.args.save_dir / "dotproduct_it.png")
+    def on_fit_start(self):
+        """
+        Compute or get r_i, which is the image representations for all data samples.
+        """
+        self.save_image_representations()
 
     def save_image_representations(self):
         """
         Compute or get r_i, which is the image representations for all data samples.
         """
         # NOTE: if calculating accuracy for train, then make sure that dataloader shuffle is False!
-        # train
-        r_i_list = []
-        cls_id_list = []
-        idx_list = []
-        for x in self.trainer.datamodule.train_dataloader():
-            r_i = self.image_encoder(x["image"].to(self.device))
+        # # train
+        # r_i_list = []
+        # cls_id_list = []
+        # idx_list = []
+        # for x in self.trainer.datamodule.train_dataloader():
+        #     r_i = self.image_encoder(x["image"].to(self.device))
 
-            r_i_list.append(r_i)
-            cls_id_list.append(x["cls_id"])
-            idx_list.append(x["idx"])
-        self.r_i_train = torch.cat(r_i_list)
-        self.cls_id_train = torch.cat(cls_id_list).to(self.device)
-        self.r_i_idx_train = torch.cat(idx_list).to(self.device)
+        #     r_i_list.append(r_i)
+        #     cls_id_list.append(x["cls_id"])
+        #     idx_list.append(x["idx"])
+        # self.r_i_train = torch.cat(r_i_list)
+        # self.cls_id_train = torch.cat(cls_id_list).to(self.device)
+        # self.r_i_idx_train = torch.cat(idx_list).to(self.device)
 
         # val
         r_i_list = []
@@ -294,11 +240,11 @@ class SSLModel(pl.LightningModule):
 
     def zeroshot_accuracy(self, r_a, r_t, batch_idx, batch_lang, batch_cls, split, lang_and_cls_acc=False):
         # NOTE: if calculating accuracy for train, then make sure that dataloader shuffle is False!
-        if split == "train":
-            r_i = self.r_i_train
-            cls_id = self.cls_id_train
-            r_i_idx = self.r_i_idx_train
-        elif split == "val":
+        # if split == "train":
+        #     r_i = self.r_i_train
+        #     cls_id = self.cls_id_train
+        #     r_i_idx = self.r_i_idx_train
+        if split == "val":
             r_i = self.r_i_val
             cls_id = self.cls_id_val
             r_i_idx = self.r_i_idx_val
@@ -350,14 +296,10 @@ class SSLModel(pl.LightningModule):
         """
         r_a, r_i, r_t, logit_scale_exp = self._shared_step(batch, batch_idx)
 
-        # save heatmap of the logits for first batch
-        if batch_idx == 0 and self.args.save_test_heatmap:
-            self.save_heatmap(batch["cls"], r_a, r_i, r_t, logit_scale_exp)
+        zeroshot_acc = self.zeroshot_accuracy(
+            r_a, r_t, batch["idx"], batch["lang"], batch["cls"], "test", lang_and_cls_acc=False
+        )
 
-        # zeroshot_acc, lang_acc, cls_acc = self.zeroshot_accuracy(
-        #     r_a, r_t, batch["idx"], batch["lang"], batch["cls"], "test", lang_and_cls_acc=True
-        # )
-
-        # self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)
+        self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)
         # self.log_dict(lang_acc, on_step=True, on_epoch=True)
         # self.log_dict(cls_acc, on_step=True, on_epoch=True)
