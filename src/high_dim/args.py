@@ -28,14 +28,12 @@ def parse_args_main():
     ### MODEL ARGS ###
     parser.add_argument("--audio_model_id", type=str,
                         default="openai/whisper-tiny",
-                        choices = ["openai/whisper-small", "openai/whisper-tiny"],
                         help="Hugging Face model id for audio encoder.")
     parser.add_argument("--image_model_id", type=str,
                         default="openai/clip-vit-base-patch16",
                         help="Hugging Face model id for image encoder.")
     parser.add_argument("--text_model_id", type=str,
                         default="bert-base-multilingual-cased",
-                        choices = ["bert-base-multilingual-cased", "xlm-roberta-base"],
                         help="Hugging Face model id for text encoder.")
     parser.add_argument("--d", type=int, default=768,
                         help="Dimensionality used by the linear projection heads \
@@ -44,6 +42,9 @@ def parse_args_main():
                         choices = ["eos", "bos"], default="eos",
                         help="Whether to use text encoder BOS or EOS embedding \
                               as input to projection head.")
+    parser.add_argument("--metadata_filename", type=Path,
+                        default=Path("metadata.json"),
+                        help="json filename with metadata for all encoders.")
 
     ### TRAINING ARGS ###
     parser.add_argument("--batch_sz_train", type=int, default=300,
@@ -72,6 +73,9 @@ def parse_args_main():
                         help="Number of epochs to pretrain for.")
     parser.add_argument("--freeze_logit_scale", type=str_to_bool, default=False,
                         help="Whether to freeze logit scale during pretraining.")
+    parser.add_argument("--load_from_ckpt", type=str,
+                        default=None,
+                        help="Checkpoint to load from.")
     parser.add_argument("--logit_scale_init", type=float, default=0,
                         help="Value used to initialize the learned logit_scale. \
                               CLIP used np.log(1 / 0.07) = 2.65926.")
@@ -85,6 +89,9 @@ def parse_args_main():
                         help="Whether to use a seed for reproducibility.")
     parser.add_argument("--wandb", type=str_to_bool, default=False,
                         help="Whether to use wandb for logging.")
+    parser.add_argument("--wandb_run_id", type=str,
+                        default=None,
+                        help="Use if loading from checkpoint and using WandbLogger.")
     parser.add_argument("--weight_decay", type=float, default=0.0,
                         help="Weight decay coefficient used by AdamW optimizer.")
 
@@ -97,9 +104,5 @@ def parse_args_main():
                         help="How much of val dataset to check. Useful \
                               when debugging. 1.0 is default used by Trainer. \
                               Set to 0.1 to check 10% of dataset.")
-
-    parser.add_argument("--load_from_ckpt", type=str,
-                        default=None,
-                        help="Checkpoint to load from.")
 
     return parser.parse_args()
