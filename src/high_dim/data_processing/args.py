@@ -26,13 +26,13 @@ def parse_args_generate_data():
                         choices = ["overlap", "disjoint"], default="disjoint",
                         help="Whether to allow overlap across languauge and \
                               meaning (overlap) or not (disjoint).")
-    parser.add_argument("--text_len", type=int, default=2,
+    parser.add_argument("--text_len", type=int, default=5,
                         help="Number of words in generated text.")
     parser.add_argument("--cv_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/adriel/cv/cv"),
                         help="Directory where CommonVoice audio clips are held.")
     parser.add_argument("--data_reference", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_reference.json"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/datasets/data_reference.json"),
                         help="Path to json file with class names, ImageNet synset \
                               id, and language translations.")
     parser.add_argument("--imagenet_dir", type=Path,
@@ -49,7 +49,6 @@ def parse_args_generate_data():
     parser.add_argument("--test_n", type=int, default=4,
                         help="Number of samples for zeroshot test set.")
     parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/data_c3_l3_t3"),
                         help="Directory to save dataset csvs in.")
 
     return parser.parse_args()
@@ -59,7 +58,6 @@ def parse_args_save_representations():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/datasets/t5/disjoint"),
                         help="Directory with dataset csvs.")
     parser.add_argument("--train_csv", type=Path,
                         default=Path("train.csv"),
@@ -71,20 +69,17 @@ def parse_args_save_representations():
                         default=Path("zeroshot.csv"),
                         help="Filename for test csv.")
     parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/datasets/t5/disjoint"),
                         help="Directory to save dataset tensors in.")
 
     ### MODEL ARGS ###
     parser.add_argument("--audio_model_id", type=str,
                         default="openai/whisper-tiny",
-                        choices = ["openai/whisper-small", "openai/whisper-tiny"],
                         help="Hugging Face model id for audio encoder.")
     parser.add_argument("--image_model_id", type=str,
                         default="openai/clip-vit-base-patch16",
                         help="Hugging Face model id for image encoder.")
     parser.add_argument("--text_model_id", type=str,
                         default="bert-base-multilingual-cased",
-                        choices = ["bert-base-multilingual-cased", "xlm-roberta-base"],
                         help="Hugging Face model id for text encoder.")
 
     ### TRAINING ARGS ###
