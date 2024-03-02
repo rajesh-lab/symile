@@ -22,8 +22,7 @@ def generate_data(args, n, data_ref):
     data_df = pd.DataFrame({})
 
     CLASSES = list(data_ref.keys())
-    # assert len(CLASSES) == 1000, "There should be 1000 ImageNet classes."
-    assert len(CLASSES) == 50, "There should be 50 ImageNet classes."
+    assert len(CLASSES) == 1000, "There should be 1000 ImageNet classes."
 
     # get all possible audio and image paths, and all possible words
     audio_paths = {}
