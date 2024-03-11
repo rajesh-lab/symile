@@ -54,6 +54,38 @@ def parse_args_generate_data():
     return parser.parse_args()
 
 
+def parse_args_split_df():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--csv_to_split", type=Path)
+    parser.add_argument("--sub_df_size", type=int, default=500000,
+                        help="Number of rows for each sub-df.")
+    parser.add_argument("--save_dir", type=Path)
+
+    return parser.parse_args()
+
+
+def parse_args_max_token_len():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--data_dir", type=Path)
+    parser.add_argument("--train_csv", type=Path,
+                        default=Path("train.csv"),
+                        help="Filename for train csv.")
+    parser.add_argument("--val_csv", type=Path,
+                        default=Path("val.csv"),
+                        help="Filename for val csv.")
+    parser.add_argument("--test_csv", type=Path,
+                        default=Path("zeroshot.csv"),
+                        help="Filename for test csv.")
+    parser.add_argument("--save_pt", type=Path,
+                        help="Path to save json file with max token lengths.")
+    parser.add_argument("--text_model_id", type=str,
+                        help="Hugging Face model id for text tokenizer.")
+
+    return parser.parse_args()
+
+
 def parse_args_save_representations():
     parser = argparse.ArgumentParser()
 
@@ -68,8 +100,12 @@ def parse_args_save_representations():
     parser.add_argument("--test_csv", type=Path,
                         default=Path("zeroshot.csv"),
                         help="Filename for test csv.")
+    parser.add_argument("--max_token_len_pt", type=Path,
+                        help="Path to json file with max token lengths.")
     parser.add_argument("--save_dir", type=Path,
                         help="Directory to save dataset tensors in.")
+    parser.add_argument("--split_to_run", type=str,
+                        choices = ["all", "train", "val_test"])
 
     ### MODEL ARGS ###
     parser.add_argument("--audio_model_id", type=str,
@@ -92,5 +128,18 @@ def parse_args_save_representations():
     parser.add_argument("--drop_last", type=str_to_bool, default=False,
                         help="Whether to drop the last non-full batch of each \
                               DataLoader worker's dataset replica.")
+
+    return parser.parse_args()
+
+
+def parse_args_merge_representations():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--data_dir", type=Path,
+                        help="Directory with subdirectories.")
+    parser.add_argument("--save_dir", type=Path,
+                        help="Directory to save merged tensors in.")
+    parser.add_argument("--num_subdirs", type=int,
+                        help="Number of subdirectories.")
 
     return parser.parse_args()
