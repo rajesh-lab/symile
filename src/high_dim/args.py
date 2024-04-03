@@ -21,7 +21,7 @@ def parse_args_main():
                         default=Path("zeroshot.csv"),
                         help="Filename for test csv.")
     parser.add_argument("--data_reference", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_reference_50.json"),
+                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_reference.json"),
                         help="Path to json file with class names, ImageNet synset \
                               id, and language translations.")
 
@@ -84,6 +84,9 @@ def parse_args_main():
                         help="Loss function to use for training.")
     parser.add_argument("--lr", type=float, default=1.0e-3,
                         help="Learning rate.")
+    parser.add_argument("--save_test_heatmaps", type=str_to_bool, default=False,
+                        help="Whether to save heatmap of the logits for the \
+                              first batch of the test set.")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")

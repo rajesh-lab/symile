@@ -3,9 +3,10 @@ import json
 
 import lightning.pytorch as pl
 import numpy as np
+import plotly.express as px
 import torch
 import torch.nn as nn
-from transformers import BertModel, XLMRobertaModel, WhisperModel
+from transformers import BertModel, XLMRobertaModel
 
 from src.losses import clip, symile
 
@@ -13,7 +14,6 @@ from src.losses import clip, symile
 class AudioEncoder(nn.Module):
     def __init__(self, model_id, d, enc_hidden_size):
         super().__init__()
-        self.encoder = WhisperModel.from_pretrained(model_id).encoder
         self.fc = nn.Linear(enc_hidden_size, d, bias=True)
         self.layer_norm = nn.LayerNorm(d)
 
@@ -25,9 +25,6 @@ class AudioEncoder(nn.Module):
         Returns:
             x (torch.Tensor): shape (batch_sz, d)
         """
-        x = self.encoder(x)
-        x = x["last_hidden_state"]
-        x = x.mean(dim=1)
         x = self.fc(x)
         x = self.layer_norm(x)
         return x
@@ -59,6 +56,19 @@ class TextEncoder(nn.Module):
         elif model_id == "xlm-roberta-base" or model_id == "xlm-roberta-large":
             self.encoder = XLMRobertaModel.from_pretrained(model_id)
 
+        self.embeddings = self.encoder.embeddings
+        self.encoder_layer = self.encoder.encoder.layer[0]
+
+        # first freeze all parameters
+        for p in self.encoder.parameters():
+            p.requires_grad = False
+
+        # then unfreeze relevant parameters
+        for p in self.embeddings.parameters():
+            p.requires_grad = True
+        for p in self.encoder_layer.parameters():
+            p.requires_grad = True
+
         self.fc = nn.Linear(enc_hidden_size, d, bias=True)
         self.layer_norm = nn.LayerNorm(d)
 
@@ -72,9 +82,23 @@ class TextEncoder(nn.Module):
             Returns:
                 x (torch.Tensor): shape (batch_sz, d)
         """
-        x = self.encoder(**x)
-        x = x[1] # get pooled output
+        # https://github.com/huggingface/transformers/blob/a0857740c0e6127485c11476650314df3accc2b6/src/transformers/modeling_utils.py#L941
+        # attention mask has shape (batch_sz, seq_len)
+        # we make the mask broadcastable to (batch_sz, num_heads, seq_len, seq_len)
+        extended_attention_mask = x["attention_mask"][:, None, None, :]
+        # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
+        # masked positions, this operation will create a tensor which is 0.0 for
+        # positions we want to attend and the dtype's smallest value for masked positions.
+        # Since we are adding it to the raw scores before the softmax, this is
+        # effectively the same as removing these entirely.
+        extended_attention_mask = extended_attention_mask.to(dtype=self.encoder.dtype)
+        extended_attention_mask = (1.0 - extended_attention_mask) * torch.finfo(self.encoder.dtype).min
+
+        embedding_output = self.embeddings(x["input_ids"])
+        encoder_outputs = self.encoder_layer(embedding_output, attention_mask=extended_attention_mask)
+        x = encoder_outputs[0]
         x = self.fc(x)
+        x = x.mean(dim=1)
         x = self.layer_norm(x)
         return x
 
@@ -121,11 +145,11 @@ class SSLModel(pl.LightningModule):
 
         loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.efficient_loss)
 
-        log_n_minus_1 = np.log(len(batch[list(batch.keys())[0]]) - 1)
+        log_n = np.log(len(batch['image']))
 
         self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
                       on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
-        self.log("log_n_minus_1", log_n_minus_1,
+        self.log("log_n", log_n,
                  on_step=False, on_epoch=True, sync_dist=False, prog_bar=False)
 
         return loss
@@ -135,9 +159,7 @@ class SSLModel(pl.LightningModule):
 
         loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.efficient_loss)
 
-        zeroshot_acc = self.zeroshot_accuracy(
-            r_a, r_t, batch["idx"], batch["lang"], batch["cls"], "val", lang_and_cls_acc=False
-        )
+        zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"], batch["lang"], batch["cls"], "val")
 
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
@@ -184,47 +206,7 @@ class SSLModel(pl.LightningModule):
         self.cls_id_test = torch.cat(cls_id_list).to(self.device)
         self.r_i_idx_test = torch.cat(idx_list).to(self.device)
 
-        # [r_i] = l2_normalize([r_i])
-
-    def acc_per_lang(self, y_true, y_pred, batch_lang):
-        acc_per_lang = {}
-
-        for lang in ["ar", "en", "ja", "ko", "uk"]:
-            lang_indices = np.array(batch_lang) == lang
-            lang_pred = y_pred[lang_indices]
-            lang_true = y_true[lang_indices]
-
-            correct_predictions = torch.sum((lang_pred == lang_true).to(torch.int))
-            total_samples = len(lang_pred)
-
-            if total_samples > 0:
-                acc_per_lang[lang + "_acc"] = (correct_predictions / total_samples).item()
-            else:
-                acc_per_lang[lang + "_acc"] = 0.0  # avoid division by zero if no samples
-
-        return acc_per_lang
-
-    def acc_per_class(self, y_true, y_pred, batch_cls):
-        data_ref = json.load(open(self.args.data_reference))
-
-        acc_per_cls = {}
-
-        for cls in data_ref.keys():
-            cls_indices = np.array(batch_cls) == cls
-            cls_pred = y_pred[cls_indices]
-            cls_true = y_true[cls_indices]
-
-            correct_predictions = torch.sum((cls_pred == cls_true).to(torch.int))
-            total_samples = len(cls_pred)
-
-            if total_samples > 0:
-                acc_per_cls[cls + "_acc"] = (correct_predictions / total_samples).item()
-            else:
-                acc_per_cls[cls + "_acc"] = 0.0  # avoid division by zero if no samples
-
-        return acc_per_cls
-
-    def zeroshot_accuracy(self, r_a, r_t, batch_idx, batch_lang, batch_cls, split, lang_and_cls_acc=False):
+    def zeroshot_accuracy(self, r_a, r_t, batch_idx, batch_lang, batch_cls, split):
         if split == "val":
             r_i = self.r_i_val
             cls_id = self.cls_id_val
@@ -264,23 +246,58 @@ class SSLModel(pl.LightningModule):
 
         zeroshot_acc = (torch.sum(y == pred) / len(y)).item()
 
-        if lang_and_cls_acc:
-            lang_acc = self.acc_per_lang(y, pred, batch_lang)
-            cls_acc = self.acc_per_class(y, pred, batch_cls)
-            return zeroshot_acc, lang_acc, cls_acc
-        else:
-            return zeroshot_acc
+        return zeroshot_acc
 
-    def test_step(self, batch, batch_idx):
+    def save_heatmaps(self, batch, r_a, r_i, r_t, logit_scale_exp, save_dir):
+        # get indices that would sort r_a, r_i, r_t based on class id
+        # and reorder r_a, r_i, r_t accordingly
+        sorted_indices = torch.argsort(batch["cls_id"])
+        r_a = r_a[sorted_indices]
+        r_i = r_i[sorted_indices]
+        r_t = r_t[sorted_indices]
+
+        ### GET LOGITS ###
+        if self.args.loss_fn == "symile":
+            # logits is a (bsz, bsz) matrix where each row i is
+            # [ MIP(r_a[i], r_i[0], r_t[i]) ... MIP(r_a[i], r_i[bsz-1], r_t[i]) ]
+            # where MIP is the multilinear inner product.
+            logits = (r_a * r_t) @ torch.t(r_i)
+        elif self.args.loss_fn == "clip":
+            # logits is a (bsz, bsz) matrix where each row i is
+            # [ r_a[i]^T r_i[0]     + r_i[0]^T r_t[i]     + r_a[i]^T r_t[i] ...
+            #   r_a[i]^T r_i[bsz-1] + r_i[bsz-1]^T r_t[i] + r_a[i]^T r_t[i] ]
+            at = torch.diagonal(r_a @ torch.t(r_t)).unsqueeze(dim=1) # (bsz, 1)
+            logits = at + (r_a @ torch.t(r_i)) + (r_t @ torch.t(r_i))
+
+        logits = logit_scale_exp * logits
+
+        ### SAVE HEATMAP ###
+        fig = px.imshow(logits.cpu().detach().numpy(), aspect="auto",
+                        color_continuous_scale="blues")
+        fig.write_image(save_dir / "logits.png")
+
+        ### SAVE PAIRWISE HEATMAPS ###
+        ai = r_a @ torch.t(r_i) # (bsz, bsz)
+        at = r_a @ torch.t(r_t) # (bsz, bsz)
+        it = r_i @ torch.t(r_t) # (bsz, bsz)
+
+        fig = px.imshow(ai.cpu().detach().numpy(), aspect="auto", color_continuous_scale="blues")
+        fig.write_image(save_dir / "dotproduct_ai.png")
+        fig = px.imshow(at.cpu().detach().numpy(), aspect="auto", color_continuous_scale="blues")
+        fig.write_image(save_dir / "dotproduct_at.png")
+        fig = px.imshow(it.cpu().detach().numpy(), aspect="auto", color_continuous_scale="blues")
+        fig.write_image(save_dir / "dotproduct_it.png")
+
+    def test_step(self, batch, batch_idx, save_test_heatmaps=False, save_dir=None):
         """
         The zeroshot task is to predict which r_i corresponds to a given r_a, r_t.
         """
         r_a, r_i, r_t, logit_scale_exp = self._shared_step(batch, batch_idx)
 
-        zeroshot_acc = self.zeroshot_accuracy(
-            r_a, r_t, batch["idx"], batch["lang"], batch["cls"], "test", lang_and_cls_acc=False
-        )
-
-        self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)
-        # self.log_dict(lang_acc, on_step=True, on_epoch=True)
-        # self.log_dict(cls_acc, on_step=True, on_epoch=True)
+        if save_test_heatmaps:
+            # save heatmap of the logits for first batch
+            self.save_heatmaps(batch, r_a, r_i, r_t, logit_scale_exp, save_dir)
+        else:
+            zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"], batch["lang"],
+                                                batch["cls"], "test")
+            self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)

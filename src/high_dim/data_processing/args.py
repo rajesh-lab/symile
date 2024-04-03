@@ -23,7 +23,7 @@ def parse_args_generate_data():
 
     ### DATA ARGS ###
     parser.add_argument("--data_type", type=str,
-                        choices = ["overlap", "disjoint"], default="disjoint",
+                        choices = ["overlap", "disjoint"], default="overlap",
                         help="Whether to allow overlap across languauge and \
                               meaning (overlap) or not (disjoint).")
     parser.add_argument("--text_len", type=int, default=5,

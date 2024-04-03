@@ -1,9 +1,23 @@
+# LANGUAGES = {
+#     "ar": 0, # arabic, 16
+#     "en": 1, # english, 1
+#     "ja": 2, # japanese, 12
+#     "ko": 3, # korean, 23
+#     "uk": 4 # ukrainian, 14
+# }
+
 LANGUAGES = {
-    "ar": 0, # arabic, 16
-    "en": 1, # english, 1
-    "ja": 2, # japanese, 12
-    "ko": 3, # korean, 23
-    "uk": 4 # ukrainian, 14
+    "ar": 0, # arabic
+    "en": 1, # english
+    "ja": 2, # japanese
+    "ko": 3, # korean
+    "uk": 4, # ukrainian
+    "el": 5, # greek
+    "he": 6, # hebrew
+    "hi": 7, # hindi
+    "te": 8, # telugu
+    "th": 9, # thai
+    "ur": 10 # urdu
 }
 
 # LANGUAGES = [

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=max_token_len
+#SBATCH --job-name=max_token_len_t5_10L_10M_overlap
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
@@ -13,7 +13,7 @@ cd /gpfs/scratch/as16583/symile/src/high_dim/data_processing
 
 python max_token_len.py \
     --text_model_id xlm-roberta-large \
-    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/datasets/t5_10M \
-    --save_pt /gpfs/scratch/as16583/symile/src/high_dim/datasets/t5_10M/max_token_len.json
+    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/datasets/t5_10L_10M_overlap \
+    --save_pt /gpfs/scratch/as16583/symile/src/high_dim/datasets/t5_10L_10M_overlap/max_token_len.json
 
 echo 'done!'

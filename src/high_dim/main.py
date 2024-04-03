@@ -1,9 +1,6 @@
-"""
-Experiments to demonstrate performance of SYMILE on high-dimensional data
-sampled using XOR.
-"""
 from datetime import datetime
 import os
+import random
 import time
 
 from lightning.pytorch import Trainer, seed_everything
@@ -46,7 +43,8 @@ if __name__ == '__main__':
     if args.use_seed:
         seed_everything(args.seed, workers=True)
 
-    save_dir = args.ckpt_save_dir / datetime.now().strftime("%Y%m%d_%H%M%S")
+    randint = random.randint(0, 9999) # to reduce chance of directory name collision when scripts are run in parallel
+    save_dir = args.ckpt_save_dir / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{randint:04d}"
     if not os.path.exists(args.ckpt_save_dir):
         os.makedirs(args.ckpt_save_dir)
     os.mkdir(save_dir)
