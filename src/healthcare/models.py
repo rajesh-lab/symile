@@ -317,6 +317,7 @@ class SSLModel(pl.LightningModule):
         acc_cxr_labels = {}
 
         for label in CHEXPERT_LABELS:
+            breakpoint()
             query_indices = [i for i, l in enumerate(batch["label_name"]) if l == label]
             r_e = r_e_query[query_indices]
             r_l = r_l_query[query_indices]

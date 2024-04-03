@@ -53,7 +53,8 @@ if __name__ == '__main__':
     if args.use_seed:
         seed_everything(args.seed, workers=True)
 
-    save_dir = args.ckpt_save_dir / datetime.now().strftime("%Y%m%d_%H%M%S")
+    randint = random.randint(0, 9999) # to reduce chance of directory name collision when scripts are run in parallel
+    save_dir = args.ckpt_save_dir / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{randint:04d}"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     setattr(args, "save_dir", save_dir)
