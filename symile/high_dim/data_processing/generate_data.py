@@ -15,22 +15,13 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from args import parse_args_generate_data
-from symile.high_dim.constants import *
-
-
-def get_languages(num_langs):
-    if num_langs == 10:
-        return LANGUAGES_10
-    elif num_langs == 5:
-        return LANGUAGES_5
-    elif num_langs == 2:
-        return LANGUAGES_2
+from symile.high_dim.utils import get_language_constant
 
 
 def generate_data(args, data_ref):
     data_df = pd.DataFrame({})
 
-    LANGUAGES = get_languages(args.num_langs)
+    LANGUAGES = get_language_constant(args.num_langs)
 
     CLASSES = list(data_ref.keys())
     assert len(CLASSES) == 1000, "There should be 1000 ImageNet classes."
