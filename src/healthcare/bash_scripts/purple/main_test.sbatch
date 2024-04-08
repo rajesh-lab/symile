@@ -9,14 +9,22 @@
 #SBATCH --mem=150GB
 #SBATCH --time=3:00:00
 
-source ~/miniconda3/bin/activate symile
-cd /gpfs/scratch/as16583/symile/src/healthcare
+# when in AS's BP
+# source ~/miniconda3/bin/activate symile
+# cd /gpfs/scratch/as16583/symile/symile/healthcare
+
+# when in AP's BP
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate symile
+cd /gpfs/scratch/pulia01/adriel/symile/symile/healthcare
 
 echo 'training...'
 python main.py \
     --step test \
     --batch_sz_train 256 \
-    --wandb True \
-    --load_from_ckpt  /gpfs/scratch/as16583/ckpts/healthcare/20240402_125839/ckpts/healthcare/20240402_125839/best_val_loss_epoch=3-val_loss=6.46.ckpt
+    --wandb False \
+    --ckpt_save_dir /gpfs/scratch/pulia01/adriel/ckpts/healthcare \
+    --data_dir /gpfs/scratch/pulia01/adriel/symile/src/healthcare/datasets \
+    --load_from_ckpt /gpfs/scratch/pulia01/adriel/ckpts/healthcare/20240403_231215_5743/best_val_loss_epoch=29-val_loss=6.07.ckpt
 
 echo 'done!'

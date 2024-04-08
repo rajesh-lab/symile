@@ -9,11 +9,17 @@
 #SBATCH --time=3:00:00
 #SBATCH --partition=a100_dev
 
-source ~/miniconda3/bin/activate symile
-cd /gpfs/scratch/as16583/symile/src/healthcare/data_processing
+# when in AS's BP
+# source ~/miniconda3/bin/activate symile
+# cd /gpfs/scratch/as16583/symile/symile/healthcare/data_processing
+
+# when in AP's BP
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate symile
+cd /gpfs/scratch/pulia01/adriel/symile/symile/healthcare/data_processing
 
 python save_dataset_tensors.py \
-    --data_dir /gpfs/scratch/as16583/symile/src/healthcare/datasets \
+    --data_dir /gpfs/scratch/pulia01/adriel/symile/src/healthcare/datasets \
     --cxr_scale 320 \
     --cxr_crop 320
 
