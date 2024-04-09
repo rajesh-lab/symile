@@ -43,10 +43,16 @@ if __name__ == '__main__':
     if os.getenv('SINGULARITY_CONTAINER'):
         os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
     else:
-        os.environ['WANDB_CACHE_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
-        os.environ['WANDB_CONFIG_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
-        os.environ['WANDB_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
-        os.environ['WANDB_DATA_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+        if os.getcwd().split("/")[3] == "as16583":
+            os.environ['WANDB_CACHE_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+            os.environ['WANDB_CONFIG_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+            os.environ['WANDB_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+            os.environ['WANDB_DATA_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+        else:
+            os.environ['WANDB_CACHE_DIR'] = '/gpfs/scratch/pulia01/adriel/wandb/'
+            os.environ['WANDB_CONFIG_DIR'] = '/gpfs/scratch/pulia01/adriel/wandb/'
+            os.environ['WANDB_DIR'] = '/gpfs/scratch/pulia01/adriel/wandb/'
+            os.environ['WANDB_DATA_DIR'] = '/gpfs/scratch/pulia01/adriel/wandb/'
 
     args = parse_args_main()
 
