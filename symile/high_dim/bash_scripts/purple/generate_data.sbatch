@@ -17,8 +17,8 @@ python generate_data.py \
     --val_n 100000 \
     --test_n 100000 \
     --data_type disjoint \
-    --num_words 5 \
-    --num_langs 5 \
+    --num_words 2 \
+    --num_langs 2 \
     --data_reference /gpfs/scratch/as16583/symile/symile/high_dim/datasets/data_reference.json \
     --save_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L
 
