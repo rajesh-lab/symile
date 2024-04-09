@@ -4,8 +4,7 @@ import lightning.pytorch as pl
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-
-from src.high_dim.constants import LANGUAGES
+from symile.high_dim.utils import get_language_constant
 
 
 class HighDimDataset(Dataset):
@@ -29,6 +28,8 @@ class HighDimDataset(Dataset):
             self.lang = f.read().splitlines()
         with open(self.split_dir / f"cls_{split}.txt", "r") as f:
             self.cls = f.read().splitlines()
+
+        self.languages = get_language_constant(self.args.num_langs)
 
     def __len__(self):
         return len(self.image)
@@ -62,7 +63,7 @@ class HighDimDataset(Dataset):
                 "cls_id": self.cls_id[idx],
                 "idx": self.idx[idx],
                 "lang": self.lang[idx],
-                "lang_id": LANGUAGES[self.lang[idx]],
+                "lang_id": self.languages.index(self.lang[idx]),
                 "cls": self.cls[idx]}
 
 
@@ -89,10 +90,10 @@ class HighDimDataModule(pl.LightningDataModule):
         return DataLoader(self.ds_val, batch_size=self.args.batch_sz_val,
                           shuffle=False,
                           num_workers=self.num_workers,
-                          drop_last=self.args.drop_last)
+                          drop_last=False)
 
     def test_dataloader(self):
         return DataLoader(self.ds_test, batch_size=self.args.batch_sz_test,
                           shuffle=False,
                           num_workers=self.num_workers,
-                          drop_last=self.args.drop_last)
+                          drop_last=False)
