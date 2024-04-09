@@ -33,18 +33,23 @@ if __name__ == '__main__':
     if os.getenv('SINGULARITY_CONTAINER'):
         os.environ['WANDB_CACHE_DIR'] = '/scratch/as16583/python_cache/wandb/'
     else:
-        os.environ['WANDB_CACHE_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
-        os.environ['WANDB_CONFIG_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
-        os.environ['WANDB_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
-        os.environ['WANDB_DATA_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+        if os.getcwd().split("/")[3] == "as16583":
+            os.environ['WANDB_CACHE_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+            os.environ['WANDB_CONFIG_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+            os.environ['WANDB_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+            os.environ['WANDB_DATA_DIR'] = '/gpfs/scratch/as16583/python_cache/wandb/'
+        else:
+            os.environ['WANDB_CACHE_DIR'] = '/gpfs/scratch/pulia01/adriel/wandb/'
+            os.environ['WANDB_CONFIG_DIR'] = '/gpfs/scratch/pulia01/adriel/wandb/'
+            os.environ['WANDB_DIR'] = '/gpfs/scratch/pulia01/adriel/wandb/'
+            os.environ['WANDB_DATA_DIR'] = '/gpfs/scratch/pulia01/adriel/wandb/'
 
     args = parse_args_main()
 
     randint = random.randint(0, 9999) # to reduce chance of directory name collision when scripts are run in parallel
     save_dir = args.ckpt_save_dir / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{randint:04d}"
-    if not os.path.exists(args.ckpt_save_dir):
-        os.makedirs(args.ckpt_save_dir)
-    os.mkdir(save_dir)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
     setattr(args, "save_dir", save_dir)
     print("\nSaving to: ", save_dir)
 
@@ -56,20 +61,18 @@ if __name__ == '__main__':
     if args.use_seed:
         seed_everything(args.seed, workers=True)
 
-    checkpoint_callback = ModelCheckpoint(dirpath=save_dir,
-                                          filename="{epoch}-{val_loss:.2f}",
+    val_loss_checkpoint = ModelCheckpoint(dirpath=save_dir,
+                                          filename="best_val_loss_{epoch}-{val_loss:.2f}",
                                           mode="min",
                                           monitor="val_loss")
-    early_stopping_callback = EarlyStopping(monitor="val_loss",
-                                            mode="min",
-                                            patience=args.early_stopping_patience)
-    if args.early_stopping:
-        callbacks = [checkpoint_callback, early_stopping_callback]
-    else:
-        callbacks = [checkpoint_callback]
+
+    general_checkpoint = ModelCheckpoint(dirpath=save_dir,
+                                         filename="{epoch}-{val_loss:.2f}",
+                                         every_n_epochs=args.check_val_every_n_epoch,
+                                         save_top_k=-1)
 
     trainer = Trainer(
-        callbacks=callbacks,
+        callbacks=[val_loss_checkpoint, general_checkpoint],
         check_val_every_n_epoch=args.check_val_every_n_epoch,
         deterministic=args.use_seed,
         enable_progress_bar=True,
