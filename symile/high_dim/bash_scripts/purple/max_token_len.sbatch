@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=max_token_len_t5_10L_10M_overlap
+#SBATCH --job-name=max_token_len_test
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
@@ -8,8 +8,14 @@
 #SBATCH --mem=50GB
 #SBATCH --time=4:00:00
 
+# when in AS's BP
 source ~/miniconda3/bin/activate symile
-cd /gpfs/scratch/as16583/symile/src/high_dim/data_processing
+cd /gpfs/scratch/as16583/symile/symile/high_dim/data_processing
+
+# when in AP's BP
+# source "$(conda info --base)/etc/profile.d/conda.sh"
+# conda activate symile
+# cd /gpfs/scratch/pulia01/adriel/symile/symile/high_dim/data_processing
 
 python max_token_len.py \
     --text_model_id xlm-roberta-large \

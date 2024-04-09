@@ -9,8 +9,14 @@
 #SBATCH --time=3:00:00
 #SBATCH --partition=a100_dev
 
+# when in AS's BP
 source ~/miniconda3/bin/activate symile
-cd /gpfs/scratch/as16583/symile/src/high_dim/data_processing
+cd /gpfs/scratch/as16583/symile/symile/high_dim/data_processing
+
+# when in AP's BP
+# source "$(conda info --base)/etc/profile.d/conda.sh"
+# conda activate symile
+# cd /gpfs/scratch/pulia01/adriel/symile/symile/high_dim/data_processing
 
 python merge_representations.py \
     --data_dir /gpfs/scratch/as16583/symile/src/high_dim/datasets/t5_10L_10M_overlap/train_sub_dfs \

@@ -9,7 +9,7 @@
 #SBATCH --time=6:00:00
 
 source ~/miniconda3/bin/activate symile
-cd /gpfs/scratch/as16583/symile/src/high_dim/data_processing
+cd /gpfs/scratch/as16583/symile/symile/high_dim/data_processing
 
 echo 'generating data for t5...'
 python generate_data.py \

@@ -9,8 +9,14 @@
 #SBATCH --mem=200GB
 #SBATCH --time=48:00:00
 
+# when in AS's BP
 source ~/miniconda3/bin/activate symile
-cd /gpfs/scratch/as16583/symile/src/high_dim
+cd /gpfs/scratch/as16583/symile/symile/high_dim
+
+# when in AP's BP
+# source "$(conda info --base)/etc/profile.d/conda.sh"
+# conda activate symile
+# cd /gpfs/scratch/pulia01/adriel/symile/symile/high_dim
 
 echo 'training...'
 python main.py \
