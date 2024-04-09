@@ -57,24 +57,22 @@ class HighDimDataset(Dataset):
         return torch.squeeze(audio.input_features)
 
     def __getitem__(self, idx):
-        # text = self.txt_tokenizer(text=self.df.iloc[idx].text,
-        #                           return_tensors="pt", padding="max_length",
-        #                           max_length=self.max_token_len)
+        text = self.txt_tokenizer(text=self.df.iloc[idx].text,
+                                  return_tensors="pt", padding="max_length",
+                                  max_length=self.max_token_len)
 
-        # image = self.get_image(self.df.iloc[idx].image_path)
+        image = self.get_image(self.df.iloc[idx].image_path)
 
         audio = self.get_audio(self.df.iloc[idx].audio_path)
-        # audio_filename = self.df.iloc[idx].audio_filename
 
-        return {"audio": audio}
-        # return {"text": text,
-        #         "image": image,
-        #         "audio": audio,
-        #         "audio_filename": audio_filename,
-        #         "cls": self.df.iloc[idx].cls,
-        #         "lang": self.df.iloc[idx].lang,
-        #         "idx": idx,
-        #         "words": self.df.iloc[idx].text}
+        return {"text": text,
+                "image": image,
+                "audio": audio,
+                "cls": self.df.iloc[idx].cls,
+                "cls_id": self.df.iloc[idx].cls_id,
+                "lang": self.df.iloc[idx].lang,
+                "idx": idx,
+                "words": self.df.iloc[idx].text}
 
 
 class BaseDataModule(pl.LightningDataModule):
@@ -88,8 +86,7 @@ class BaseDataModule(pl.LightningDataModule):
         self.max_token_len = json.load(open(args.max_token_len_pt))
 
         # from max_num_worker_suggest in DataLoader docs
-        # self.num_workers = len(os.sched_getaffinity(0))
-        self.num_workers = 0
+        self.num_workers = len(os.sched_getaffinity(0))
 
     def get_tokenizer(self):
         if self.args.text_model_id == "bert-base-multilingual-cased":
@@ -193,6 +190,7 @@ def save_representations(args, dl, split, device):
     text_attention_mask = torch.empty(0)
     image = torch.empty(0)
     audio = torch.empty(0)
+    cls_id = torch.empty(0)
     idx = torch.empty(0)
     lang = []
     cls = []
@@ -200,18 +198,18 @@ def save_representations(args, dl, split, device):
 
     for ix, batch in enumerate(tqdm(dl)):
         # TEXT
-        # text_input_ids = torch.cat((text_input_ids, batch["text"]["input_ids"].squeeze()), dim=0)
-        # text_attention_mask = torch.cat((text_attention_mask, batch["text"]["attention_mask"].squeeze()), dim=0)
+        text_input_ids = torch.cat((text_input_ids, batch["text"]["input_ids"].squeeze()), dim=0)
+        text_attention_mask = torch.cat((text_attention_mask, batch["text"]["attention_mask"].squeeze()), dim=0)
 
-        # if args.text_model_id == "bert-base-multilingual-cased":
-        #     text_token_type_ids = torch.cat((text_token_type_ids, batch["text"]["token_type_ids"].squeeze()), dim=0)
+        if args.text_model_id == "bert-base-multilingual-cased":
+            text_token_type_ids = torch.cat((text_token_type_ids, batch["text"]["token_type_ids"].squeeze()), dim=0)
 
-        # # IMAGE
-        # x = img_encoder(pixel_values=batch["image"].to(device))
-        # x = x.pooler_output
-        # x = torch.squeeze(x)
-        # x = x.cpu()
-        # image = torch.cat((image, x), dim=0)
+        # IMAGE
+        x = img_encoder(pixel_values=batch["image"].to(device))
+        x = x.pooler_output
+        x = torch.squeeze(x)
+        x = x.cpu()
+        image = torch.cat((image, x), dim=0)
 
         # AUDIO
         x = aud_encoder(batch["audio"].to(device))
@@ -222,28 +220,30 @@ def save_representations(args, dl, split, device):
         audio = torch.cat((audio, x), dim=0)
 
         # OTHER
-        # idx = torch.cat((idx, batch["idx"]), dim=0)
-        # lang += batch["lang"]
-        # cls += batch["cls"]
-        # words += batch["words"]
+        cls_id = torch.cat((cls_id, batch["cls_id"]), dim=0)
+        idx = torch.cat((idx, batch["idx"]), dim=0)
+        lang += batch["lang"]
+        cls += batch["cls"]
+        words += batch["words"]
 
-    # torch.save(text_input_ids, save_dir / f"text_input_ids_{split}.pt")
-    # torch.save(text_attention_mask, save_dir / f"text_attention_mask_{split}.pt")
-    # if args.text_model_id == "bert-base-multilingual-cased":
-    #     torch.save(text_token_type_ids, save_dir / f"text_token_type_ids_{split}.pt")
-    # torch.save(image, save_dir / f"image_{split}.pt")
+    torch.save(text_input_ids, save_dir / f"text_input_ids_{split}.pt")
+    torch.save(text_attention_mask, save_dir / f"text_attention_mask_{split}.pt")
+    if args.text_model_id == "bert-base-multilingual-cased":
+        torch.save(text_token_type_ids, save_dir / f"text_token_type_ids_{split}.pt")
+    torch.save(image, save_dir / f"image_{split}.pt")
     torch.save(audio, save_dir / f"audio_{split}.pt")
 
-    # torch.save(idx, save_dir / f"idx_{split}.pt")
+    torch.save(cls_id, save_dir / f"cls_id_{split}.pt")
+    torch.save(idx, save_dir / f"idx_{split}.pt")
 
-    # with open(f"{save_dir}/lang_{split}.txt", 'w') as f:
-    #     f.writelines("\n".join(lang))
+    with open(f"{save_dir}/lang_{split}.txt", 'w') as f:
+        f.writelines("\n".join(lang))
 
-    # with open(f"{save_dir}/cls_{split}.txt", 'w') as f:
-    #     f.writelines("\n".join(cls))
+    with open(f"{save_dir}/cls_{split}.txt", 'w') as f:
+        f.writelines("\n".join(cls))
 
-    # with open(f"{save_dir}/words_{split}.txt", 'w') as f:
-    #     f.writelines("\n".join(words))
+    with open(f"{save_dir}/words_{split}.txt", 'w') as f:
+        f.writelines("\n".join(words))
 
 
 if __name__ == '__main__':

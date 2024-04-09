@@ -14,7 +14,7 @@ import pandas as pd
 from google.cloud import translate_v2 as translate
 
 from args import parse_args_source_data
-from symile.high_dim.constants import ALL_LANGUAGES
+from symile.high_dim.constants import LANGUAGES_10
 
 
 def manual_translation(args, data_ref):
@@ -86,7 +86,7 @@ def translate_text(text, lang, tr_client):
         return tr_client.translate(text, target_language=lang)['translatedText']
 
 
-def get_new_data_ref(data_ref, classmapping_path):
+def get_translations(data_ref, classmapping_path):
     """
     `data_ref` is a dictionary whose keys are ImageNet class names and whose
     values are also dictionaries. For example, data_ref["butterfly"] is
@@ -100,7 +100,7 @@ def get_new_data_ref(data_ref, classmapping_path):
         }
 
     This function goes through each class name in `classmapping_path` and adds
-    any necessary translations for the languages in ALL_LANGUAGES. It then
+    any necessary translations for the languages in LANGUAGES_10. It then
     returns a new data_ref.
 
     Args:
@@ -122,7 +122,7 @@ def get_new_data_ref(data_ref, classmapping_path):
             assert "synset_id" in data_ref[r.class_name], \
                 f"synset_id is not in data_ref[{r.class_name}]"
 
-            for l in ALL_LANGUAGES:
+            for l in LANGUAGES_10:
                 if l not in data_ref[r.class_name]:
                     # html.unescape converts character references e.g. &#39; to Unicode
                     translation = html.unescape(translate_text(r.class_name, l, tr_client))
@@ -130,11 +130,17 @@ def get_new_data_ref(data_ref, classmapping_path):
                     data_ref[r.class_name][l] = translation
         else:
             data_ref[r.class_name] = {"synset_id": r.class_id}
-            for l in ALL_LANGUAGES:
+            for l in LANGUAGES_10:
                 # html.unescape converts character references e.g. &#39; to Unicode
                 translation = html.unescape(translate_text(r.class_name, l, tr_client))
 
                 data_ref[r.class_name][l] = translation
+    return data_ref
+
+
+def get_cls_ids(data_ref):
+    for ix, (class_name, details) in enumerate(data_ref.items()):
+        details["cls_id"] = ix
     return data_ref
 
 
@@ -146,9 +152,11 @@ if __name__ == '__main__':
     else:
         data_ref = {}
 
-    data_ref = get_new_data_ref(data_ref, args.imagenet_classmapping_path)
+    data_ref = get_translations(data_ref, args.imagenet_classmapping_path)
 
     data_ref = manual_translation(args, data_ref)
+
+    data_ref = get_cls_ids(data_ref)
 
     with open(args.data_reference, 'w') as f:
         # overwrite data_ref
