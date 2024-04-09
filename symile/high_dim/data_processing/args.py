@@ -34,7 +34,7 @@ def parse_args_generate_data():
     parser.add_argument("--num_langs", type=int, default=5,
                         help="Number of languages in generated text.")
     parser.add_argument("--cv_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/adriel/cv"),
+                        default=Path("/gpfs/data/ranganathlab/commonvoice/cv"),
                         help="Directory where CommonVoice audio clips are held.")
     parser.add_argument("--data_reference", type=Path,
                         default=Path("/gpfs/scratch/as16583/symile/src/high_dim/datasets/data_reference.json"),
@@ -111,7 +111,7 @@ def parse_args_save_representations():
     parser.add_argument("--split_to_run", type=str,
                         choices = ["all", "train", "val_test"])
     parser.add_argument("--cv_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/adriel/cv"),
+                        default=Path("/gpfs/data/ranganathlab/commonvoice/cv"),
                         help="Directory where CommonVoice audio clips are held.")
     parser.add_argument("--imagenet_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/imagenet"),
