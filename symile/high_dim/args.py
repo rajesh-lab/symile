@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from src.utils import str_to_bool
+from symile.utils import str_to_bool
 
 
 def parse_args_main():
@@ -84,9 +84,6 @@ def parse_args_main():
                         help="Loss function to use for training.")
     parser.add_argument("--lr", type=float, default=1.0e-3,
                         help="Learning rate.")
-    parser.add_argument("--save_test_heatmaps", type=str_to_bool, default=False,
-                        help="Whether to save heatmap of the logits for the \
-                              first batch of the test set.")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")
@@ -107,5 +104,40 @@ def parse_args_main():
                         help="How much of val dataset to check. Useful \
                               when debugging. 1.0 is default used by Trainer. \
                               Set to 0.1 to check 10% of dataset.")
+
+    return parser.parse_args()
+
+
+def parse_args_test():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--load_from_ckpt", type=str,
+                        default=None,
+                        help="Checkpoint to load from.")
+    parser.add_argument("--save_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/results/high_dim"),
+                        help="Where to save test results.")
+
+    ### DATA ARGS ###
+    parser.add_argument("--batch_sz_test", type=int, default=300,
+                        help="Test set batch size.")
+    parser.add_argument("--data_dir", type=Path,
+                        help="Directory with dataset csvs.")
+    parser.add_argument("--num_langs", type=int, default=5,
+                        help="Number of languages in generated text.")
+    parser.add_argument("--text_model_id", type=str,
+                        help="Hugging Face model id for text encoder.")
+
+    ### BOOTSTRAP ARGS ###
+    parser.add_argument("--bootstrap", type=str_to_bool, default=False,
+                        help="Whether to compute a two-sided bootstrap confidence \
+                              interval of evaluation metric.")
+    parser.add_argument("--bootstrap_n", type=int, default=20,
+                        help="Number of resamples performed to form the bootstrap \
+                              distribution of evaluation metric.")
+
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--use_seed", type=str_to_bool, default=True,
+                        help="Whether to use a seed for reproducibility.")
 
     return parser.parse_args()
