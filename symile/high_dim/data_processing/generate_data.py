@@ -58,6 +58,7 @@ def generate_data(args, data_ref):
         image = random.sample(image_paths[cls], 1)[0]
         return f"ILSVRC/Data/CLS-LOC/train/{data_ref[cls]['synset_id']}/{image}"
     data_df["image_path"] = data_df.apply(lambda r: _sample_image(r.cls), axis=1)
+    data_df["cls_id"] = data_df["cls"].map(lambda cls: data_ref[cls]["cls_id"])
 
     # generate text given language and class
     data_df["target_text"] = data_df.apply(lambda r: data_ref[r.cls][r.lang], axis=1)
