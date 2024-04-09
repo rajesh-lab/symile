@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from transformers import BertModel, XLMRobertaModel
 
-from src.losses import clip, symile
+from symile.losses import clip, symile
 
 
 class AudioEncoder(nn.Module):
@@ -159,7 +159,7 @@ class SSLModel(pl.LightningModule):
 
         loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.efficient_loss)
 
-        zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"], batch["lang"], batch["cls"], "val")
+        zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch, "val")
 
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
@@ -168,52 +168,79 @@ class SSLModel(pl.LightningModule):
 
         return loss
 
+    def test_step(self, batch, batch_idx, save_dir=None):
+        """
+        The zeroshot task is to predict which r_i corresponds to a given r_a, r_t.
+        """
+        r_a, r_i, r_t, logit_scale_exp = self._shared_step(batch, batch_idx)
+
+        zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch, "test")
+
+        self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)
+
+        return zeroshot_acc
+
     def on_fit_start(self):
         """
         Compute or get r_i, which is the image representations for all data samples.
         """
-        self.save_image_representations()
+        self.save_image_representations("val")
 
-    def save_image_representations(self):
+    def on_test_start(self):
         """
         Compute or get r_i, which is the image representations for all data samples.
         """
-        # val
-        r_i_list = []
-        cls_id_list = []
-        idx_list = []
-        for x in self.trainer.datamodule.val_dataloader():
-            r_i = self.image_encoder(x["image"].to(self.device))
+        self.save_image_representations("test")
 
-            r_i_list.append(r_i)
-            cls_id_list.append(x["cls_id"])
-            idx_list.append(x["idx"])
-        self.r_i_val = torch.cat(r_i_list)
-        self.cls_id_val = torch.cat(cls_id_list).to(self.device)
-        self.r_i_idx_val = torch.cat(idx_list).to(self.device)
+    def save_image_representations(self, split):
+        """
+        Compute or get r_i, which is the image representations for all data samples.
+        """
+        if split == "val":
+            r_i_list = []
+            cls_id_list = []
+            idx_list = []
 
-        # test
-        r_i_list = []
-        cls_id_list = []
-        idx_list = []
-        for x in self.trainer.datamodule.test_dataloader():
-            r_i = self.image_encoder(x["image"].to(self.device))
+            for x in self.trainer.datamodule.val_dataloader():
+                r_i = self.image_encoder(x["image"].to(self.device))
 
-            r_i_list.append(r_i)
-            cls_id_list.append(x["cls_id"])
-            idx_list.append(x["idx"])
-        self.r_i_test = torch.cat(r_i_list)
-        self.cls_id_test = torch.cat(cls_id_list).to(self.device)
-        self.r_i_idx_test = torch.cat(idx_list).to(self.device)
+                r_i_list.append(r_i)
+                cls_id_list.append(x["cls_id"])
+                idx_list.append(x["idx"])
 
-    def zeroshot_accuracy(self, r_a, r_t, batch_idx, batch_lang, batch_cls, split):
+            self.r_i_val = torch.cat(r_i_list)
+            self.r_i_cls_id_val = torch.cat(cls_id_list).to(self.device)
+            self.r_i_idx_val = torch.cat(idx_list).to(self.device)
+
+        elif split == "test":
+            r_i_list = []
+            cls_id_list = []
+            idx_list = []
+
+            if self.trainer.datamodule is None:
+                test_dataloader = getattr(self, 'test_dataloader', None)
+            else:
+                test_dataloader = self.trainer.datamodule.test_dataloader()
+
+            for x in test_dataloader:
+                r_i = self.image_encoder(x["image"].to(self.device))
+
+                r_i_list.append(r_i)
+                cls_id_list.append(x["cls_id"])
+                idx_list.append(x["idx"])
+
+            self.r_i_test = torch.cat(r_i_list)
+            self.r_i_cls_id_test = torch.cat(cls_id_list).to(self.device)
+            self.r_i_idx_test = torch.cat(idx_list).to(self.device)
+
+    def zeroshot_accuracy(self, r_a, r_t, batch, split):
         if split == "val":
             r_i = self.r_i_val
-            cls_id = self.cls_id_val
+            r_i_cls_id = self.r_i_cls_id_val
             r_i_idx = self.r_i_idx_val
         elif split == "test":
             r_i = self.r_i_test
-            cls_id = self.cls_id_test
+            r_i_cls_id = self.r_i_cls_id_test
             r_i_idx = self.r_i_idx_test
 
         if self.args.loss_fn == "symile":
@@ -237,67 +264,10 @@ class SSLModel(pl.LightningModule):
         # for each index in pred_idx, we get the class id (label) that corresponds
         # to the r_i at that index; so pred is a tensor of length batch_sz where
         # each element is the predicted label.
-        pred = cls_id[pred_idx]
+        pred = r_i_cls_id[pred_idx]
 
-        # roundabout way to get true labels in case r_i_idx is not in order
-        matching_indices = torch.nonzero(
-            r_i_idx.unsqueeze(1) == batch_idx.unsqueeze(0), as_tuple=False)
-        y = cls_id[matching_indices[:, 0]]
+        y = batch["cls_id"]
 
         zeroshot_acc = (torch.sum(y == pred) / len(y)).item()
 
         return zeroshot_acc
-
-    def save_heatmaps(self, batch, r_a, r_i, r_t, logit_scale_exp, save_dir):
-        # get indices that would sort r_a, r_i, r_t based on class id
-        # and reorder r_a, r_i, r_t accordingly
-        sorted_indices = torch.argsort(batch["cls_id"])
-        r_a = r_a[sorted_indices]
-        r_i = r_i[sorted_indices]
-        r_t = r_t[sorted_indices]
-
-        ### GET LOGITS ###
-        if self.args.loss_fn == "symile":
-            # logits is a (bsz, bsz) matrix where each row i is
-            # [ MIP(r_a[i], r_i[0], r_t[i]) ... MIP(r_a[i], r_i[bsz-1], r_t[i]) ]
-            # where MIP is the multilinear inner product.
-            logits = (r_a * r_t) @ torch.t(r_i)
-        elif self.args.loss_fn == "clip":
-            # logits is a (bsz, bsz) matrix where each row i is
-            # [ r_a[i]^T r_i[0]     + r_i[0]^T r_t[i]     + r_a[i]^T r_t[i] ...
-            #   r_a[i]^T r_i[bsz-1] + r_i[bsz-1]^T r_t[i] + r_a[i]^T r_t[i] ]
-            at = torch.diagonal(r_a @ torch.t(r_t)).unsqueeze(dim=1) # (bsz, 1)
-            logits = at + (r_a @ torch.t(r_i)) + (r_t @ torch.t(r_i))
-
-        logits = logit_scale_exp * logits
-
-        ### SAVE HEATMAP ###
-        fig = px.imshow(logits.cpu().detach().numpy(), aspect="auto",
-                        color_continuous_scale="blues")
-        fig.write_image(save_dir / "logits.png")
-
-        ### SAVE PAIRWISE HEATMAPS ###
-        ai = r_a @ torch.t(r_i) # (bsz, bsz)
-        at = r_a @ torch.t(r_t) # (bsz, bsz)
-        it = r_i @ torch.t(r_t) # (bsz, bsz)
-
-        fig = px.imshow(ai.cpu().detach().numpy(), aspect="auto", color_continuous_scale="blues")
-        fig.write_image(save_dir / "dotproduct_ai.png")
-        fig = px.imshow(at.cpu().detach().numpy(), aspect="auto", color_continuous_scale="blues")
-        fig.write_image(save_dir / "dotproduct_at.png")
-        fig = px.imshow(it.cpu().detach().numpy(), aspect="auto", color_continuous_scale="blues")
-        fig.write_image(save_dir / "dotproduct_it.png")
-
-    def test_step(self, batch, batch_idx, save_test_heatmaps=False, save_dir=None):
-        """
-        The zeroshot task is to predict which r_i corresponds to a given r_a, r_t.
-        """
-        r_a, r_i, r_t, logit_scale_exp = self._shared_step(batch, batch_idx)
-
-        if save_test_heatmaps:
-            # save heatmap of the logits for first batch
-            self.save_heatmaps(batch, r_a, r_i, r_t, logit_scale_exp, save_dir)
-        else:
-            zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch["idx"], batch["lang"],
-                                                batch["cls"], "test")
-            self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=generate_data_t5_10L_10M_overlap
+#SBATCH --job-name=generate_data_2W_2L_disjoint
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
@@ -20,6 +20,6 @@ python generate_data.py \
     --num_words 5 \
     --num_langs 5 \
     --data_reference /gpfs/scratch/as16583/symile/symile/high_dim/datasets/data_reference.json \
-    --save_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/test
+    --save_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L
 
 echo 'done!'
