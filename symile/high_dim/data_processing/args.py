@@ -45,9 +45,8 @@ def parse_args_generate_data():
                         help="Directory where ImageNet image train data is held.")
 
     ### SYMILE ARGS ###
-    parser.add_argument("--dataset_n", type=int,
-                        help="Number of samples for combined train, val, and \
-                              test sets.")
+    parser.add_argument("--train_n", type=int,
+                        help="Number of samples for train set.")
     parser.add_argument("--val_n", type=int,
                         help="Number of samples for val set.")
     parser.add_argument("--test_n", type=int,

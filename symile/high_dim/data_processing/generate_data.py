@@ -19,6 +19,8 @@ from symile.high_dim.utils import get_language_constant
 
 
 def generate_data(args, data_ref):
+    dataset_n = args.train_n + args.val_n + args.test_n
+
     data_df = pd.DataFrame({})
 
     LANGUAGES = get_language_constant(args.num_langs)
@@ -44,7 +46,7 @@ def generate_data(args, data_ref):
     all_words = [data_ref[c][l] for c in CLASSES for l in LANGUAGES]
 
     # sample a language, and then sample an audio clip in that language
-    data_df["lang"] = random.choices(LANGUAGES, k=args.dataset_n)
+    data_df["lang"] = random.choices(LANGUAGES, k=dataset_n)
     def _sample_audio(lang):
         audio = random.sample(audio_paths[lang], 1)[0]
         return f"cv/{lang}/clips/{audio}"
@@ -53,7 +55,7 @@ def generate_data(args, data_ref):
                             lambda p: os.path.splitext(os.path.basename(p))[0])
 
     # sample a class, and then sample an image from that class
-    data_df["cls"] = random.choices(list(CLASSES), k=args.dataset_n)
+    data_df["cls"] = random.choices(list(CLASSES), k=dataset_n)
     def _sample_image(cls):
         image = random.sample(image_paths[cls], 1)[0]
         return f"ILSVRC/Data/CLS-LOC/train/{data_ref[cls]['synset_id']}/{image}"
@@ -98,7 +100,7 @@ if __name__ == '__main__':
 
     # split into train, val, and test sets
     train_df, val_test_df = train_test_split(data_df,
-                                             test_size=args.val_n + args.test_n,
+                                             train_size=args.train_n,
                                              shuffle=True)
     val_df, test_df = train_test_split(val_test_df, test_size=args.test_n,
                                        shuffle=True)
