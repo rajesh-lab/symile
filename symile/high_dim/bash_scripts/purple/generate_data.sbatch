@@ -14,8 +14,8 @@ cd /gpfs/scratch/as16583/symile/symile/high_dim/data_processing
 echo 'generating data...'
 python generate_data.py \
     --train_n 10000000 \
-    --val_n 100000 \
-    --test_n 100000 \
+    --val_n 500000 \
+    --test_n 500000 \
     --data_type disjoint \
     --num_words 10 \
     --num_langs 10 \

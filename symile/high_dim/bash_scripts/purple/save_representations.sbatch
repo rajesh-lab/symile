@@ -1,9 +1,9 @@
 #!/bin/bash
 
-#SBATCH --job-name=save_representations_2W_2L_disjoint_train7
+#SBATCH --job-name=save_representations_2W_2L_disjoint_train13
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #SBATCH --gres=gpu:a100:1
 #SBATCH --mem=200GB
 #SBATCH --time=48:00:00
@@ -29,7 +29,7 @@ python save_representations.py \
     --data_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L \
     --save_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L \
     --max_token_len_pt /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L/max_token_len.json \
-    --train_csv train7.csv \
+    --train_csv train13.csv \
     --split_to_run train
 
 # python save_representations.py \
