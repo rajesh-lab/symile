@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=generate_data_2W_2L_disjoint
+#SBATCH --job-name=generate_data_10W_10L_disjoint
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
@@ -11,15 +11,15 @@
 source ~/miniconda3/bin/activate symile
 cd /gpfs/scratch/as16583/symile/symile/high_dim/data_processing
 
-echo 'generating data for t5...'
+echo 'generating data...'
 python generate_data.py \
-    --dataset_n 10000000 \
+    --train_n 10000000 \
     --val_n 100000 \
     --test_n 100000 \
     --data_type disjoint \
-    --num_words 2 \
-    --num_langs 2 \
+    --num_words 10 \
+    --num_langs 10 \
     --data_reference /gpfs/scratch/as16583/symile/symile/high_dim/datasets/data_reference.json \
-    --save_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L
+    --save_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/10W_10L
 
 echo 'done!'
