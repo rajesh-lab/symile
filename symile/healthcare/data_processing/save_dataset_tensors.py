@@ -62,7 +62,6 @@ def get_labs(args, row):
     assert len(percentiles) == 50, "There should be 50 labs."
 
     return (torch.tensor(percentiles, dtype=torch.float32), torch.tensor(missing_indicators, dtype=torch.int64))
-    # return torch.tensor(percentiles + missing_indicators, dtype=torch.float32)
 
 
 def save_dataset_tensors(args, df, split):
@@ -85,7 +84,7 @@ def save_dataset_tensors(args, df, split):
         labs_missingness_list.append(labs_missingness)
         hadm_id_list.append(row["hadm_id"])
 
-        if split in ["query", "candidate"]:
+        if split in ["query", "candidate", "query_val", "candidate_val"]:
             label_name_list.append(row["label_name"])
             label_value_list.append(row["label_value"])
 

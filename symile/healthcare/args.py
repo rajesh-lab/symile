@@ -12,7 +12,7 @@ def parse_save_dataset_tensors():
                         default=Path("/gpfs/scratch/as16583/symile/src/healthcare/datasets"),
                         help="Directory with dataset csvs.")
     parser.add_argument("--ecg_data_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/adriel/physionet.org/files/mimic-iv-ecg/1.0"),
+                        default=Path("/gpfs/data/ranganathlab/mimic-iv-ecg/1.0"),
                         help="Directory with ECGs.")
     parser.add_argument("--cxr_data_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/mimic-cxr-jpg/mimic-cxr-jpg-2.0.0.physionet.org"),
