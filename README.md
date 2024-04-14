@@ -145,3 +145,8 @@ Then run:
 All checkpoints will be saved to `./ckpts/support/`.
 
 Note that for support classification model fitting and testing are both in this scipt: because we run trainer.test() directly after trainer.fit(), trainer.test() automatically loads the best weights from training. As a result, DDP should not be used when running this script (i.e. no more than a single GPU should be used). During trainer.test(), it is recommended to use Trainer(devices=1) to ensure each sample/batch gets evaluated exactly once. Otherwise, multi-device settings use `DistributedSampler` that replicates some samples to make sure all devices have same batch size in case of uneven inputs.
+
+<a name="predict_cxr"></a>
+## 3. Experiment: predict CXR from ECG and labs
+
+Note that running get_mimic_data.py for `cxr` takes about 10 minutes, for `ecg` takes about 2.5 hours, and for `labs` takes about 5 hours.
