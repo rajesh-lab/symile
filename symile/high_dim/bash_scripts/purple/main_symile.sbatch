@@ -44,7 +44,6 @@ python main.py \
     --data_reference /gpfs/scratch/as16583/symile/src/high_dim/datasets/data_reference.json \
     --efficient_loss True \
     --loss_fn symile \
-    --load_from_ckpt None \
-    --save_test_heatmaps False
+    --load_from_ckpt None
 
 echo 'done!'
