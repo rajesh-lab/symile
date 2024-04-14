@@ -1,15 +1,15 @@
 from argparse import Namespace
-from collections import defaultdict
+import itertools
 import json
 
 import lightning.pytorch as pl
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 from torchvision import models
 
 from symile.losses import clip, symile
+from symile.risk_prediction.constants import RISK_VECTOR_COLS
 
 
 class ECGEncoder(nn.Module):
@@ -108,6 +108,19 @@ class SSLModel(pl.LightningModule):
         else:
             self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
 
+        self.candidate_risk_vectors = self.get_candidate_risk_vectors()
+
+    def get_candidate_risk_vectors(self):
+        value_ranges = {
+            "los_quantile": range(4),  # 0, 1, 2, 3
+            "hospital_expire_flag": range(2),  # 0, 1
+            "adm_within_30_days": range(2)  # 0, 1
+        }
+        ranges = [value_ranges[col] for col in RISK_VECTOR_COLS]
+
+        all_combinations = list(itertools.product(*ranges))
+        return torch.tensor(all_combinations, dtype=torch.float32)
+
     def forward(self, x):
         r_c = self.cxr_encoder(x["cxr"])
         r_e = self.ecg_encoder(x["ecg"])
@@ -117,12 +130,8 @@ class SSLModel(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
 
-    def _shared_step(self, batch):
-        r_c, r_e, r_r, logit_scale_exp = self(batch)
-        return r_c, r_e, r_r, logit_scale_exp
-
     def training_step(self, batch, batch_idx):
-        r_c, r_e, r_r, logit_scale_exp = self._shared_step(batch)
+        r_c, r_e, r_r, logit_scale_exp = self(batch)
 
         loss = self.loss_fn(r_c, r_e, r_r, logit_scale_exp, self.args.efficient_loss)
 
@@ -135,40 +144,28 @@ class SSLModel(pl.LightningModule):
 
         return loss
 
-    # def on_validation_epoch_start(self):
-    #     query_ds = EvaluationDataset(self.args, "val", "query")
-
-    #     i = 0
-    #     for batch in DataLoader(query_ds, batch_size=len(query_ds), shuffle=False):
-    #         r_e, r_c, r_l, logit_scale_exp = self._shared_step(batch)
-    #         i += 1
-    #     assert i == 1, "query_ds should only have one batch"
-
-    #     metrics = self.get_metrics(r_e, r_l, batch, "val")
-    #     self.log_dict(metrics["metrics"], sync_dist=True, prog_bar=False)
-
     def validation_step(self, batch, batch_idx):
-        r_e, r_c, r_l, logit_scale_exp = self._shared_step(batch)
+        r_c, r_e, r_r, logit_scale_exp = self(batch)
 
-        loss = self.loss_fn(r_e, r_c, r_l, logit_scale_exp, self.args.efficient_loss)
+        loss = self.loss_fn(r_c, r_e, r_r, logit_scale_exp, self.args.efficient_loss)
+
+        metrics = self.get_metrics(r_c, r_e, batch, "val")
 
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
+        self.log_dict(metrics, sync_dist=True, prog_bar=False)
 
         return loss
 
     def test_step(self, batch, batch_idx):
-        r_e, r_c, r_l, logit_scale_exp = self._shared_step(batch)
+        r_c, r_e, r_r, logit_scale_exp = self(batch)
 
-        metrics = self.get_metrics(r_e, r_l, batch, "test")
+        metrics = self.get_metrics(r_c, r_e, batch, "test")
 
-        self.log_dict(metrics["metrics"], sync_dist=True, prog_bar=False)
-        self.log_dict(metrics["metrics_per_labels"], sync_dist=True, prog_bar=False)
+        self.log_dict(metrics, sync_dist=True, prog_bar=False)
 
         with open(self.args.save_dir / "metrics.json", 'w') as f:
-            json.dump(metrics["metrics"], f, indent=4)
-        with open(self.args.save_dir / "metrics_per_labels.json", 'w') as f:
-            json.dump(metrics["metrics_per_labels"], f, indent=4)
+            json.dump(metrics, f, indent=4)
 
     def get_logits(self, r_x, r_y, r_z, logit_scale_exp):
         """
@@ -188,116 +185,33 @@ class SSLModel(pl.LightningModule):
 
         return logit_scale_exp * logits
 
-    def get_logits_two_modes(self, r_x, r_y, logit_scale_exp):
-        """
-        assumes that r_z is the modality to predict
-        """
-        if self.args.loss_fn == "symile":
-            # logits is a (batch_sz, n) matrix where each row i is
-            # [ MIP(r_x[i], r_y[i], r_z[0]) ... MIP(r_x[i], r_y[i], r_z[n-1]) ]
-            # where MIP is the multilinear inner product.
-            logits = r_x @ r_y.T
-        elif self.args.loss_fn == "clip":
-            ValueError("This function is only for symile loss")
-
-        return logit_scale_exp * logits
-
-    def get_candidates(self, split):
-        candidate_ds = EvaluationDataset(self.args, split, "candidate")
-
-        r_c = []
-        hadm_id = []
-        label_name = []
-        label_value = []
-
-        for batch in DataLoader(candidate_ds, batch_size=256, shuffle=False):
-            r_c.append(self.cxr_encoder(batch["cxr"].to(self.device)))
-            hadm_id.append(batch["hadm_id"])
-            label_name += batch["label_name"]
-            label_value.append(batch["label_value"])
-
-        r_c = torch.cat(r_c, dim=0)
-
-        assert len(r_c) == len(candidate_ds), "r_c and candidate_ds should have the same length"
-
-        return {"r_c": r_c,
-                "hadm_id": torch.cat(hadm_id, dim=0),
-                "label_name": label_name,
-                "label_value": torch.cat(label_value, dim=0)}
-
-    def get_metric_all_labels(self, metric_dict, metric_name):
-        # calculcate metrics across all labels
-        metrics = defaultdict(list)
-        for key, value in metric_dict.items():
-            _, k = key.rsplit("_at_", 1)
-            metrics[k].append(value)
-
-        mean_metrics = {}
-        for k, values in metrics.items():
-            mean_metrics[f"{metric_name}_at_{k}"] = sum(values) / len(values)
-
-        return mean_metrics
-
     def add_split_prefix(self, metrics, split):
         """Add a prefix to all metric names."""
         return {f"{split}_{key}": value for key, value in metrics.items()}
 
-    def get_metrics(self, r_e_query, r_l_query, batch, split):
-        candidates = self.get_candidates(split)
+    def get_metrics(self, r_c, r_e, batch, split):
+        r_r_candidates = self.risk_encoder(self.candidate_risk_vectors.to(self.device))
 
-        precision_at_k_dict = {}
-        acc_at_k_dict = {}
-        acc_at_k_true_cxr_dict = {}
+        logits = self.get_logits(r_c, r_e, r_r_candidates, self.logit_scale.exp())
+        logits = logits.cpu()
 
-        for label in CHEXPERT_LABELS:
-            # get query set for `label`
-            label_mask_q = torch.tensor([name == label for name in batch["label_name"]])
-            r_e = r_e_query[label_mask_q]
-            r_l = r_l_query[label_mask_q]
-            true_hadm_id = batch['hadm_id'][label_mask_q].cpu()
+        acc_at_k = {}
+        for k in [1, 5, 10]:
+            # get indices of top k logits
+            _, topk_indices = torch.topk(logits, k, dim=1) # (batch_sz, k)
 
-            # get candidate set for `label`
-            label_mask_c = torch.tensor([name == label for name in candidates["label_name"]])
-            r_c = candidates["r_c"][label_mask_c]
-            r_c_labels = candidates["label_value"][label_mask_c]
-            r_c_hadm_id = candidates["hadm_id"][label_mask_c]
+            # map indices to risk vectors
+            topk_risk_vectors = self.candidate_risk_vectors[topk_indices] # (batch_sz, k, 3)
 
-            logits = self.get_logits(r_e, r_l, r_c, self.logit_scale.exp()).cpu()
-            # logits = self.get_logits_two_modes(r_e, r_c, self.logit_scale.exp()).cpu()
+            # check if true risk vector is in top k predictions
+            true_risk_vector = batch["risk_vector"].unsqueeze(1).cpu()
+            matches = (topk_risk_vectors == true_risk_vector).all(dim=2) # (batch_sz, k)
+            acc = matches.any(dim=1).float() # (batch_sz)
 
-            for k in [1, 5, 10, 50, 100]:
-                # get indices of top k logits
-                _, topk_indices = torch.topk(logits, k, dim=1)
+            # save metric
+            mean_acc = torch.mean(acc).item()
+            acc_at_k[f"acc_at_{k}"] = mean_acc
 
-                # get positive/negative labels at those indices
-                topk_labels = r_c_labels[topk_indices]
+        acc_at_k = self.add_split_prefix(acc_at_k, split)
 
-                # get hadm_id of top k
-                topk_hadm_id = r_c_hadm_id[topk_indices]
-
-                # calculate metrics
-                precision_at_k = topk_labels.sum(dim=1) / k
-                mean_precision_at_k = precision_at_k.mean().item()
-
-                acc_at_k = torch.any(topk_labels, dim=1).float()
-                mean_acc_at_k = torch.mean(acc_at_k).item()
-
-                acc_at_k_true_cxr = (true_hadm_id.unsqueeze(1) == topk_hadm_id).any(dim=1).float()
-                mean_acc_at_k_true_cxr = acc_at_k_true_cxr.mean().item()
-
-                # save metrics
-                precision_at_k_dict[f"{label}_precision_at_{k}"] = mean_precision_at_k
-                acc_at_k_dict[f"{label}_acc_at_{k}"] = mean_acc_at_k
-                acc_at_k_true_cxr_dict[f"{label}_acc_at_{k}_true_cxr"] = mean_acc_at_k_true_cxr
-
-        precision_at_k_all_labels = self.get_metric_all_labels(precision_at_k_dict, "precision")
-        acc_at_k_all_labels = self.get_metric_all_labels(acc_at_k_dict, "acc")
-        acc_at_k_true_cxr_all_labels = self.get_metric_all_labels(acc_at_k_true_cxr_dict, "acc_true_cxr")
-
-        metrics_per_labels = precision_at_k_dict | acc_at_k_dict | acc_at_k_true_cxr_dict
-        metrics = precision_at_k_all_labels | acc_at_k_all_labels | acc_at_k_true_cxr_all_labels
-
-        metrics_per_labels = self.add_split_prefix(metrics_per_labels, split)
-        metrics = self.add_split_prefix(metrics, split)
-
-        return {"metrics_per_labels": metrics_per_labels, "metrics": metrics}
+        return acc_at_k

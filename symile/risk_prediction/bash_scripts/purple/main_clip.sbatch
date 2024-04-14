@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_symile_wd01_lr0005
+#SBATCH --job-name=main_clip_wd01_lr0005
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=16
@@ -39,7 +39,7 @@ python main.py \
     --data_dir /gpfs/scratch/as16583/symile/symile/risk_prediction/datasets \
     --ckpt_save_dir /gpfs/scratch/as16583/ckpts/risk_prediction \
     --efficient_loss True \
-    --loss_fn symile \
+    --loss_fn clip \
     --load_from_ckpt None
 
 echo 'done!'
