@@ -17,7 +17,7 @@ def main(args, trainer):
     dm = HighDimDataModule(args)
 
     if args.load_from_ckpt == "None":
-        print("Training from scratch!")
+        print("Training model from scratch!")
         model = SSLModel(**vars(args))
     else:
         print("Loading checkpoint from ", args.load_from_ckpt)
@@ -71,8 +71,16 @@ if __name__ == '__main__':
                                          every_n_epochs=args.check_val_every_n_epoch,
                                          save_top_k=-1)
 
+    early_stopping = EarlyStopping(monitor="val_loss", mode="min",
+                                   patience=args.early_stopping_patience)
+
+    if args.early_stopping:
+        callbacks = [val_loss_checkpoint, general_checkpoint, early_stopping]
+    else:
+        callbacks = [val_loss_checkpoint, general_checkpoint]
+
     trainer = Trainer(
-        callbacks=[val_loss_checkpoint, general_checkpoint],
+        callbacks=callbacks,
         check_val_every_n_epoch=args.check_val_every_n_epoch,
         deterministic=args.use_seed,
         enable_progress_bar=True,

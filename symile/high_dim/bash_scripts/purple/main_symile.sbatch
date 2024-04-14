@@ -1,10 +1,10 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_symile_t5_10L_10M_overlap_wd0_lr0
+#SBATCH --job-name=main_symile_2W_2L
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --partition=a100_short
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #SBATCH --gres=gpu:a100:1
 #SBATCH --mem=200GB
 #SBATCH --time=48:00:00
@@ -29,19 +29,19 @@ python main.py \
     --check_val_every_n_epoch 2 \
     --d 8192 \
     --drop_last True \
-    --early_stopping False \
-    --early_stopping_patience 20 \
-    --epochs 15 \
+    --early_stopping True \
+    --early_stopping_patience 5 \
+    --epochs 30 \
     --freeze_logit_scale False \
     --limit_train_batches=1.0 \
     --limit_val_batches=1.0 \
     --logit_scale_init -6 \
     --lr 0.0001 \
+    --weight_decay 0.0 \
     --use_seed True \
     --wandb True \
-    --weight_decay 0.0 \
-    --data_dir /gpfs/scratch/as16583/symile/src/high_dim/datasets/t5_10L_10M_overlap \
-    --data_reference /gpfs/scratch/as16583/symile/src/high_dim/datasets/data_reference.json \
+    --data_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L \
+    --data_reference /gpfs/scratch/as16583/symile/symile/high_dim/datasets/data_reference.json \
     --efficient_loss True \
     --loss_fn symile \
     --load_from_ckpt None

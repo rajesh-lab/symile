@@ -9,7 +9,6 @@ def parse_args_main():
 
     ### DATASET ARGS ###
     parser.add_argument("--data_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data/t2_50cls/disjoint"),
                         help="Directory with dataset csvs.")
     parser.add_argument("--train_csv", type=Path,
                         default=Path("train.csv"),
@@ -18,24 +17,20 @@ def parse_args_main():
                         default=Path("val.csv"),
                         help="Filename for val csv.")
     parser.add_argument("--test_csv", type=Path,
-                        default=Path("zeroshot.csv"),
+                        default=Path("test.csv"),
                         help="Filename for test csv.")
     parser.add_argument("--data_reference", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/src/high_dim/data_reference.json"),
                         help="Path to json file with class names, ImageNet synset \
                               id, and language translations.")
 
     ### MODEL ARGS ###
     parser.add_argument("--audio_model_id", type=str,
-                        default="openai/whisper-tiny",
                         help="Hugging Face model id for audio encoder.")
     parser.add_argument("--image_model_id", type=str,
-                        default="openai/clip-vit-base-patch16",
                         help="Hugging Face model id for image encoder.")
     parser.add_argument("--text_model_id", type=str,
-                        default="bert-base-multilingual-cased",
                         help="Hugging Face model id for text encoder.")
-    parser.add_argument("--d", type=int, default=768,
+    parser.add_argument("--d", type=int,
                         help="Dimensionality used by the linear projection heads \
                               of all three encoders.")
     parser.add_argument("--text_embedding", type=str,
@@ -47,13 +42,13 @@ def parse_args_main():
                         help="json filename with metadata for all encoders.")
 
     ### TRAINING ARGS ###
-    parser.add_argument("--batch_sz_train", type=int, default=300,
+    parser.add_argument("--batch_sz_train", type=int, default=256,
                         help="Train batch size for pretraining.")
-    parser.add_argument("--batch_sz_val", type=int, default=300,
+    parser.add_argument("--batch_sz_val", type=int, default=256,
                         help="Val set batch size for pretraining.")
-    parser.add_argument("--batch_sz_test", type=int, default=300,
+    parser.add_argument("--batch_sz_test", type=int, default=256,
                         help="Test set batch size.")
-    parser.add_argument("--check_val_every_n_epoch", type=int, default=1,
+    parser.add_argument("--check_val_every_n_epoch", type=int, default=2,
                         help="Check val every n train epochs.")
     parser.add_argument("--ckpt_save_dir", type=Path,
                         default=Path("/gpfs/scratch/as16583/ckpts/high_dim"),
@@ -80,7 +75,7 @@ def parse_args_main():
                         help="Value used to initialize the learned logit_scale. \
                               CLIP used np.log(1 / 0.07) = 2.65926.")
     parser.add_argument("--loss_fn", type=str,
-                        choices = ["symile", "clip"], default="symile",
+                        choices = ["symile", "clip"],
                         help="Loss function to use for training.")
     parser.add_argument("--lr", type=float, default=1.0e-3,
                         help="Learning rate.")

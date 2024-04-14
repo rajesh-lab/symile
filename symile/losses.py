@@ -2,6 +2,25 @@ import torch
 import torch.nn.functional as F
 
 
+def zeroshot_retrieval_logits(r_x, r_y, r_z, logit_scale_exp, loss_fn):
+    """
+    assumes that r_z is the modality to predict
+    """
+    if loss_fn == "symile":
+        # logits is a (batch_sz, n) matrix where each row i is
+        # [ MIP(r_x[i], r_y[i], r_z[0]) ... MIP(r_x[i], r_y[i], r_z[n-1]) ]
+        # where MIP is the multilinear inner product.
+        logits = (r_x * r_y) @ torch.t(r_z)
+    elif loss_fn == "clip":
+        # logits is a (batch_sz, n) matrix where each row i is
+        # [ r_x[i]^T r_z[0] + r_z[0]^T r_y[i]   + r_x[i]^T r_y[i] ...
+        #   r_x[i]^T r_z[n-1] + r_z[n-1]^T r_y[i] + r_x[i]^T r_y[i] ]
+        xy = torch.diagonal(r_x @ torch.t(r_y)).unsqueeze(dim=1) # (batch_sz, 1)
+        logits = xy + (r_x @ torch.t(r_z)) + (r_y @ torch.t(r_z))
+
+    return logit_scale_exp * logits
+
+
 ########
 # clip #
 ########

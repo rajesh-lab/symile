@@ -3,12 +3,11 @@ import json
 
 import lightning.pytorch as pl
 import numpy as np
-import plotly.express as px
 import torch
 import torch.nn as nn
 from transformers import BertModel, XLMRobertaModel
 
-from symile.losses import clip, symile
+from symile.losses import clip, symile, zeroshot_retrieval_logits
 
 
 class AudioEncoder(nn.Module):
@@ -135,36 +134,27 @@ class SSLModel(pl.LightningModule):
         return torch.optim.AdamW(self.parameters(), lr=self.args.lr,
                                  weight_decay=self.args.weight_decay)
 
-    def _shared_step(self, batch, batch_idx):
-        r_a, r_i, r_t, logit_scale_exp = self(batch)
-
-        return r_a, r_i, r_t, logit_scale_exp
-
     def training_step(self, batch, batch_idx):
-        r_a, r_i, r_t, logit_scale_exp = self._shared_step(batch, batch_idx)
+        r_a, r_i, r_t, logit_scale_exp = self(batch)
 
         loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.efficient_loss)
 
-        log_n = np.log(len(batch['image']))
+        log_n = np.log(len(batch["image"]))
 
-        self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
+        self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp, "log_n": log_n},
                       on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
-        self.log("log_n", log_n,
-                 on_step=False, on_epoch=True, sync_dist=False, prog_bar=False)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
-        r_a, r_i, r_t, logit_scale_exp = self._shared_step(batch, batch_idx)
+        r_a, r_i, r_t, logit_scale_exp = self(batch)
 
         loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.efficient_loss)
 
-        zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch, "val")
+        acc = self.zeroshot_retrieval_accuracy(r_a, r_t, batch, "val")
 
-        self.log("val_loss", loss,
-                 on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
-        self.log("val_accuracy", zeroshot_acc,
-                 on_step=True, on_epoch=True, sync_dist=True, prog_bar=False)
+        self.log_dict({"val_loss": loss, "val_accuracy": acc},
+                      on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
 
         return loss
 
@@ -172,90 +162,65 @@ class SSLModel(pl.LightningModule):
         """
         The zeroshot task is to predict which r_i corresponds to a given r_a, r_t.
         """
-        r_a, r_i, r_t, logit_scale_exp = self._shared_step(batch, batch_idx)
+        r_a, r_i, r_t, logit_scale_exp = self(batch)
 
-        zeroshot_acc = self.zeroshot_accuracy(r_a, r_t, batch, "test")
+        acc = self.zeroshot_retrieval_accuracy(r_a, r_t, batch, "test")
 
-        self.log("test_accuracy", zeroshot_acc, sync_dist=True, prog_bar=True)
+        self.log("test_accuracy", acc, sync_dist=True, prog_bar=True)
 
-        return zeroshot_acc
+        return acc
 
     def on_fit_start(self):
         """
         Compute or get r_i, which is the image representations for all data samples.
         """
-        self.save_image_representations("val")
+        self.save_candidate_image_representations("val")
 
     def on_test_start(self):
         """
         Compute or get r_i, which is the image representations for all data samples.
         """
-        self.save_image_representations("test")
+        self.save_candidate_image_representations("test")
 
-    def save_image_representations(self, split):
+    def save_candidate_image_representations(self, split):
         """
         Compute or get r_i, which is the image representations for all data samples.
         """
+        r_i_list = []
+        cls_id_list = []
+
+        # get dataloader
         if split == "val":
-            r_i_list = []
-            cls_id_list = []
-            idx_list = []
+            dl = self.trainer.datamodule.val_dataloader()
+        elif split == "test":
+            if self.trainer.datamodule is None:
+                dl = getattr(self, 'test_dataloader', None)
+            else:
+                dl = self.trainer.datamodule.test_dataloader()
 
-            for x in self.trainer.datamodule.val_dataloader():
-                r_i = self.image_encoder(x["image"].to(self.device))
+        # get reps
+        for x in dl:
+            r_i_list.append(self.image_encoder(x["image"].to(self.device)))
+            cls_id_list.append(x["cls_id"])
 
-                r_i_list.append(r_i)
-                cls_id_list.append(x["cls_id"])
-                idx_list.append(x["idx"])
-
+        # save reps
+        if split == "val":
             self.r_i_val = torch.cat(r_i_list)
             self.r_i_cls_id_val = torch.cat(cls_id_list).to(self.device)
-            self.r_i_idx_val = torch.cat(idx_list).to(self.device)
-
         elif split == "test":
-            r_i_list = []
-            cls_id_list = []
-            idx_list = []
-
-            if self.trainer.datamodule is None:
-                test_dataloader = getattr(self, 'test_dataloader', None)
-            else:
-                test_dataloader = self.trainer.datamodule.test_dataloader()
-
-            for x in test_dataloader:
-                r_i = self.image_encoder(x["image"].to(self.device))
-
-                r_i_list.append(r_i)
-                cls_id_list.append(x["cls_id"])
-                idx_list.append(x["idx"])
-
             self.r_i_test = torch.cat(r_i_list)
             self.r_i_cls_id_test = torch.cat(cls_id_list).to(self.device)
-            self.r_i_idx_test = torch.cat(idx_list).to(self.device)
 
-    def zeroshot_accuracy(self, r_a, r_t, batch, split):
+    def zeroshot_retrieval_accuracy(self, r_a, r_t, batch, split):
         if split == "val":
             r_i = self.r_i_val
             r_i_cls_id = self.r_i_cls_id_val
-            r_i_idx = self.r_i_idx_val
         elif split == "test":
             r_i = self.r_i_test
             r_i_cls_id = self.r_i_cls_id_test
-            r_i_idx = self.r_i_idx_test
 
-        if self.args.loss_fn == "symile":
-            # logits is a (batch_sz, n) matrix where each row i is
-            # [ MIP(r_a[i], r_i[0], r_t[i]) ... MIP(r_a[i], r_i[n-1], r_t[i]) ]
-            # where MIP is the multilinear inner product.
-            logits = (r_a * r_t) @ torch.t(r_i)
-        elif self.args.loss_fn == "clip":
-            # logits is a (batch_sz, n) matrix where each row i is
-            # [ r_a[i]^T r_i[0] + r_i[0]^T r_t[i]   + r_a[i]^T r_t[i] ...
-            #   r_a[i]^T r_i[n-1] + r_i[n-1]^T r_t[i] + r_a[i]^T r_t[i] ]
-            at = torch.diagonal(r_a @ torch.t(r_t)).unsqueeze(dim=1) # (batch_sz, 1)
-            logits = at + (r_a @ torch.t(r_i)) + (r_t @ torch.t(r_i))
-
-        logits = self.logit_scale.exp() * logits
+        logits = zeroshot_retrieval_logits(r_a, r_t, r_i, self.logit_scale.exp(),
+                                           self.args.loss_fn)
 
         # pred_idx is a tensor of length batch_sz where each element is the
         # index of the r_i (across the whole test set) that maximizes the score.
@@ -263,11 +228,11 @@ class SSLModel(pl.LightningModule):
 
         # for each index in pred_idx, we get the class id (label) that corresponds
         # to the r_i at that index; so pred is a tensor of length batch_sz where
-        # each element is the predicted label.
+        # each element is the predicted label
         pred = r_i_cls_id[pred_idx]
 
         y = batch["cls_id"]
 
-        zeroshot_acc = (torch.sum(y == pred) / len(y)).item()
+        acc = (torch.sum(y == pred) / len(y)).item()
 
-        return zeroshot_acc
+        return acc
