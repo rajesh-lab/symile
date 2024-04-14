@@ -108,7 +108,7 @@ def parse_args_save_representations():
     parser.add_argument("--save_dir", type=Path,
                         help="Directory to save dataset tensors in.")
     parser.add_argument("--split_to_run", type=str,
-                        choices = ["all", "train", "val_test"])
+                        choices = ["all", "train", "val", "test"])
     parser.add_argument("--cv_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/commonvoice/cv"),
                         help="Directory where CommonVoice audio clips are held.")

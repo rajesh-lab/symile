@@ -266,8 +266,9 @@ if __name__ == '__main__':
         save_representations(args, dm.test_dataloader(), "test", device)
     elif args.split_to_run == "train":
         save_representations(args, dm.train_dataloader(), train_split, device)
-    elif args.split_to_run == "val_test":
+    elif args.split_to_run == "val":
         save_representations(args, dm.val_dataloader(), "val", device)
+    elif args.split_to_run == "test":
         dm.setup(stage="test")
         save_representations(args, dm.test_dataloader(), "test", device)
 

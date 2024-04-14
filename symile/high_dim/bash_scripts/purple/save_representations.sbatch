@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=save_representations_2W_2L_disjoint_val_test
+#SBATCH --job-name=save_representations_2W_2L_disjoint_test
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=16
@@ -43,6 +43,6 @@ python save_representations.py \
     --data_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L \
     --save_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L \
     --max_token_len_pt /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L/max_token_len.json \
-    --split_to_run val_test
+    --split_to_run test
 
 echo 'done!'
