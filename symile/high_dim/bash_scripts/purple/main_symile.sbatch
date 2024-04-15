@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_symile_2W_2L
+#SBATCH --job-name=main_symile_2W_2L_wd001_lr00005
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --partition=a100_short
@@ -31,16 +31,17 @@ python main.py \
     --drop_last True \
     --early_stopping True \
     --early_stopping_patience 5 \
-    --epochs 30 \
+    --epochs 25 \
     --freeze_logit_scale False \
     --limit_train_batches=1.0 \
     --limit_val_batches=1.0 \
     --logit_scale_init -6 \
-    --lr 0.0001 \
-    --weight_decay 0.0 \
+    --lr 0.00005 \
+    --weight_decay 0.001 \
     --use_seed True \
     --wandb True \
     --data_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L \
+    --num_langs 2 \
     --data_reference /gpfs/scratch/as16583/symile/symile/high_dim/datasets/data_reference.json \
     --efficient_loss True \
     --loss_fn symile \

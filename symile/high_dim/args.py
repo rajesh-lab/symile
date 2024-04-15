@@ -22,6 +22,8 @@ def parse_args_main():
     parser.add_argument("--data_reference", type=Path,
                         help="Path to json file with class names, ImageNet synset \
                               id, and language translations.")
+    parser.add_argument("--num_langs", type=int,
+                        help="Number of languages in generated text.")
 
     ### MODEL ARGS ###
     parser.add_argument("--audio_model_id", type=str,
