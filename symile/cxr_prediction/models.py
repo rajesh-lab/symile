@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from torchvision import models
 
 from datasets import EvaluationDataset
-from src.losses import clip, symile
+from src.losses import clip, symile, zeroshot_retrieval_logits
 from src.healthcare.constants import CHEXPERT_LABELS
 
 
