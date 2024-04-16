@@ -170,13 +170,13 @@ class SSLModel(pl.LightningModule):
 
         return acc
 
-    def on_fit_start(self):
+    def on_validation_epoch_start(self):
         """
         Compute or get r_i, which is the image representations for all data samples.
         """
         self.save_candidate_image_representations("val")
 
-    def on_test_start(self):
+    def on_test_epoch_start(self):
         """
         Compute or get r_i, which is the image representations for all data samples.
         """
