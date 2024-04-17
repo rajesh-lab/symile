@@ -158,7 +158,7 @@ class SSLModel(pl.LightningModule):
 
         return loss
 
-    def test_step(self, batch, batch_idx, save_dir=None):
+    def test_step(self, batch, batch_idx):
         """
         The zeroshot task is to predict which r_i corresponds to a given r_a, r_t.
         """
