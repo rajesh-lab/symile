@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_symile_2W_2L_wd001_lr00005
+#SBATCH --job-name=main_symile_2W_2L_wd001_lr00001
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --partition=a100_short
@@ -36,7 +36,7 @@ python main.py \
     --limit_train_batches=1.0 \
     --limit_val_batches=1.0 \
     --logit_scale_init -6 \
-    --lr 0.00005 \
+    --lr 0.00001 \
     --weight_decay 0.001 \
     --use_seed True \
     --wandb True \
@@ -45,6 +45,7 @@ python main.py \
     --data_reference /gpfs/scratch/as16583/symile/symile/high_dim/datasets/data_reference.json \
     --efficient_loss True \
     --loss_fn symile \
-    --load_from_ckpt None
+    --load_from_ckpt /gpfs/scratch/as16583/ckpts/high_dim/20240415_181732_5622/best_val_loss_epoch=23-val_loss=0.74.ckpt \
+    --wandb_run_id hfgvpyvs
 
 echo 'done!'
