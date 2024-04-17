@@ -54,7 +54,8 @@ if __name__ == '__main__':
     print("\nSaving to: ", save_dir)
 
     if args.wandb:
-        logger = WandbLogger(project="symile", log_model=False, save_dir=args.ckpt_save_dir)
+        logger = WandbLogger(project="symile", log_model=False,
+                             save_dir=args.ckpt_save_dir, id=args.wandb_run_id)
     else:
         logger = False
 
