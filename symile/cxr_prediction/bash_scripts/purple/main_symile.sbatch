@@ -20,6 +20,8 @@ cd /gpfs/scratch/pulia01/adriel/symile/symile/healthcare
 echo 'training...'
 python main.py \
     --batch_sz_train 300 \
+    --batch_sz_val 300 \
+    --batch_sz_test 300 \
     --check_val_every_n_epoch 2 \
     --d 1024 \
     --drop_last False \
@@ -30,14 +32,13 @@ python main.py \
     --logit_scale_init -7 \
     --lr 0.0001 \
     --use_seed True \
-    --wandb True \
+    --wandb False \
     --weight_decay 0.1 \
-    --data_dir /gpfs/scratch/pulia01/adriel/symile/src/healthcare/datasets \
-    --ckpt_save_dir /gpfs/scratch/pulia01/adriel/ckpts/healthcare \
+    --data_dir /gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets \
+    --ckpt_save_dir /gpfs/scratch/as16583/ckpts/cxr_prediction \
     --efficient_loss True \
     --loss_fn symile \
     --load_from_ckpt None \
-    --labs_model mlp \
     --step train
 
 echo 'done!'

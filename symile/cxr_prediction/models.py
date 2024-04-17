@@ -4,15 +4,14 @@ import json
 
 import lightning.pytorch as pl
 import numpy as np
-from rtdl_revisiting_models import FTTransformer
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import models
 
 from datasets import EvaluationDataset
-from src.losses import clip, symile, zeroshot_retrieval_logits
-from src.healthcare.constants import CHEXPERT_LABELS
+from symile.losses import clip, symile, zeroshot_retrieval_logits
+from symile.cxr_prediction.constants import CHEXPERT_LABELS
 
 
 class ECGEncoder(nn.Module):
@@ -53,38 +52,6 @@ class CXREncoder(nn.Module):
             x (torch.Tensor): shape (batch_sz, d)
         """
         x = self.resnet(x)
-        x = self.layer_norm(x)
-        return x
-
-
-class LabsEncoderFTT(nn.Module):
-    def __init__(self, d):
-        super().__init__()
-        self.model = FTTransformer(
-            n_cont_features=50,
-            cat_cardinalities=[2] * 50,
-            d_out=d,
-            n_blocks=3,
-            d_block=192,
-            attention_n_heads=8,
-            attention_dropout=0.2,
-            ffn_d_hidden=None,
-            ffn_d_hidden_multiplier=4 / 3,
-            ffn_dropout=0.1,
-            residual_dropout=0.0,
-        )
-
-        self.layer_norm = nn.LayerNorm(d)
-
-    def forward(self, values, missingness):
-        """
-        Args:
-            input_features (torch.Tensor): shape (batch_sz, 80, 3000)
-            attention_mask (torch.Tensor): shape (batch_sz, 3000)
-        Returns:
-            x (torch.Tensor): shape (batch_sz, d)
-        """
-        x = self.model(values, missingness)
         x = self.layer_norm(x)
         return x
 
@@ -132,11 +99,7 @@ class SSLModel(pl.LightningModule):
 
         self.ecg_encoder = ECGEncoder(self.args.d)
         self.cxr_encoder = CXREncoder(self.args.d)
-
-        if self.args.labs_model == "ftt":
-            self.labs_encoder = LabsEncoderFTT(self.args.d)
-        else:
-            self.labs_encoder = LabsEncoder(self.args.d)
+        self.labs_encoder = LabsEncoder(self.args.d)
 
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
@@ -152,135 +115,158 @@ class SSLModel(pl.LightningModule):
             x: list of four tensors (cxr, ecg, labs_percentiles, labs_missingness)
         """
         if isinstance(x, list):
-        # train or val dataset
-            r_e = self.ecg_encoder(x[1])
             r_c = self.cxr_encoder(x[0])
 
-            if self.args.labs_model == "ftt":
-                r_l = self.labs_encoder(x[2], x[3])
-            else:
-                labs = torch.cat([x[2], x[3]], dim=1)
-                r_l = self.labs_encoder(labs)
+            r_e = self.ecg_encoder(x[1])
+
+            labs = torch.cat([x[2], x[3]], dim=1)
+            r_l = self.labs_encoder(labs)
         else:
         # query or candidate dataset
-            r_e = self.ecg_encoder(x["ecg"].to(self.device))
             r_c = self.cxr_encoder(x["cxr"].to(self.device))
 
-            if self.args.labs_model == "ftt":
-                r_l = self.labs_encoder(x["labs_percentiles"].to(self.device),
-                                        x["labs_missingness"].to(self.device))
-            else:
-                labs = torch.cat([x["labs_percentiles"], x["labs_missingness"]], dim=1)
-                r_l = self.labs_encoder(labs.to(self.device))
-        return r_e, r_c, r_l, self.logit_scale.exp()
+            r_e = self.ecg_encoder(x["ecg"].to(self.device))
+
+            labs = torch.cat([x["labs_percentiles"], x["labs_missingness"]], dim=1)
+            r_l = self.labs_encoder(labs.to(self.device))
+        return r_c, r_e, r_l, self.logit_scale.exp()
 
     def configure_optimizers(self):
-        if self.args.labs_model == "ftt":
-            # to protect some parameters from weight decay (per paper). see:
-            # https://github.com/yandex-research/rtdl-revisiting-models/tree/2542a25b2adbfd0e9d18ce00f75f9f64ad2c26bd/package#ft-transformer-
-            # https://github.com/yandex-research/rtdl-revisiting-models/blob/2542a25b2adbfd0e9d18ce00f75f9f64ad2c26bd/package/rtdl_revisiting_models.py#L780
-            param_group_less_labs_encoder = [{"params": [p for name, p in self.named_parameters() if "labs_encoder.model" not in name]}]
-            param_groups = param_group_less_labs_encoder + self.labs_encoder.model.make_parameter_groups()
-            return torch.optim.AdamW(param_groups, lr=self.args.lr, weight_decay=self.args.weight_decay)
-        else:
-            return torch.optim.AdamW(self.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
-
-    def _shared_step(self, batch):
-        r_e, r_c, r_l, logit_scale_exp = self(batch)
-        return r_e, r_c, r_l, logit_scale_exp
+        return torch.optim.AdamW(self.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
 
     def training_step(self, batch, batch_idx):
-        r_e, r_c, r_l, logit_scale_exp = self._shared_step(batch)
+        r_c, r_e, r_l, logit_scale_exp = self(batch)
 
-        loss = self.loss_fn(r_e, r_c, r_l, logit_scale_exp, self.args.efficient_loss)
+        loss = self.loss_fn(r_c, r_e, r_l, logit_scale_exp, self.args.efficient_loss)
 
         log_n = np.log(len(batch[0]))
 
-        self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
+        self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp, "log_n": log_n},
                     on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
-        self.log("log_n", log_n,
-                on_step=False, on_epoch=True, sync_dist=False, prog_bar=False)
 
         return loss
 
-    def on_validation_epoch_start(self):
-        query_ds = EvaluationDataset(self.args, "val", "query")
-
-        i = 0
-        for batch in DataLoader(query_ds, batch_size=len(query_ds), shuffle=False):
-            r_e, r_c, r_l, logit_scale_exp = self._shared_step(batch)
-            i += 1
-        assert i == 1, "query_ds should only have one batch"
-
-        metrics = self.get_metrics(r_e, r_l, batch, "val")
-        self.log_dict(metrics["metrics"], sync_dist=True, prog_bar=False)
-
     def validation_step(self, batch, batch_idx):
-        r_e, r_c, r_l, logit_scale_exp = self._shared_step(batch)
+        r_c, r_e, r_l, logit_scale_exp = self(batch)
 
-        loss = self.loss_fn(r_e, r_c, r_l, logit_scale_exp, self.args.efficient_loss)
+        loss = self.loss_fn(r_c, r_e, r_l, logit_scale_exp, self.args.efficient_loss)
 
-        self.log("val_loss", loss,
+        acc = self.zeroshot_retrieval_accuracy(r_e, r_l, batch, "val")
+
+        self.log_dict({"val_loss": loss, "val_accuracy": acc},
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
 
         return loss
 
     def test_step(self, batch, batch_idx):
-        r_e, r_c, r_l, logit_scale_exp = self._shared_step(batch)
+        r_c, r_e, r_l, logit_scale_exp = self(batch)
 
-        metrics = self.get_metrics(r_e, r_l, batch, "test")
+        acc = self.zeroshot_retrieval_accuracy(r_e, r_l, batch, "test")
 
-        self.log_dict(metrics["metrics"], sync_dist=True, prog_bar=False)
-        self.log_dict(metrics["metrics_per_labels"], sync_dist=True, prog_bar=False)
+        self.log("test_accuracy", acc, sync_dist=True, prog_bar=True)
+
+        return acc
+
+    def on_validation_epoch_start(self):
+        self.save_candidate_cxr_representations("val")
+
+        metrics = self.zeroshot_pathology_retrieval_metrics("val")
+
+        self.log_dict(metrics, sync_dist=True, prog_bar=False)
+
+    def on_test_epoch_start(self):
+        self.save_candidate_cxr_representations("test")
+
+        metrics = self.zeroshot_pathology_retrieval_metrics("test")
+
+        self.log_dict(metrics, sync_dist=True, prog_bar=False)
 
         with open(self.args.save_dir / "metrics.json", 'w') as f:
-            json.dump(metrics["metrics"], f, indent=4)
-        with open(self.args.save_dir / "metrics_per_labels.json", 'w') as f:
-            json.dump(metrics["metrics_per_labels"], f, indent=4)
+            json.dump(metrics, f, indent=4)
 
-    def get_logits(self, r_x, r_y, r_z, logit_scale_exp):
-        """
-        assumes that r_z is the modality to predict
-        """
-        if self.args.loss_fn == "symile":
-            # logits is a (batch_sz, n) matrix where each row i is
-            # [ MIP(r_x[i], r_y[i], r_z[0]) ... MIP(r_x[i], r_y[i], r_z[n-1]) ]
-            # where MIP is the multilinear inner product.
-            logits = (r_x * r_y) @ torch.t(r_z)
-        elif self.args.loss_fn == "clip":
-            # logits is a (batch_sz, n) matrix where each row i is
-            # [ r_x[i]^T r_z[0] + r_z[0]^T r_y[i]   + r_x[i]^T r_y[i] ...
-            #   r_x[i]^T r_z[n-1] + r_z[n-1]^T r_y[i] + r_x[i]^T r_y[i] ]
-            xy = torch.diagonal(r_x @ torch.t(r_y)).unsqueeze(dim=1) # (batch_sz, 1)
-            logits = xy + (r_x @ torch.t(r_z)) + (r_y @ torch.t(r_z))
+    def save_candidate_cxr_representations(self, split):
+        r_c_list = []
+        hadm_id_list = []
 
-        return logit_scale_exp * logits
+        # get dataloader
+        if split == "val":
+            dl = self.trainer.datamodule.val_dataloader()
+        elif split == "test":
+            if self.trainer.datamodule is None:
+                dl = getattr(self, 'test_dataloader', None)
+            else:
+                dl = self.trainer.datamodule.test_dataloader()
 
-    def get_logits_two_modes(self, r_x, r_y, logit_scale_exp):
-        """
-        assumes that r_z is the modality to predict
-        """
-        if self.args.loss_fn == "symile":
-            # logits is a (batch_sz, n) matrix where each row i is
-            # [ MIP(r_x[i], r_y[i], r_z[0]) ... MIP(r_x[i], r_y[i], r_z[n-1]) ]
-            # where MIP is the multilinear inner product.
-            logits = r_x @ r_y.T
-        elif self.args.loss_fn == "clip":
-            ValueError("This function is only for symile loss")
+        # get reps
+        for x in dl:
+            r_c_list.append(self.cxr_encoder(x[0].to(self.device)))
+            hadm_id_list.append(x[4])
 
-        return logit_scale_exp * logits
+        # save reps
+        if split == "val":
+            self.r_c_val = torch.cat(r_c_list)
+            self.r_c_hadm_id_val = torch.cat(hadm_id_list).to(self.device)
+        elif split == "test":
+            self.r_c_test = torch.cat(r_c_list)
+            self.r_c_hadm_id_test = torch.cat(hadm_id_list).to(self.device)
+
+    def zeroshot_retrieval_accuracy(self, r_e, r_l, batch, split):
+        if split == "val":
+            r_c = self.r_c_val
+            r_c_hadm_id = self.r_c_hadm_id_val
+        elif split == "test":
+            r_c = self.r_c_test
+            r_c_hadm_id = self.r_c_hadm_id_test
+
+        logits = zeroshot_retrieval_logits(r_e, r_l, r_c, self.logit_scale.exp(),
+                                           self.args.loss_fn)
+
+        # pred_idx is a tensor of length batch_sz where each element is the
+        # index of the r_c (across the whole eval set) that maximizes the score.
+        pred_idx = torch.argmax(logits, dim=1)
+
+        # for each index in pred_idx, we get the hadm_id that corresponds
+        # to the r_c at that index; so pred is a tensor of length batch_sz where
+        # each element is the predicted hadm_id
+        pred = r_c_hadm_id[pred_idx]
+
+        y = batch[4]
+
+        acc = (torch.sum(y == pred) / len(y)).item()
+
+        return acc
+
+    def get_queries(self, split):
+        query_ds = EvaluationDataset(self.args, split, "query")
+
+        r_e = []
+        r_l = []
+        label_name = []
+
+        for batch in DataLoader(query_ds, batch_size=len(query_ds), shuffle=False):
+            r_e.append(self.ecg_encoder(batch["ecg"].to(self.device)))
+
+            labs = torch.cat([batch["labs_percentiles"], batch["labs_missingness"]], dim=1)
+            r_l.append(self.labs_encoder(labs.to(self.device)))
+
+            label_name += batch["label_name"]
+
+        r_e = torch.cat(r_e, dim=0)
+        r_l = torch.cat(r_l, dim=0)
+
+        assert len(r_e) == len(r_l) == len(query_ds), "r_e, r_l, and query_ds should have the same length"
+
+        return {"r_e": r_e, "r_l": r_l, "label_name": label_name}
 
     def get_candidates(self, split):
         candidate_ds = EvaluationDataset(self.args, split, "candidate")
 
         r_c = []
-        hadm_id = []
         label_name = []
         label_value = []
 
         for batch in DataLoader(candidate_ds, batch_size=256, shuffle=False):
             r_c.append(self.cxr_encoder(batch["cxr"].to(self.device)))
-            hadm_id.append(batch["hadm_id"])
             label_name += batch["label_name"]
             label_value.append(batch["label_value"])
 
@@ -289,7 +275,6 @@ class SSLModel(pl.LightningModule):
         assert len(r_c) == len(candidate_ds), "r_c and candidate_ds should have the same length"
 
         return {"r_c": r_c,
-                "hadm_id": torch.cat(hadm_id, dim=0),
                 "label_name": label_name,
                 "label_value": torch.cat(label_value, dim=0)}
 
@@ -310,38 +295,33 @@ class SSLModel(pl.LightningModule):
         """Add a prefix to all metric names."""
         return {f"{split}_{key}": value for key, value in metrics.items()}
 
-    def get_metrics(self, r_e_query, r_l_query, batch, split):
+    def zeroshot_pathology_retrieval_metrics(self, split):
+        queries = self.get_queries(split)
         candidates = self.get_candidates(split)
 
         precision_at_k_dict = {}
         acc_at_k_dict = {}
-        acc_at_k_true_cxr_dict = {}
 
         for label in CHEXPERT_LABELS:
             # get query set for `label`
-            label_mask_q = torch.tensor([name == label for name in batch["label_name"]])
-            r_e = r_e_query[label_mask_q]
-            r_l = r_l_query[label_mask_q]
-            true_hadm_id = batch['hadm_id'][label_mask_q].cpu()
+            label_mask_q = torch.tensor([name == label for name in queries["label_name"]])
+            r_e = queries["r_e"][label_mask_q]
+            r_l = queries["r_l"][label_mask_q]
 
             # get candidate set for `label`
             label_mask_c = torch.tensor([name == label for name in candidates["label_name"]])
             r_c = candidates["r_c"][label_mask_c]
             r_c_labels = candidates["label_value"][label_mask_c]
-            r_c_hadm_id = candidates["hadm_id"][label_mask_c]
 
-            logits = self.get_logits(r_e, r_l, r_c, self.logit_scale.exp()).cpu()
-            # logits = self.get_logits_two_modes(r_e, r_c, self.logit_scale.exp()).cpu()
+            logits = zeroshot_retrieval_logits(r_e, r_l, r_c, self.logit_scale.exp(),
+                                               self.args.loss_fn).cpu()
 
-            for k in [1, 5, 10, 50, 100]:
+            for k in [1, 5, 10]:
                 # get indices of top k logits
                 _, topk_indices = torch.topk(logits, k, dim=1)
 
                 # get positive/negative labels at those indices
                 topk_labels = r_c_labels[topk_indices]
-
-                # get hadm_id of top k
-                topk_hadm_id = r_c_hadm_id[topk_indices]
 
                 # calculate metrics
                 precision_at_k = topk_labels.sum(dim=1) / k
@@ -350,22 +330,14 @@ class SSLModel(pl.LightningModule):
                 acc_at_k = torch.any(topk_labels, dim=1).float()
                 mean_acc_at_k = torch.mean(acc_at_k).item()
 
-                acc_at_k_true_cxr = (true_hadm_id.unsqueeze(1) == topk_hadm_id).any(dim=1).float()
-                mean_acc_at_k_true_cxr = acc_at_k_true_cxr.mean().item()
-
                 # save metrics
                 precision_at_k_dict[f"{label}_precision_at_{k}"] = mean_precision_at_k
                 acc_at_k_dict[f"{label}_acc_at_{k}"] = mean_acc_at_k
-                acc_at_k_true_cxr_dict[f"{label}_acc_at_{k}_true_cxr"] = mean_acc_at_k_true_cxr
 
         precision_at_k_all_labels = self.get_metric_all_labels(precision_at_k_dict, "precision")
         acc_at_k_all_labels = self.get_metric_all_labels(acc_at_k_dict, "acc")
-        acc_at_k_true_cxr_all_labels = self.get_metric_all_labels(acc_at_k_true_cxr_dict, "acc_true_cxr")
 
-        metrics_per_labels = precision_at_k_dict | acc_at_k_dict | acc_at_k_true_cxr_dict
-        metrics = precision_at_k_all_labels | acc_at_k_all_labels | acc_at_k_true_cxr_all_labels
-
-        metrics_per_labels = self.add_split_prefix(metrics_per_labels, split)
+        metrics = precision_at_k_dict | acc_at_k_dict | precision_at_k_all_labels | acc_at_k_all_labels
         metrics = self.add_split_prefix(metrics, split)
 
-        return {"metrics_per_labels": metrics_per_labels, "metrics": metrics}
+        return metrics

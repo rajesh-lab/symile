@@ -121,17 +121,19 @@ if __name__ == '__main__':
     args = parse_save_dataset_tensors()
 
     train_df = pd.read_csv(args.data_dir / args.train_csv)
-    val_df = pd.read_csv(args.data_dir / args.val_csv)
+
     val_query_df = pd.read_csv(args.data_dir / args.val_query_csv)
     val_candidate_df = pd.read_csv(args.data_dir / args.val_candidate_csv)
+    val_df = pd.read_csv(args.data_dir / args.val_csv)
+
     test_query_df = pd.read_csv(args.data_dir / args.test_query_csv)
     test_candidate_df = pd.read_csv(args.data_dir / args.test_candidate_csv)
+    # full test set is the candidate set without duplicates
+    test_df = test_candidate_df.drop_duplicates(subset=["hadm_id"])
+    test_df.to_csv(args.data_dir / "test.csv", index=False)
 
     print("Saving train tensors...")
     save_dataset_tensors(args, train_df, "train")
-
-    print("Saving val tensors...")
-    save_dataset_tensors(args, val_df, "val")
 
     print("Saving val query tensors...")
     save_dataset_tensors(args, val_query_df, "val_query")
@@ -139,11 +141,17 @@ if __name__ == '__main__':
     print("Saving val candidate tensors...")
     save_dataset_tensors(args, val_candidate_df, "val_candidate")
 
+    print("Saving val tensors...")
+    save_dataset_tensors(args, val_df, "val")
+
     print("Saving test query tensors...")
     save_dataset_tensors(args, test_query_df, "test_query")
 
     print("Saving test candidate tensors...")
     save_dataset_tensors(args, test_candidate_df, "test_candidate")
+
+    print("Saving test tensors...")
+    save_dataset_tensors(args, test_df, "test")
 
     with open(args.data_dir / "metadata.json", "w") as f:
         json.dump({
@@ -151,6 +159,7 @@ if __name__ == '__main__':
             "val set size": len(val_df),
             "val query set size": len(val_query_df),
             "val candidate set size": len(val_candidate_df),
+            "test set size": len(test_df),
             "test query set size": len(test_query_df),
             "test candidate set size": len(test_candidate_df),
             "cxr_scale": args.cxr_scale,

@@ -19,12 +19,14 @@ def parse_args_main():
     parser.add_argument("--d", type=int, default=768,
                         help="Dimensionality used by the linear projection heads \
                               of all three encoders.")
-    parser.add_argument("--labs_model", type=str, default=None,
-                        choices=["mlp", "ftt"])
 
     ### TRAINING ARGS ###
     parser.add_argument("--batch_sz_train", type=int, default=300,
-                        help="Train batch size for pretraining.")
+                        help="Train batch size.")
+    parser.add_argument("--batch_sz_val", type=int, default=300,
+                        help="Val batch size.")
+    parser.add_argument("--batch_sz_test", type=int, default=300,
+                        help="Test batch size.")
     parser.add_argument("--check_val_every_n_epoch", type=int, default=1,
                         help="Check val every n train epochs.")
     parser.add_argument("--ckpt_save_dir", type=Path,
