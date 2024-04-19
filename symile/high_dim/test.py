@@ -27,7 +27,7 @@ def get_dataloader(args):
         return DataLoader(ds_test, batch_size=args.batch_sz_test,
                           sampler=sampler, num_workers=num_workers, drop_last=False)
     else:
-        return DataLoader(ds_test, batch_size=self.args.batch_sz_test,
+        return DataLoader(ds_test, batch_size=args.batch_sz_test,
                           shuffle=False, num_workers=num_workers, drop_last=False)
 
 def test(args, trainer):
