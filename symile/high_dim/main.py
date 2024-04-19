@@ -24,7 +24,8 @@ def main(args, trainer):
         model = SSLModel.load_from_checkpoint(args.load_from_ckpt)
     trainer.fit(model, datamodule=dm)
 
-    trainer.test(ckpt_path="best", datamodule=dm)
+    if args.num_langs == 2: # get oom error if num_langs > 2
+        trainer.test(ckpt_path="best", datamodule=dm)
 
 
 if __name__ == '__main__':
