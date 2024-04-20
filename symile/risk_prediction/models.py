@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from torchvision import models
 
-from symile.losses import clip, symile
+from symile.losses import clip, symile, zeroshot_retrieval_logits
 from symile.risk_prediction.constants import RISK_VECTOR_COLS
 
 
@@ -17,7 +17,7 @@ class ECGEncoder(nn.Module):
         super().__init__()
 
         self.resnet = models.resnet18(pretrained=False)
-        self.resnet.conv1 = nn.Conv2d(2, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.resnet.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.resnet.fc = nn.Linear(self.resnet.fc.in_features, d, bias=True)
         self.layer_norm = nn.LayerNorm(d)
 
@@ -38,7 +38,6 @@ class CXREncoder(nn.Module):
     def __init__(self, d):
         super().__init__()
         self.resnet = models.resnet50(pretrained=False)
-        self.resnet.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.resnet.fc = nn.Linear(self.resnet.fc.in_features, d, bias=True)
         self.layer_norm = nn.LayerNorm(d)
 
@@ -122,9 +121,9 @@ class SSLModel(pl.LightningModule):
         return torch.tensor(all_combinations, dtype=torch.float32)
 
     def forward(self, x):
-        r_c = self.cxr_encoder(x["cxr"])
-        r_e = self.ecg_encoder(x["ecg"])
-        r_r = self.risk_encoder(x["risk_vector"])
+        r_c = self.cxr_encoder(x[0])
+        r_e = self.ecg_encoder(x[1])
+        r_r = self.risk_encoder(x[2])
         return r_c, r_e, r_r, self.logit_scale.exp()
 
     def configure_optimizers(self):
@@ -135,7 +134,7 @@ class SSLModel(pl.LightningModule):
 
         loss = self.loss_fn(r_c, r_e, r_r, logit_scale_exp, self.args.efficient_loss)
 
-        log_n = np.log(len(batch["hadm_id"]))
+        log_n = np.log(len(batch[3]))
 
         self.log_dict({"train_loss": loss, "logit_scale_exp": logit_scale_exp},
                     on_step=True, on_epoch=True, sync_dist=False, prog_bar=True)
@@ -149,7 +148,7 @@ class SSLModel(pl.LightningModule):
 
         loss = self.loss_fn(r_c, r_e, r_r, logit_scale_exp, self.args.efficient_loss)
 
-        metrics = self.get_metrics(r_c, r_e, batch, "val")
+        metrics = self.zeroshot_retrieval_accuracy(r_c, r_e, batch, "val")
 
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
@@ -160,39 +159,22 @@ class SSLModel(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         r_c, r_e, r_r, logit_scale_exp = self(batch)
 
-        metrics = self.get_metrics(r_c, r_e, batch, "test")
+        metrics = self.zeroshot_retrieval_accuracy(r_c, r_e, batch, "test")
 
         self.log_dict(metrics, sync_dist=True, prog_bar=False)
 
         with open(self.args.save_dir / "metrics.json", 'w') as f:
             json.dump(metrics, f, indent=4)
 
-    def get_logits(self, r_x, r_y, r_z, logit_scale_exp):
-        """
-        assumes that r_z is the modality to predict
-        """
-        if self.args.loss_fn == "symile":
-            # logits is a (batch_sz, n) matrix where each row i is
-            # [ MIP(r_x[i], r_y[i], r_z[0]) ... MIP(r_x[i], r_y[i], r_z[n-1]) ]
-            # where MIP is the multilinear inner product.
-            logits = (r_x * r_y) @ torch.t(r_z)
-        elif self.args.loss_fn == "clip":
-            # logits is a (batch_sz, n) matrix where each row i is
-            # [ r_x[i]^T r_z[0] + r_z[0]^T r_y[i]   + r_x[i]^T r_y[i] ...
-            #   r_x[i]^T r_z[n-1] + r_z[n-1]^T r_y[i] + r_x[i]^T r_y[i] ]
-            xy = torch.diagonal(r_x @ torch.t(r_y)).unsqueeze(dim=1) # (batch_sz, 1)
-            logits = xy + (r_x @ torch.t(r_z)) + (r_y @ torch.t(r_z))
-
-        return logit_scale_exp * logits
-
     def add_split_prefix(self, metrics, split):
         """Add a prefix to all metric names."""
         return {f"{split}_{key}": value for key, value in metrics.items()}
 
-    def get_metrics(self, r_c, r_e, batch, split):
+    def zeroshot_retrieval_accuracy(self, r_c, r_e, batch, split):
         r_r_candidates = self.risk_encoder(self.candidate_risk_vectors.to(self.device))
 
-        logits = self.get_logits(r_c, r_e, r_r_candidates, self.logit_scale.exp())
+        logits = zeroshot_retrieval_logits(r_c, r_e, r_r_candidates, self.logit_scale.exp(),
+                                           self.args.loss_fn)
         logits = logits.cpu()
 
         acc_at_k = {}
@@ -204,7 +186,7 @@ class SSLModel(pl.LightningModule):
             topk_risk_vectors = self.candidate_risk_vectors[topk_indices] # (batch_sz, k, 3)
 
             # check if true risk vector is in top k predictions
-            true_risk_vector = batch["risk_vector"].unsqueeze(1).cpu()
+            true_risk_vector = batch[2].unsqueeze(1).cpu()
             matches = (topk_risk_vectors == true_risk_vector).all(dim=2) # (batch_sz, k)
             acc = matches.any(dim=1).float() # (batch_sz)
 

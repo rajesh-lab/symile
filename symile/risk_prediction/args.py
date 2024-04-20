@@ -4,47 +4,6 @@ from pathlib import Path
 from symile.utils import str_to_bool
 
 
-def parse_save_dataset_tensors():
-    parser = argparse.ArgumentParser()
-
-    ### DATASET ARGS ###
-    parser.add_argument("--data_dir", type=Path,
-                        help="Directory with dataset csvs.")
-    parser.add_argument("--ecg_data_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/mimic-iv-ecg/1.0"),
-                        help="Directory with ECGs.")
-    parser.add_argument("--cxr_data_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/mimic-cxr-jpg/mimic-cxr-jpg-2.0.0.physionet.org"),
-                        help="Directory with CXRs.")
-    parser.add_argument("--train_csv", type=Path,
-                        default=Path("train.csv"),
-                        help="Filename for train csv.")
-    parser.add_argument("--val_csv", type=Path,
-                        default=Path("val.csv"),
-                        help="Filename for val csv.")
-    parser.add_argument("--test_csv", type=Path,
-                        default=Path("test.csv"),
-                        help="Filename for test csv.")
-    parser.add_argument("--cxr_scale", type=int, default=320,
-                        help="Scale for preprocessing CXRs.")
-    parser.add_argument("--cxr_crop", type=int, default=320,
-                        help="Crop for preprocessing CXRs.")
-    parser.add_argument("--split", type=str, default=None,
-                        choices=["train", "val", "test"])
-
-    return parser.parse_args()
-
-
-def parse_create_mean_cxr_ecg():
-    parser = argparse.ArgumentParser()
-
-    ### DATASET ARGS ###
-    parser.add_argument("--data_dir", type=Path,
-                        help="Directory with dataset csvs.")
-
-    return parser.parse_args()
-
-
 def parse_args_main():
     parser = argparse.ArgumentParser()
 
@@ -52,10 +11,6 @@ def parse_args_main():
     parser.add_argument("--data_dir", type=Path,
                         default=Path("/gpfs/scratch/as16583/symile/src/healthcare/datasets"),
                         help="Directory with dataset csvs.")
-    parser.add_argument("--mean_cxr", type=Path,
-                        help="Path to mean cxr to use for missing cxrs.")
-    parser.add_argument("--mean_ecg", type=Path,
-                        help="Path to mean ecg to use for missing ecgs.")
 
     ### MODEL ARGS ###
     parser.add_argument("--d", type=int, default=768,

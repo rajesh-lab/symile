@@ -1,3 +1,4 @@
+"""with missigness because it saves cxrs as ints"""
 import json
 import os
 
@@ -8,8 +9,8 @@ import torchvision.transforms as t
 from tqdm import tqdm
 import wfdb
 
-from args import parse_save_dataset_tensors
-from symile.risk_prediction.constants import *
+from symile.risk_prediction.args import parse_save_dataset_tensors
+from symile.risk_prediction.constants import RISK_VECTOR_COLS
 
 
 def get_cxr(args, pt, split):
@@ -27,10 +28,13 @@ def get_cxr(args, pt, split):
         # then img is rescaled to (cxr_scale * height / width, cxr_scale)
         t.Resize(args.cxr_scale),
         crop,
-        t.ToTensor(),
-        t.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
+        t.ToTensor()
     ])
-    return transform(img)
+
+    cxr = transform(img)
+    cxr = (cxr * 255)
+    assert torch.all(cxr == cxr.long()), "cxr tensor is not integer-valued."
+    return cxr.to(torch.uint8)
 
 
 def get_ecg(args, pt):
@@ -53,16 +57,30 @@ def save_dataset_tensors(args, df, split):
     risk_vector_list = []
     hadm_id_list = []
 
-    for ix, row in tqdm(df.iterrows(), total=df.shape[0]):
-        cxr = get_cxr(args, row["cxr_path"], split)
-        ecg = get_ecg(args, row["ecg_path"])
-        risk_vector = torch.tensor(row[RISK_VECTOR_COLS], dtype=torch.float32)
+    cxr_mapping = {}
+    ecg_mapping = {}
 
-        cxr_list.append(cxr)
-        ecg_list.append(ecg)
+    for ix, row in tqdm(df.iterrows(), total=df.shape[0]):
+        hadm_id = row["hadm_id"]
+
+        if pd.notnull(row["cxr_path"]):
+            cxr = get_cxr(args, row["cxr_path"], split)
+            cxr_list.append(cxr)
+            cxr_mapping[hadm_id] = len(cxr_list) - 1
+
+        if pd.notnull(row["ecg_path"]):
+            ecg = get_ecg(args, row["ecg_path"])
+            ecg_list.append(ecg)
+            ecg_mapping[hadm_id] = len(ecg_list) - 1
+
+        risk_vector = torch.tensor(row[RISK_VECTOR_COLS], dtype=torch.float32)
         risk_vector_list.append(risk_vector)
 
         hadm_id_list.append(row["hadm_id"])
+
+        if split in ["query", "candidate", "query_val", "candidate_val"]:
+            label_name_list.append(row["label_name"])
+            label_value_list.append(row["label_value"])
 
     cxr_tensor = torch.stack(cxr_list) # (n_cxr, 3, cxr_crop, cxr_crop)
     ecg_tensor = torch.stack(ecg_list) # (n_ecg, 1, 5000, 12)
@@ -73,6 +91,12 @@ def save_dataset_tensors(args, df, split):
     torch.save(ecg_tensor, save_dir / f"ecg_{split}.pt")
     torch.save(risk_vector_tensor, save_dir / f"risk_vector_{split}.pt")
     torch.save(hadm_id_tensor, save_dir / f"hadm_id_{split}.pt")
+
+    with open(save_dir / f"cxr_mapping_{split}.json", "w") as f:
+        json.dump(cxr_mapping, f, indent=4)
+
+    with open(save_dir / f"ecg_mapping_{split}.json", "w") as f:
+        json.dump(ecg_mapping, f, indent=4)
 
 
 if __name__ == '__main__':
