@@ -12,7 +12,7 @@ def parse_get_mimic_data():
                         help="Type of data to extract.")
 
     parser.add_argument("--mimiciv_hosp_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/adriel/physionet.org/files/mimiciv/2.2/hosp"),
+                        default=Path("/gpfs/data/ranganathlab/mimiciv/2.2/hosp"),
                         help="Path to MIMIC-IV hospital module directory.")
     parser.add_argument("--ecg_data_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/mimic-iv-ecg/1.0"),
