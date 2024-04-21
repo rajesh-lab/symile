@@ -64,12 +64,12 @@ if __name__ == '__main__':
         seed_everything(args.seed, workers=True)
 
     val_loss_checkpoint = ModelCheckpoint(dirpath=save_dir,
-                                          filename="best_val_loss_{epoch}-{val_loss:.2f}",
+                                          filename="best_val_loss_{epoch}-{val_loss:.4f}-{val_accuracy:.4f}",
                                           mode="min",
                                           monitor="val_loss")
 
     general_checkpoint = ModelCheckpoint(dirpath=save_dir,
-                                         filename="{epoch}-{val_loss:.2f}",
+                                         filename="{epoch}-{val_loss:.4f}-{val_accuracy:.4f}",
                                          every_n_epochs=args.check_val_every_n_epoch,
                                          save_top_k=-1)
 
