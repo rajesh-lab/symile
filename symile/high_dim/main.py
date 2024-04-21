@@ -1,16 +1,54 @@
 from datetime import datetime
+import json
+from json import JSONEncoder
 import os
+from pathlib import Path
 import random
 import time
 
 from lightning.pytorch import Trainer, seed_everything
-from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning.pytorch.callbacks.early_stopping import EarlyStopping
+from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
 from args import parse_args_main
 from datasets import HighDimDataModule
 from models import SSLModel
+
+
+class PathToStrEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Path):
+            return str(obj)
+        return JSONEncoder.default(self, obj)
+
+
+class LoggerCallback(Callback):
+    def __init__(self, args):
+        self.args = vars(args)
+        self.run_info = {}
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        epoch = trainer.current_epoch
+        val_loss = trainer.logged_metrics.get("val_loss_epoch").item()
+        val_accuracy = trainer.logged_metrics.get("val_accuracy_epoch").item()
+
+        self.run_info.setdefault("validation_metrics", []).append({
+            "epoch": epoch,
+            "val_loss": val_loss,
+            "val_accuracy": val_accuracy
+        })
+
+    def on_train_end(self, trainer, pl_module):
+        # Include additional configuration and wandb run name
+        self.run_info["args"] = self.args
+
+        try:
+            self.run_info["wandb"] = trainer.logger.experiment.url
+        except AttributeError:
+            self.run_info["wandb"] = None
+
+        with open(self.args["save_dir"] / "run_info.json", "w") as f:
+            json.dump(self.run_info, f, indent=4, cls=PathToStrEncoder)
 
 
 def main(args, trainer):
@@ -63,26 +101,15 @@ if __name__ == '__main__':
     if args.use_seed:
         seed_everything(args.seed, workers=True)
 
-    val_loss_checkpoint = ModelCheckpoint(dirpath=save_dir,
-                                          filename="best_val_loss_{epoch}-{val_loss:.4f}-{val_accuracy:.4f}",
-                                          mode="min",
-                                          monitor="val_loss")
-
-    general_checkpoint = ModelCheckpoint(dirpath=save_dir,
+    checkpoint = ModelCheckpoint(dirpath=save_dir,
                                          filename="{epoch}-{val_loss:.4f}-{val_accuracy:.4f}",
                                          every_n_epochs=args.check_val_every_n_epoch,
                                          save_top_k=-1)
 
-    early_stopping = EarlyStopping(monitor="val_loss", mode="min",
-                                   patience=args.early_stopping_patience)
-
-    if args.early_stopping:
-        callbacks = [val_loss_checkpoint, general_checkpoint, early_stopping]
-    else:
-        callbacks = [val_loss_checkpoint, general_checkpoint]
+    logger_callback = LoggerCallback(args)
 
     trainer = Trainer(
-        callbacks=callbacks,
+        callbacks=[checkpoint, logger_callback],
         check_val_every_n_epoch=args.check_val_every_n_epoch,
         deterministic=args.use_seed,
         enable_progress_bar=True,

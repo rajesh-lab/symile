@@ -58,11 +58,6 @@ def parse_args_main():
     parser.add_argument("--drop_last", type=str_to_bool, default=True,
                         help="Whether to drop the last non-full batch of each \
                               DataLoader worker's dataset replica.")
-    parser.add_argument("--early_stopping", type=str_to_bool, default=True,
-                        help="Whether to use early stopping.")
-    parser.add_argument("--early_stopping_patience", type=int, default=20,
-                        help="Number of val checks with no improvement after \
-                              which pre-training will be stopped.")
     parser.add_argument("--efficient_loss", type=str_to_bool, default=True,
                         help="Whether to compute logits with only \
                               (batch_size^2 - batch_size) negatives.")
