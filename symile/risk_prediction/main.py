@@ -42,17 +42,7 @@ class LoggerCallback(Callback):
             "val_acc_at_10": val_acc_at_10
         })
 
-    def on_test_end(self, trainer, pl_module):
-        test_acc_at_1 = trainer.logged_metrics.get("test_acc_at_1").item()
-        test_acc_at_5 = trainer.logged_metrics.get("test_acc_at_5").item()
-        test_acc_at_10 = trainer.logged_metrics.get("test_acc_at_10").item()
-
-        self.run_info["test_metrics"] = {
-            "test_acc_at_1": test_acc_at_1,
-            "test_acc_at_5": test_acc_at_5,
-            "test_acc_at_10": test_acc_at_10
-        }
-
+    def on_train_end(self, trainer, pl_module):
         self.run_info["args"] = self.args
 
         try:
@@ -74,8 +64,6 @@ def main(args, trainer):
         print("Loading checkpoint from ", args.load_from_ckpt)
         model = SSLModel.load_from_checkpoint(args.load_from_ckpt)
     trainer.fit(model, datamodule=dm)
-
-    trainer.test(ckpt_path="best", datamodule=dm)
 
 
 if __name__ == '__main__':
