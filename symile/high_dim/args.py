@@ -138,3 +138,16 @@ def parse_args_test():
                         help="Whether to use a seed for reproducibility.")
 
     return parser.parse_args()
+
+
+def parse_args_collect_tuning_results():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--results_pt", type=Path,
+                        default=Path("/gpfs/scratch/as16583/symile/symile/high_dim/results/2W_2L/tuning_runs.yaml"),
+                        help="Path to yaml file with hyperparameter tuning results.")
+    parser.add_argument("--save_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/results/high_dim/results/2W_2L"),
+                        help="Where to save test results.")
+
+    return parser.parse_args()
