@@ -9,13 +9,13 @@
 #SBATCH --time=2:00:00
 
 # when in AS's BP
-# source ~/miniconda3/bin/activate symile
-# cd /gpfs/scratch/as16583/symile/symile/healthcare
+source ~/miniconda3/bin/activate symile
+cd /gpfs/scratch/as16583/symile/symile/healthcare
 
 # when in AP's BP
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate symile
-cd /gpfs/scratch/pulia01/adriel/symile/symile/healthcare
+# source "$(conda info --base)/etc/profile.d/conda.sh"
+# conda activate symile
+# cd /gpfs/scratch/pulia01/adriel/symile/symile/healthcare
 
 echo 'training...'
 python main.py \
