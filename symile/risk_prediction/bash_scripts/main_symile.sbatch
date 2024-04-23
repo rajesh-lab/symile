@@ -1,12 +1,12 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_symile_wd001_lr00005
+#SBATCH --job-name=main_symile_wd1_lr00005
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:a100:1
-#SBATCH --mem=200GB
-#SBATCH --time=4:00:00
+#SBATCH --mem=150GB
+#SBATCH --time=3:00:00
 
 # when in AS's BP
 source ~/miniconda3/bin/activate symile
@@ -33,7 +33,7 @@ python main.py \
     --lr 0.00005 \
     --use_seed True \
     --wandb True \
-    --weight_decay 0.001 \
+    --weight_decay 0.1 \
     --data_dir /gpfs/scratch/as16583/symile/symile/risk_prediction/datasets \
     --ckpt_save_dir /gpfs/scratch/as16583/ckpts/risk_prediction \
     --efficient_loss True \

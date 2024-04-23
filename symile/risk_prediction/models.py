@@ -1,6 +1,5 @@
 from argparse import Namespace
 import itertools
-import json
 
 import lightning.pytorch as pl
 import numpy as np
@@ -162,9 +161,6 @@ class SSLModel(pl.LightningModule):
         metrics = self.zeroshot_retrieval_accuracy(r_c, r_e, batch, "test")
 
         self.log_dict(metrics, sync_dist=True, prog_bar=False)
-
-        with open(self.args.save_dir / "metrics.json", 'w') as f:
-            json.dump(metrics, f, indent=4)
 
     def add_split_prefix(self, metrics, split):
         """Add a prefix to all metric names."""

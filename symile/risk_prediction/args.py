@@ -72,3 +72,49 @@ def parse_args_main():
                               Set to 0.1 to check 10% of dataset.")
 
     return parser.parse_args()
+
+
+def parse_args_collect_tuning_results():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--results_pt", type=Path,
+                        default=Path("/gpfs/scratch/as16583/symile/symile/risk_prediction/results/tuning_runs.yaml"),
+                        help="Path to yaml file with hyperparameter tuning results.")
+    parser.add_argument("--save_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/symile/symile/risk_prediction/results"),
+                        help="Where to save test results.")
+
+    return parser.parse_args()
+
+
+def parse_args_test():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--load_from_ckpt", type=str,
+                        default=None,
+                        help="Checkpoint to load from.")
+    parser.add_argument("--save_dir", type=Path,
+                        default=Path("/gpfs/scratch/as16583/results/high_dim"),
+                        help="Where to save test results.")
+    parser.add_argument("--description" , type=str, default="",
+                        help="Description of the test run.")
+
+    ### DATA ARGS ###
+    parser.add_argument("--batch_sz_test", type=int,
+                        help="Test set batch size.")
+    parser.add_argument("--data_dir", type=Path,
+                        help="Directory with dataset csvs.")
+
+    ### BOOTSTRAP ARGS ###
+    parser.add_argument("--bootstrap", type=str_to_bool, default=False,
+                        help="Whether to compute a two-sided bootstrap confidence \
+                              interval of evaluation metric.")
+    parser.add_argument("--bootstrap_n", type=int, default=20,
+                        help="Number of resamples performed to form the bootstrap \
+                              distribution of evaluation metric.")
+
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--use_seed", type=str_to_bool, default=True,
+                        help="Whether to use a seed for reproducibility.")
+
+    return parser.parse_args()
