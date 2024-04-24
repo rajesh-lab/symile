@@ -151,21 +151,22 @@ class SSLModel(pl.LightningModule):
 
         loss = self.loss_fn(r_c, r_e, r_l, logit_scale_exp, self.args.efficient_loss)
 
-        acc = self.zeroshot_retrieval_accuracy(r_e, r_l, batch, "val")
+        metrics = self.zeroshot_retrieval_accuracy(r_e, r_l, batch, "val")
 
-        self.log_dict({"val_loss": loss, "val_accuracy": acc},
+        self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
+        self.log_dict(metrics, sync_dist=True, prog_bar=False)
 
         return loss
 
     def test_step(self, batch, batch_idx):
         r_c, r_e, r_l, logit_scale_exp = self(batch)
 
-        acc = self.zeroshot_retrieval_accuracy(r_e, r_l, batch, "test")
+        metrics = self.zeroshot_retrieval_accuracy(r_e, r_l, batch, "test")
 
-        self.log("test_accuracy", acc, sync_dist=True, prog_bar=True)
+        self.log_dict(metrics, sync_dist=True, prog_bar=False)
 
-        return acc
+        return metrics
 
     def on_validation_epoch_start(self):
         self.save_candidate_cxr_representations("val")
@@ -177,12 +178,9 @@ class SSLModel(pl.LightningModule):
     def on_test_epoch_start(self):
         self.save_candidate_cxr_representations("test")
 
-        metrics = self.zeroshot_pathology_retrieval_metrics("test")
+        self.test_pathology_metrics = self.zeroshot_pathology_retrieval_metrics("test")
 
-        self.log_dict(metrics, sync_dist=True, prog_bar=False)
-
-        with open(self.args.save_dir / "metrics.json", 'w') as f:
-            json.dump(metrics, f, indent=4)
+        self.log_dict(self.test_pathology_metrics, sync_dist=True, prog_bar=False)
 
     def save_candidate_cxr_representations(self, split):
         r_c_list = []
@@ -210,6 +208,10 @@ class SSLModel(pl.LightningModule):
             self.r_c_test = torch.cat(r_c_list)
             self.r_c_hadm_id_test = torch.cat(hadm_id_list).to(self.device)
 
+    def add_split_prefix(self, metrics, split):
+        """Add a prefix to all metric names."""
+        return {f"{split}_{key}": value for key, value in metrics.items()}
+
     def zeroshot_retrieval_accuracy(self, r_e, r_l, batch, split):
         if split == "val":
             r_c = self.r_c_val
@@ -221,20 +223,25 @@ class SSLModel(pl.LightningModule):
         logits = zeroshot_retrieval_logits(r_e, r_l, r_c, self.logit_scale.exp(),
                                            self.args.loss_fn)
 
-        # pred_idx is a tensor of length batch_sz where each element is the
-        # index of the r_c (across the whole eval set) that maximizes the score.
-        pred_idx = torch.argmax(logits, dim=1)
+        acc_at_k = {}
+        for k in [1, 5, 10]:
+            # get indices of top k logits
+            _, topk_indices = torch.topk(logits, k, dim=1) # (batch_sz, k)
 
-        # for each index in pred_idx, we get the hadm_id that corresponds
-        # to the r_c at that index; so pred is a tensor of length batch_sz where
-        # each element is the predicted hadm_id
-        pred = r_c_hadm_id[pred_idx]
+            # map indices to hadm_ids
+            topk_hadm_ids = r_c_hadm_id[topk_indices] # (batch_sz, k)
 
-        y = batch[4]
+            # check if true hadm_id is in top k predicted hadm_ids
+            y = batch[4].unsqueeze(1)
+            acc = torch.any(topk_hadm_ids == y, dim=1).float() # (batch_sz)
 
-        acc = (torch.sum(y == pred) / len(y)).item()
+            # save metric
+            mean_acc = torch.mean(acc).item()
+            acc_at_k[f"acc_at_{k}"] = mean_acc
 
-        return acc
+        acc_at_k = self.add_split_prefix(acc_at_k, split)
+
+        return acc_at_k
 
     def get_queries(self, split):
         query_ds = EvaluationDataset(self.args, split, "query")
@@ -291,10 +298,6 @@ class SSLModel(pl.LightningModule):
 
         return mean_metrics
 
-    def add_split_prefix(self, metrics, split):
-        """Add a prefix to all metric names."""
-        return {f"{split}_{key}": value for key, value in metrics.items()}
-
     def zeroshot_pathology_retrieval_metrics(self, split):
         queries = self.get_queries(split)
         candidates = self.get_candidates(split)
@@ -334,8 +337,8 @@ class SSLModel(pl.LightningModule):
                 precision_at_k_dict[f"{label}_precision_at_{k}"] = mean_precision_at_k
                 acc_at_k_dict[f"{label}_acc_at_{k}"] = mean_acc_at_k
 
-        precision_at_k_all_labels = self.get_metric_all_labels(precision_at_k_dict, "precision")
-        acc_at_k_all_labels = self.get_metric_all_labels(acc_at_k_dict, "acc")
+        precision_at_k_all_labels = self.get_metric_all_labels(precision_at_k_dict, "chexpert_precision")
+        acc_at_k_all_labels = self.get_metric_all_labels(acc_at_k_dict, "chexpert_acc")
 
         metrics = precision_at_k_dict | acc_at_k_dict | precision_at_k_all_labels | acc_at_k_all_labels
         metrics = self.add_split_prefix(metrics, split)

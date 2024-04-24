@@ -30,7 +30,7 @@ class EvaluationDataset(Dataset):
                 "label_value": self.label_value[idx]}
 
 
-class HighDimDataModule(pl.LightningDataModule):
+class CXRPredictionDataModule(pl.LightningDataModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
