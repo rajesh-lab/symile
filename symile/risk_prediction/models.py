@@ -1,5 +1,8 @@
 from argparse import Namespace
+from collections import defaultdict
 import itertools
+import json
+from json import JSONEncoder
 
 import lightning.pytorch as pl
 import numpy as np
@@ -9,6 +12,13 @@ from torchvision import models
 
 from symile.losses import clip, symile, zeroshot_retrieval_logits
 from symile.risk_prediction.constants import RISK_VECTOR_COLS
+
+
+class PathToStrEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Path):
+            return str(obj)
+        return JSONEncoder.default(self, obj)
 
 
 class ECGEncoder(nn.Module):
@@ -79,8 +89,6 @@ class RiskEncoder(nn.Module):
         x = self.gelu(x)
         # x = self.dropout(x)
         x = self.fc3(x)
-        x = self.gelu(x)
-        x = self.fc4(x)
         x = self.layer_norm(x)
         return x
 
@@ -106,6 +114,11 @@ class SSLModel(pl.LightningModule):
             self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
 
         self.candidate_risk_vectors = self.get_candidate_risk_vectors()
+
+        # logging attributes
+        self.run_info = {}
+        self.val_metrics = {}
+        self.test_metrics = {}
 
     def get_candidate_risk_vectors(self):
         value_ranges = {
@@ -146,20 +159,68 @@ class SSLModel(pl.LightningModule):
 
         loss = self.loss_fn(r_c, r_e, r_r, logit_scale_exp, self.args.efficient_loss)
 
-        metrics = self.zeroshot_retrieval_accuracy(r_c, r_e, batch, "val")
-
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
-        self.log_dict(metrics, sync_dist=True, prog_bar=False)
+
+        metrics = self.zeroshot_retrieval_accuracy(r_c, r_e, batch, "val")
+
+        if not self.val_metrics:
+            self.val_metrics = {key: val.detach() for key, val in metrics.items()}
+        else:
+            for key, val in metrics.items():
+                self.val_metrics[key] = torch.cat((self.val_metrics[key], val.detach()), dim=0)
 
         return loss
+
+    def on_validation_epoch_end(self):
+        mean_metrics = {}
+        for key, val in self.val_metrics.items():
+            mean_metrics[key] = val.mean().item()
+
+        self.log_dict(mean_metrics, on_epoch=True, prog_bar=False)
+
+        self.run_info.setdefault("validation_metrics", []).append({
+            "epoch": self.current_epoch,
+            "val_loss": self.trainer.logged_metrics["val_loss_epoch"].item(),
+            "val_acc_at_1": mean_metrics["val_acc_at_1"],
+            "val_acc_at_5": mean_metrics["val_acc_at_5"],
+            "val_acc_at_10": mean_metrics["val_acc_at_10"]
+        })
+
+        # clear to free up memory and prepare for next val epoch
+        self.val_metrics.clear()
+
+    def on_train_end(self):
+        self.run_info["args"] = self.args
+
+        try:
+            self.run_info["wandb"] = self.trainer.logger.experiment.url
+        except AttributeError:
+            self.run_info["wandb"] = None
+
+        with open(self.args["save_dir"] / "run_info.json", "w") as f:
+            json.dump(self.run_info, f, indent=4, cls=PathToStrEncoder)
 
     def test_step(self, batch, batch_idx):
         r_c, r_e, r_r, logit_scale_exp = self(batch)
 
         metrics = self.zeroshot_retrieval_accuracy(r_c, r_e, batch, "test")
 
-        self.log_dict(metrics, sync_dist=True, prog_bar=False)
+        if not self.test_metrics:
+            self.test_metrics = {key: val.detach() for key, val in metrics.items()}
+        else:
+            for key, val in metrics.items():
+                self.test_metrics[key] = torch.cat((self.test_metrics[key], val.detach()), dim=0)
+
+    def on_test_epoch_end(self):
+        mean_metrics = {}
+        for key, val in self.test_metrics.items():
+            mean_metrics[key] = val.mean().item()
+
+        self.log_dict(mean_metrics, on_epoch=True, prog_bar=False)
+
+        # clear to free up memory and prepare for next val epoch
+        self.test_metrics.clear()
 
     def add_split_prefix(self, metrics, split):
         """Add a prefix to all metric names."""
@@ -186,8 +247,9 @@ class SSLModel(pl.LightningModule):
             acc = matches.any(dim=1).float() # (batch_sz)
 
             # save metric
-            mean_acc = torch.mean(acc).item()
-            acc_at_k[f"acc_at_{k}"] = mean_acc
+            # mean_acc = torch.mean(acc).item()
+            # acc_at_k[f"acc_at_{k}"] = mean_acc
+            acc_at_k[f"acc_at_{k}"] = acc
 
         acc_at_k = self.add_split_prefix(acc_at_k, split)
 
