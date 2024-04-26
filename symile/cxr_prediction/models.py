@@ -151,103 +151,30 @@ class SSLModel(pl.LightningModule):
 
         loss = self.loss_fn(r_c, r_e, r_l, logit_scale_exp, self.args.efficient_loss)
 
-        metrics = self.zeroshot_retrieval_accuracy(r_e, r_l, batch, "val")
-
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)
-        self.log_dict(metrics, sync_dist=True, prog_bar=False)
 
         return loss
 
     def test_step(self, batch, batch_idx):
-        r_c, r_e, r_l, logit_scale_exp = self(batch)
-
-        metrics = self.zeroshot_retrieval_accuracy(r_e, r_l, batch, "test")
-
-        self.log_dict(metrics, sync_dist=True, prog_bar=False)
-
-        return metrics
+        pass
 
     def on_validation_epoch_start(self):
-        self.save_candidate_cxr_representations("val")
-
-        metrics = self.zeroshot_pathology_retrieval_metrics("val")
+        metrics = self.zeroshot_retrieval_accuracy("val")
 
         self.log_dict(metrics, sync_dist=True, prog_bar=False)
 
     def on_test_epoch_start(self):
-        self.save_candidate_cxr_representations("test")
+        metrics = self.zeroshot_retrieval_accuracy("test")
 
-        self.test_pathology_metrics = self.zeroshot_pathology_retrieval_metrics("test")
-
-        self.log_dict(self.test_pathology_metrics, sync_dist=True, prog_bar=False)
-
-    def save_candidate_cxr_representations(self, split):
-        r_c_list = []
-        hadm_id_list = []
-
-        # get dataloader
-        if split == "val":
-            dl = self.trainer.datamodule.val_dataloader()
-        elif split == "test":
-            if self.trainer.datamodule is None:
-                dl = getattr(self, 'test_dataloader', None)
-            else:
-                dl = self.trainer.datamodule.test_dataloader()
-
-        # get reps
-        for x in dl:
-            r_c_list.append(self.cxr_encoder(x[0].to(self.device)))
-            hadm_id_list.append(x[4])
-
-        # save reps
-        if split == "val":
-            self.r_c_val = torch.cat(r_c_list)
-            self.r_c_hadm_id_val = torch.cat(hadm_id_list).to(self.device)
-        elif split == "test":
-            self.r_c_test = torch.cat(r_c_list)
-            self.r_c_hadm_id_test = torch.cat(hadm_id_list).to(self.device)
-
-    def add_split_prefix(self, metrics, split):
-        """Add a prefix to all metric names."""
-        return {f"{split}_{key}": value for key, value in metrics.items()}
-
-    def zeroshot_retrieval_accuracy(self, r_e, r_l, batch, split):
-        if split == "val":
-            r_c = self.r_c_val
-            r_c_hadm_id = self.r_c_hadm_id_val
-        elif split == "test":
-            r_c = self.r_c_test
-            r_c_hadm_id = self.r_c_hadm_id_test
-
-        logits = zeroshot_retrieval_logits(r_e, r_l, r_c, self.logit_scale.exp(),
-                                           self.args.loss_fn)
-
-        acc_at_k = {}
-        for k in [1, 5, 10]:
-            # get indices of top k logits
-            _, topk_indices = torch.topk(logits, k, dim=1) # (batch_sz, k)
-
-            # map indices to hadm_ids
-            topk_hadm_ids = r_c_hadm_id[topk_indices] # (batch_sz, k)
-
-            # check if true hadm_id is in top k predicted hadm_ids
-            y = batch[4].unsqueeze(1)
-            acc = torch.any(topk_hadm_ids == y, dim=1).float() # (batch_sz)
-
-            # save metric
-            mean_acc = torch.mean(acc).item()
-            acc_at_k[f"acc_at_{k}"] = mean_acc
-
-        acc_at_k = self.add_split_prefix(acc_at_k, split)
-
-        return acc_at_k
+        self.log_dict(metrics, sync_dist=True, prog_bar=False)
 
     def get_queries(self, split):
         query_ds = EvaluationDataset(self.args, split, "query")
 
         r_e = []
         r_l = []
+        hadm_id = []
         label_name = []
 
         for batch in DataLoader(query_ds, batch_size=len(query_ds), shuffle=False):
@@ -256,6 +183,8 @@ class SSLModel(pl.LightningModule):
             labs = torch.cat([batch["labs_percentiles"], batch["labs_missingness"]], dim=1)
             r_l.append(self.labs_encoder(labs.to(self.device)))
 
+            hadm_id.append(batch["hadm_id"])
+
             label_name += batch["label_name"]
 
         r_e = torch.cat(r_e, dim=0)
@@ -263,17 +192,20 @@ class SSLModel(pl.LightningModule):
 
         assert len(r_e) == len(r_l) == len(query_ds), "r_e, r_l, and query_ds should have the same length"
 
-        return {"r_e": r_e, "r_l": r_l, "label_name": label_name}
+        return {"r_e": r_e, "r_l": r_l, "hadm_id": torch.cat(hadm_id, dim=0),
+                "label_name": label_name}
 
     def get_candidates(self, split):
         candidate_ds = EvaluationDataset(self.args, split, "candidate")
 
         r_c = []
+        hadm_id = []
         label_name = []
         label_value = []
 
         for batch in DataLoader(candidate_ds, batch_size=256, shuffle=False):
             r_c.append(self.cxr_encoder(batch["cxr"].to(self.device)))
+            hadm_id.append(batch["hadm_id"])
             label_name += batch["label_name"]
             label_value.append(batch["label_value"])
 
@@ -282,6 +214,7 @@ class SSLModel(pl.LightningModule):
         assert len(r_c) == len(candidate_ds), "r_c and candidate_ds should have the same length"
 
         return {"r_c": r_c,
+                "hadm_id": torch.cat(hadm_id, dim=0),
                 "label_name": label_name,
                 "label_value": torch.cat(label_value, dim=0)}
 
@@ -298,33 +231,43 @@ class SSLModel(pl.LightningModule):
 
         return mean_metrics
 
-    def zeroshot_pathology_retrieval_metrics(self, split):
+    def add_split_prefix(self, metrics, split):
+        """Add a prefix to all metric names."""
+        return {f"{split}_{key}": value for key, value in metrics.items()}
+
+    def zeroshot_retrieval_accuracy(self, split):
         queries = self.get_queries(split)
         candidates = self.get_candidates(split)
 
         precision_at_k_dict = {}
         acc_at_k_dict = {}
+        true_cxr_acc_at_k_dict = {}
 
         for label in CHEXPERT_LABELS:
             # get query set for `label`
             label_mask_q = torch.tensor([name == label for name in queries["label_name"]])
             r_e = queries["r_e"][label_mask_q]
             r_l = queries["r_l"][label_mask_q]
+            true_hadm_ids = queries["hadm_id"][label_mask_q]
 
             # get candidate set for `label`
             label_mask_c = torch.tensor([name == label for name in candidates["label_name"]])
             r_c = candidates["r_c"][label_mask_c]
             r_c_labels = candidates["label_value"][label_mask_c]
+            r_c_hadm_id = candidates["hadm_id"][label_mask_c]
 
+            # logits are (query_sz, candidate_sz) or (5, 125)
             logits = zeroshot_retrieval_logits(r_e, r_l, r_c, self.logit_scale.exp(),
                                                self.args.loss_fn).cpu()
 
             for k in [1, 5, 10]:
                 # get indices of top k logits
-                _, topk_indices = torch.topk(logits, k, dim=1)
+                _, topk_indices = torch.topk(logits, k, dim=1) # (query_sz, k)
+
+                ## PATHOLOGY LABEL METRICS ##
 
                 # get positive/negative labels at those indices
-                topk_labels = r_c_labels[topk_indices]
+                topk_labels = r_c_labels[topk_indices] # (query_sz, k)
 
                 # calculate metrics
                 precision_at_k = topk_labels.sum(dim=1) / k
@@ -337,10 +280,25 @@ class SSLModel(pl.LightningModule):
                 precision_at_k_dict[f"{label}_precision_at_{k}"] = mean_precision_at_k
                 acc_at_k_dict[f"{label}_acc_at_{k}"] = mean_acc_at_k
 
-        precision_at_k_all_labels = self.get_metric_all_labels(precision_at_k_dict, "chexpert_precision")
-        acc_at_k_all_labels = self.get_metric_all_labels(acc_at_k_dict, "chexpert_acc")
+                ## TRUE CXR RETRIEVAL METRIC ##
 
-        metrics = precision_at_k_dict | acc_at_k_dict | precision_at_k_all_labels | acc_at_k_all_labels
+                # map indices to hadm_ids
+                topk_hadm_ids = r_c_hadm_id[topk_indices] # (query_sz, k)
+
+                # check if true hadm_id is in top k predicted hadm_ids
+                true_cxr_acc_at_k = (true_hadm_ids.unsqueeze(1) == topk_hadm_ids).any(dim=1).float()
+                mean_true_cxr_acc_at_k = torch.mean(true_cxr_acc_at_k).item()
+
+                # save metric
+                true_cxr_acc_at_k_dict[f"{label}_true_cxr_acc_at_{k}"] = mean_true_cxr_acc_at_k
+
+
+        label_precision_at_k_mean = self.get_metric_all_labels(precision_at_k_dict, "label_precision")
+        label_acc_at_k_mean = self.get_metric_all_labels(acc_at_k_dict, "label_acc")
+        true_cxr_acc_at_k_mean = self.get_metric_all_labels(true_cxr_acc_at_k_dict, "true_cxr_acc")
+
+        metrics = precision_at_k_dict | acc_at_k_dict | true_cxr_acc_at_k_dict | \
+                  label_precision_at_k_mean | label_acc_at_k_mean | true_cxr_acc_at_k_mean
         metrics = self.add_split_prefix(metrics, split)
 
         return metrics

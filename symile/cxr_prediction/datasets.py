@@ -51,22 +51,17 @@ class CXRPredictionDataModule(pl.LightningDataModule):
         labs_missingness_val = torch.load(self.args.data_dir / "val/labs_missingness_val.pt")
         hadm_id_val = torch.load(self.args.data_dir / "val/hadm_id_val.pt")
 
-        cxr_test = torch.load(self.args.data_dir / "test/cxr_test.pt")
-        ecg_test = torch.load(self.args.data_dir / "test/ecg_test.pt")
-        labs_percentiles_test = torch.load(self.args.data_dir / "test/labs_percentiles_test.pt")
-        labs_missingness_test = torch.load(self.args.data_dir / "test/labs_missingness_test.pt")
-        hadm_id_test = torch.load(self.args.data_dir / "test/hadm_id_test.pt")
-
         assert torch.unique(hadm_id_train).numel() == hadm_id_train.numel()
         assert torch.unique(hadm_id_val).numel() == hadm_id_val.numel()
-        assert torch.unique(hadm_id_test).numel() == hadm_id_test.numel()
 
         self.ds_train = TensorDataset(cxr_train, ecg_train, labs_percentiles_train,
                                       labs_missingness_train, hadm_id_train)
         self.ds_val = TensorDataset(cxr_val, ecg_val, labs_percentiles_val,
                                     labs_missingness_val, hadm_id_val)
-        self.ds_test = TensorDataset(cxr_test, ecg_test, labs_percentiles_test,
-                                     labs_missingness_test, hadm_id_test)
+
+        # Test phase is not processed in batches, but in order for Lightning to execute
+        # test phase, a dummy test_dataloader() needs to be provided.
+        self.ds_test = TensorDataset(torch.zeros(1))
 
     def train_dataloader(self):
         return DataLoader(self.ds_train, batch_size=self.args.batch_sz_train,
