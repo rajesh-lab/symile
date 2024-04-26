@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_test
+#SBATCH --job-name=main_test_clip
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --partition=a100_dev
@@ -23,13 +23,12 @@ python test.py \
     --batch_sz_test 256 \
     --data_dir /gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets \
     --save_dir /gpfs/scratch/as16583/results/cxr_prediction \
-    --load_from_ckpt /gpfs/data/ranganathlab/symile_tmp/best_val_loss_epoch=29-val_loss=6.07.ckpt \
+    --load_from_ckpt /gpfs/scratch/as16583/ckpts/cxr_prediction/20240424_040914_4926/epoch=17-val_loss=15.2583.ckpt \
     --bootstrap False \
-    --description "checking old model ckpt on new data"
-    # --description "ckpt is the best CLIP val acc, \
-    #                ckpt_pt /gpfs/scratch/as16583/ckpts/risk_prediction/20240421_233259_8398/epoch=37-val_loss=23.1582.ckpt \
-    #                weight_decay 0.1, \
-    #                learning_rate 0.001, \
-    #                https://wandb.ai/rajesh-lab/symile/runs/b245r6xy"
+    --description "ckpt is the best CLIP val loss, \
+                   /gpfs/scratch/as16583/ckpts/cxr_prediction/20240424_040914_4926/epoch=17-val_loss=15.2583.ckpt \
+                   weight_decay 0.0, \
+                   learning_rate 0.001, \
+                   https://wandb.ai/rajesh-lab/symile/runs/9b8dmujy"
 
 echo 'done!'

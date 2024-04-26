@@ -1,6 +1,8 @@
 from argparse import Namespace
 from collections import defaultdict
 import json
+from json import JSONEncoder
+from pathlib import Path
 
 import lightning.pytorch as pl
 import numpy as np
@@ -14,14 +16,27 @@ from symile.losses import clip, symile, zeroshot_retrieval_logits
 from symile.cxr_prediction.constants import CHEXPERT_LABELS
 
 
-class ECGEncoder(nn.Module):
-    def __init__(self, d):
-        super().__init__()
+class PathToStrEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Path):
+            return str(obj)     # convert Path object to string
+        elif isinstance(obj, Namespace):
+            return vars(obj)    # convert Namespace object to dictionary
+        return JSONEncoder.default(self, obj)  # default method
 
-        self.resnet = models.resnet18(pretrained=False)
+
+class ECGEncoder(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        if args.pretrained:
+            self.resnet = models.resnet18(weights="IMAGENET1K_V1")
+        else:
+            self.resnet = models.resnet18(pretrained=False)
+
         self.resnet.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, d, bias=True)
-        self.layer_norm = nn.LayerNorm(d)
+        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, args.d, bias=True)
+
+        self.layer_norm = nn.LayerNorm(args.d)
 
     def forward(self, x):
         """
@@ -37,11 +52,16 @@ class ECGEncoder(nn.Module):
 
 
 class CXREncoder(nn.Module):
-    def __init__(self, d):
+    def __init__(self, args):
         super().__init__()
-        self.resnet = models.resnet50(pretrained=False)
-        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, d, bias=True)
-        self.layer_norm = nn.LayerNorm(d)
+        if args.pretrained:
+            self.resnet = models.resnet50(weights="IMAGENET1K_V2")
+        else:
+            self.resnet = models.resnet50(pretrained=False)
+
+        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, args.d, bias=True)
+
+        self.layer_norm = nn.LayerNorm(args.d)
 
     def forward(self, x):
         """
@@ -57,13 +77,13 @@ class CXREncoder(nn.Module):
 
 
 class LabsEncoder(nn.Module):
-    def __init__(self, d):
+    def __init__(self, args):
         super().__init__()
         self.fc1 = nn.Linear(100, 256)
         self.fc2 = nn.Linear(256, 1024)
-        self.fc3 = nn.Linear(1024, d)
+        self.fc3 = nn.Linear(1024, args.d)
         self.gelu = nn.GELU()
-        self.layer_norm = nn.LayerNorm(d)
+        self.layer_norm = nn.LayerNorm(args.d)
 
         # self.dropout = nn.Dropout(0.3)
 
@@ -82,8 +102,6 @@ class LabsEncoder(nn.Module):
         x = self.gelu(x)
         # x = self.dropout(x)
         x = self.fc3(x)
-        x = self.gelu(x)
-        x = self.fc4(x)
         x = self.layer_norm(x)
         return x
 
@@ -96,9 +114,9 @@ class SSLModel(pl.LightningModule):
         self.args = Namespace(**args)
         self.loss_fn = symile if self.args.loss_fn == "symile" else clip
 
-        self.ecg_encoder = ECGEncoder(self.args.d)
-        self.cxr_encoder = CXREncoder(self.args.d)
-        self.labs_encoder = LabsEncoder(self.args.d)
+        self.ecg_encoder = ECGEncoder(self.args)
+        self.cxr_encoder = CXREncoder(self.args)
+        self.labs_encoder = LabsEncoder(self.args)
 
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
@@ -107,6 +125,9 @@ class SSLModel(pl.LightningModule):
             self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init).requires_grad_(False)
         else:
             self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
+
+        # logging attributes
+        self.run_info = {}
 
     def forward(self, x):
         """
@@ -155,13 +176,33 @@ class SSLModel(pl.LightningModule):
 
         return loss
 
-    def test_step(self, batch, batch_idx):
-        pass
-
-    def on_validation_epoch_start(self):
+    def on_validation_epoch_end(self):
         metrics = self.zeroshot_retrieval_accuracy("val")
 
         self.log_dict(metrics, sync_dist=True, prog_bar=False)
+
+        val_metrics = {
+            "epoch": self.current_epoch,
+            "val_loss": self.trainer.logged_metrics["val_loss_epoch"].item()
+        }
+
+        val_metrics.update({key: value for key, value in metrics.items()})
+
+        self.run_info.setdefault("validation_metrics", []).append(val_metrics)
+
+    def on_train_end(self):
+        self.run_info["args"] = self.args
+
+        try:
+            self.run_info["wandb"] = self.trainer.logger.experiment.url
+        except AttributeError:
+            self.run_info["wandb"] = None
+
+        with open(self.args.save_dir / "run_info.json", "w") as f:
+            json.dump(self.run_info, f, indent=4, cls=PathToStrEncoder)
+
+    def test_step(self, batch, batch_idx):
+        pass
 
     def on_test_epoch_start(self):
         metrics = self.zeroshot_retrieval_accuracy("test")

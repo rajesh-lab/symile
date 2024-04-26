@@ -1,50 +1,15 @@
 from datetime import datetime
-import json
-from json import JSONEncoder
 import os
-from pathlib import Path
 import random
 import time
 
 from lightning.pytorch import Trainer, seed_everything
-from lightning.pytorch.callbacks import Callback, ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
 from args import parse_args_main
 from datasets import CXRPredictionDataModule
 from models import SSLModel
-
-
-class PathToStrEncoder(JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Path):
-            return str(obj)
-        return JSONEncoder.default(self, obj)
-
-
-class LoggerCallback(Callback):
-    def __init__(self, args):
-        self.args = vars(args)
-        self.run_info = {}
-
-    def on_validation_epoch_end(self, trainer, pl_module):
-        metrics = trainer.logged_metrics
-        metrics = {key: metrics[key].item() for key in metrics if key != "val_loss_step"}
-
-        metrics["epoch"] = trainer.current_epoch
-
-        self.run_info.setdefault("validation_metrics", []).append(metrics)
-
-    def on_train_end(self, trainer, pl_module):
-        self.run_info["args"] = self.args
-
-        try:
-            self.run_info["wandb"] = trainer.logger.experiment.url
-        except AttributeError:
-            self.run_info["wandb"] = None
-
-        with open(self.args["save_dir"] / "run_info.json", "w") as f:
-            json.dump(self.run_info, f, indent=4, cls=PathToStrEncoder)
 
 
 def main(args, trainer):
@@ -94,15 +59,13 @@ if __name__ == '__main__':
     if args.use_seed:
         seed_everything(args.seed, workers=True)
 
-    checkpoint = ModelCheckpoint(dirpath=save_dir,
+    checkpoint_callback = ModelCheckpoint(dirpath=save_dir,
                                  filename="{epoch}-{val_loss:.4f}",
                                  every_n_epochs=args.check_val_every_n_epoch,
                                  save_top_k=-1)
 
-    logger_callback = LoggerCallback(args)
-
     trainer = Trainer(
-        callbacks=[checkpoint, logger_callback],
+        callbacks=checkpoint_callback,
         check_val_every_n_epoch=args.check_val_every_n_epoch,
         deterministic=args.use_seed,
         enable_progress_bar=True,

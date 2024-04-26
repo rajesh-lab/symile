@@ -1,26 +1,28 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_clip_mlp_wd1_lr0001
+#SBATCH --job-name=main_clip_wd1_lr00005
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:a100:1
 #SBATCH --mem=150GB
-#SBATCH --time=2:00:00
+#SBATCH --time=1:00:00
 
 # when in AS's BP
-# source ~/miniconda3/bin/activate symile
-# cd /gpfs/scratch/as16583/symile/symile/healthcare
+source ~/miniconda3/bin/activate symile
+cd /gpfs/scratch/as16583/symile/symile/cxr_prediction
 
 # when in AP's BP
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate symile
-cd /gpfs/scratch/pulia01/adriel/symile/symile/healthcare
+# source "$(conda info --base)/etc/profile.d/conda.sh"
+# conda activate symile
+# cd /gpfs/scratch/pulia01/adriel/symile/symile/cxr_prediction
 
 echo 'training...'
 python main.py \
-    --batch_sz_train 300 \
-    --check_val_every_n_epoch 2 \
+    --batch_sz_train 256 \
+    --batch_sz_val 256 \
+    --batch_sz_test 256 \
+    --check_val_every_n_epoch 1 \
     --d 1024 \
     --drop_last False \
     --epochs 50 \
@@ -28,16 +30,14 @@ python main.py \
     --limit_train_batches=1.0 \
     --limit_val_batches=1.0 \
     --logit_scale_init -7 \
-    --lr 0.0001 \
+    --lr 0.00005 \
     --use_seed True \
     --wandb True \
     --weight_decay 0.1 \
-    --data_dir /gpfs/scratch/pulia01/adriel/symile/src/healthcare/datasets \
-    --ckpt_save_dir /gpfs/scratch/pulia01/adriel/ckpts/healthcare \
+    --data_dir /gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets \
+    --ckpt_save_dir /gpfs/scratch/as16583/ckpts/cxr_prediction \
     --efficient_loss True \
     --loss_fn clip \
-    --load_from_ckpt None \
-    --labs_model mlp \
-    --step train
+    --load_from_ckpt None
 
 echo 'done!'

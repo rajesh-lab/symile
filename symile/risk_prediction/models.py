@@ -3,6 +3,7 @@ from collections import defaultdict
 import itertools
 import json
 from json import JSONEncoder
+from pathlib import Path
 
 import lightning.pytorch as pl
 import numpy as np
@@ -17,18 +18,24 @@ from symile.risk_prediction.constants import RISK_VECTOR_COLS
 class PathToStrEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Path):
-            return str(obj)
-        return JSONEncoder.default(self, obj)
+            return str(obj)     # convert Path object to string
+        elif isinstance(obj, Namespace):
+            return vars(obj)    # convert Namespace object to dictionary
+        return JSONEncoder.default(self, obj)  # default method
 
 
 class ECGEncoder(nn.Module):
-    def __init__(self, d):
+    def __init__(self, args):
         super().__init__()
+        if args.pretrained:
+            self.resnet = models.resnet18(weights="IMAGENET1K_V1")
+        else:
+            self.resnet = models.resnet18(pretrained=False)
 
-        self.resnet = models.resnet18(pretrained=False)
         self.resnet.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, d, bias=True)
-        self.layer_norm = nn.LayerNorm(d)
+        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, args.d, bias=True)
+
+        self.layer_norm = nn.LayerNorm(args.d)
 
     def forward(self, x):
         """
@@ -44,11 +51,16 @@ class ECGEncoder(nn.Module):
 
 
 class CXREncoder(nn.Module):
-    def __init__(self, d):
+    def __init__(self, args):
         super().__init__()
-        self.resnet = models.resnet50(pretrained=False)
-        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, d, bias=True)
-        self.layer_norm = nn.LayerNorm(d)
+        if args.pretrained:
+            self.resnet = models.resnet50(weights="IMAGENET1K_V2")
+        else:
+            self.resnet = models.resnet50(pretrained=False)
+
+        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, args.d, bias=True)
+
+        self.layer_norm = nn.LayerNorm(args.d)
 
     def forward(self, x):
         """
@@ -64,13 +76,13 @@ class CXREncoder(nn.Module):
 
 
 class RiskEncoder(nn.Module):
-    def __init__(self, d):
+    def __init__(self, args):
         super().__init__()
         self.fc1 = nn.Linear(3, 256)
         self.fc2 = nn.Linear(256, 1024)
-        self.fc3 = nn.Linear(1024, d)
+        self.fc3 = nn.Linear(1024, args.d)
         self.gelu = nn.GELU()
-        self.layer_norm = nn.LayerNorm(d)
+        self.layer_norm = nn.LayerNorm(args.d)
 
         # self.dropout = nn.Dropout(0.3)
 
@@ -101,9 +113,9 @@ class SSLModel(pl.LightningModule):
         self.args = Namespace(**args)
         self.loss_fn = symile if self.args.loss_fn == "symile" else clip
 
-        self.ecg_encoder = ECGEncoder(self.args.d)
-        self.cxr_encoder = CXREncoder(self.args.d)
-        self.risk_encoder = RiskEncoder(self.args.d)
+        self.ecg_encoder = ECGEncoder(self.args)
+        self.cxr_encoder = CXREncoder(self.args)
+        self.risk_encoder = RiskEncoder(self.args)
 
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
@@ -198,7 +210,7 @@ class SSLModel(pl.LightningModule):
         except AttributeError:
             self.run_info["wandb"] = None
 
-        with open(self.args["save_dir"] / "run_info.json", "w") as f:
+        with open(self.args.save_dir / "run_info.json", "w") as f:
             json.dump(self.run_info, f, indent=4, cls=PathToStrEncoder)
 
     def test_step(self, batch, batch_idx):
