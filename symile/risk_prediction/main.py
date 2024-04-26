@@ -63,6 +63,7 @@ def main(args, trainer):
     else:
         print("Loading checkpoint from ", args.load_from_ckpt)
         model = SSLModel.load_from_checkpoint(args.load_from_ckpt)
+
     trainer.fit(model, datamodule=dm)
 
 
