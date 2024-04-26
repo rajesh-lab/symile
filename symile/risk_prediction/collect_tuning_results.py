@@ -63,7 +63,7 @@ def main(args, tuning_data):
                     'run_name': run_name,
                     'loss_fn': loss_fn,
                     'ckpt_pt': ckpt_pt,
-                    'epoch_number': val_metric['epoch'],
+                    'epoch': val_metric['epoch'],
                     'val_loss': val_metric['val_loss'],
                     'val_acc_at_1': val_metric['val_acc_at_1'],
                     'val_acc_at_5': val_metric['val_acc_at_5'],
