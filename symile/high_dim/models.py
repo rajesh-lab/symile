@@ -124,6 +124,10 @@ class SSLModel(pl.LightningModule):
         else:
             self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
 
+        self.r_a_test_save = torch.empty(0)
+        self.r_i_test_save = torch.empty(0)
+        self.r_t_test_save = torch.empty(0)
+
     def forward(self, x):
         r_a = self.audio_encoder(x["audio"])
         r_i = self.image_encoder(x["image"])
@@ -164,11 +168,22 @@ class SSLModel(pl.LightningModule):
         """
         r_a, r_i, r_t, logit_scale_exp = self(batch)
 
+        if self.args.save_representations:
+            self.r_a_test_save = torch.cat((self.r_a_test_save, r_a.cpu()), dim=0)
+            self.r_i_test_save = torch.cat((self.r_i_test_save, r_i.cpu()), dim=0)
+            self.r_t_test_save = torch.cat((self.r_t_test_save, r_t.cpu()), dim=0)
+
         acc = self.zeroshot_retrieval_accuracy(r_a, r_t, batch, "test")
 
         self.log("test_accuracy", acc, sync_dist=True, prog_bar=True)
 
         return acc
+
+    def on_test_epoch_end(self):
+        if self.args.save_representations:
+            torch.save(self.r_a_test_save, self.args.save_dir / "r_a_test.pt")
+            torch.save(self.r_i_test_save, self.args.save_dir / "r_i_test.pt")
+            torch.save(self.r_t_test_save, self.args.save_dir / "r_t_test.pt")
 
     def on_validation_epoch_start(self):
         """

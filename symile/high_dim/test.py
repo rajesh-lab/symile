@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 import os
 import random
 import time
@@ -37,6 +38,7 @@ def test(args, trainer):
     # override model args
     model.args.data_dir = args.data_dir
     model.args.save_dir = args.save_dir
+    model.args.save_representations = args.save_representations
 
     # set dl as an attribute of the model
     dl = get_dataloader(args)
@@ -78,9 +80,10 @@ if __name__ == '__main__':
         logger=False
     )
 
-    # if args.use_seed:
-    #     seed_everything(args.seed, workers=True)
-    test_acc = test(args, trainer)[0]["test_accuracy"]
+    if args.use_seed:
+        seed_everything(args.seed, workers=True)
+
+    acc = test(args, trainer)[0]
 
     if args.bootstrap:
         accuracies = []
@@ -104,10 +107,13 @@ if __name__ == '__main__':
             f.write(f"test accuracy: {test_acc:.4f}\n")
             f.write(f"95% CI: [{ci_low:.4f}, {ci_high:.4f}]")
     else:
-        print("\nsaving results to ", save_dir / "results.txt")
-        print(f"\ntest accuracy: {test_acc:.4f}")
-        with open(save_dir / "results.txt", "w") as f:
-            f.write(f"test accuracy: {test_acc:.4f}")
+        save_pt = save_dir / "results.json"
+        print("\nsaving results to ", save_pt)
+
+        acc["description"] = args.description
+
+        with open(save_pt, "w") as f:
+            json.dump(acc, f, indent=4)
 
     end = time.time()
     total_time = (end - start)/60

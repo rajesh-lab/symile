@@ -107,24 +107,27 @@ def parse_args_test():
                         default=None,
                         help="Checkpoint to load from.")
     parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/results/high_dim"),
                         help="Where to save test results.")
+    parser.add_argument("--description" , type=str, default="",
+                        help="Description of the test run.")
+    parser.add_argument("--save_representations", type=str_to_bool, default=False,
+                        help="Whether to save test representations.")
 
     ### DATA ARGS ###
-    parser.add_argument("--batch_sz_test", type=int, default=300,
+    parser.add_argument("--batch_sz_test", type=int,
                         help="Test set batch size.")
     parser.add_argument("--data_dir", type=Path,
                         help="Directory with dataset csvs.")
-    parser.add_argument("--num_langs", type=int, default=5,
+    parser.add_argument("--num_langs", type=int,
                         help="Number of languages in generated text.")
     parser.add_argument("--text_model_id", type=str,
                         help="Hugging Face model id for text encoder.")
 
     ### BOOTSTRAP ARGS ###
-    parser.add_argument("--bootstrap", type=str_to_bool, default=False,
+    parser.add_argument("--bootstrap", type=str_to_bool,
                         help="Whether to compute a two-sided bootstrap confidence \
                               interval of evaluation metric.")
-    parser.add_argument("--bootstrap_n", type=int, default=20,
+    parser.add_argument("--bootstrap_n", type=int,
                         help="Number of resamples performed to form the bootstrap \
                               distribution of evaluation metric.")
 
