@@ -58,12 +58,11 @@ class RiskEncoder(nn.Module):
         super().__init__()
         self.fc1 = nn.Linear(3, 256)
         self.fc2 = nn.Linear(256, 1024)
-        self.fc3 = nn.Linear(1024, 2048)
-        self.fc4 = nn.Linear(2048, d)
+        self.fc3 = nn.Linear(1024, d)
         self.gelu = nn.GELU()
         self.layer_norm = nn.LayerNorm(d)
 
-        self.dropout = nn.Dropout(0.3)
+        # self.dropout = nn.Dropout(0.3)
 
     def forward(self, x):
         """
@@ -75,10 +74,10 @@ class RiskEncoder(nn.Module):
         """
         x = self.fc1(x)
         x = self.gelu(x)
-        x = self.dropout(x)
+        # x = self.dropout(x)
         x = self.fc2(x)
         x = self.gelu(x)
-        x = self.dropout(x)
+        # x = self.dropout(x)
         x = self.fc3(x)
         x = self.gelu(x)
         x = self.fc4(x)
