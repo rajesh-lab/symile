@@ -94,7 +94,6 @@ def parse_args_test():
                         default=None,
                         help="Checkpoint to load from.")
     parser.add_argument("--save_dir", type=Path,
-                        default=Path("/gpfs/scratch/as16583/results/high_dim"),
                         help="Where to save test results.")
     parser.add_argument("--description" , type=str, default="",
                         help="Description of the test run.")
