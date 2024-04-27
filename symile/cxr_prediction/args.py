@@ -18,6 +18,8 @@ def parse_args_main():
                               of all three encoders.")
     parser.add_argument("--pretrained", type=str_to_bool, default=False,
                         help="Whether to pretrained encoders for CXR and ECG.")
+    parser.add_argument("--labs_model", type=str, default=None,
+                        choices=["mlp", "ftt"])
 
     ### TRAINING ARGS ###
     parser.add_argument("--batch_sz_train", type=int, default=300,

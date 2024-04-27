@@ -6,6 +6,7 @@ from pathlib import Path
 
 import lightning.pytorch as pl
 import numpy as np
+from rtdl_revisiting_models import FTTransformer
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -76,6 +77,38 @@ class CXREncoder(nn.Module):
         return x
 
 
+class LabsEncoderFTT(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.model = FTTransformer(
+            n_cont_features=50,
+            cat_cardinalities=[2] * 50,
+            d_out=args.d,
+            n_blocks=3,
+            d_block=192,
+            attention_n_heads=8,
+            attention_dropout=0.2,
+            ffn_d_hidden=None,
+            ffn_d_hidden_multiplier=4 / 3,
+            ffn_dropout=0.1,
+            residual_dropout=0.0,
+        )
+
+        self.layer_norm = nn.LayerNorm(args.d)
+
+    def forward(self, values, missingness):
+        """
+        Args:
+            input_features (torch.Tensor): shape (batch_sz, 80, 3000)
+            attention_mask (torch.Tensor): shape (batch_sz, 3000)
+        Returns:
+            x (torch.Tensor): shape (batch_sz, d)
+        """
+        x = self.model(values, missingness)
+        x = self.layer_norm(x)
+        return x
+
+
 class LabsEncoder(nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -116,7 +149,11 @@ class SSLModel(pl.LightningModule):
 
         self.ecg_encoder = ECGEncoder(self.args)
         self.cxr_encoder = CXREncoder(self.args)
-        self.labs_encoder = LabsEncoder(self.args)
+
+        if self.args.labs_model == "ftt":
+            self.labs_encoder = LabsEncoderFTT(self.args)
+        else:
+            self.labs_encoder = LabsEncoder(self.args)
 
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
@@ -139,20 +176,35 @@ class SSLModel(pl.LightningModule):
 
             r_e = self.ecg_encoder(x[1])
 
-            labs = torch.cat([x[2], x[3]], dim=1)
-            r_l = self.labs_encoder(labs)
+            if self.args.labs_model == "ftt":
+                r_l = self.labs_encoder(x[2], x[3])
+            else:
+                labs = torch.cat([x[2], x[3]], dim=1)
+                r_l = self.labs_encoder(labs)
         else:
         # query or candidate dataset
             r_c = self.cxr_encoder(x["cxr"].to(self.device))
 
             r_e = self.ecg_encoder(x["ecg"].to(self.device))
 
-            labs = torch.cat([x["labs_percentiles"], x["labs_missingness"]], dim=1)
-            r_l = self.labs_encoder(labs.to(self.device))
+            if self.args.labs_model == "ftt":
+                r_l = self.labs_encoder(x["labs_percentiles"].to(self.device),
+                                        x["labs_missingness"].to(self.device))
+            else:
+                labs = torch.cat([x["labs_percentiles"], x["labs_missingness"]], dim=1)
+                r_l = self.labs_encoder(labs.to(self.device))
         return r_c, r_e, r_l, self.logit_scale.exp()
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
+        if self.args.labs_model == "ftt":
+            # to protect some parameters from weight decay (per paper). see:
+            # https://github.com/yandex-research/rtdl-revisiting-models/tree/2542a25b2adbfd0e9d18ce00f75f9f64ad2c26bd/package#ft-transformer-
+            # https://github.com/yandex-research/rtdl-revisiting-models/blob/2542a25b2adbfd0e9d18ce00f75f9f64ad2c26bd/package/rtdl_revisiting_models.py#L780
+            param_group_less_labs_encoder = [{"params": [p for name, p in self.named_parameters() if "labs_encoder.model" not in name]}]
+            param_groups = param_group_less_labs_encoder + self.labs_encoder.model.make_parameter_groups()
+            return torch.optim.AdamW(param_groups, lr=self.args.lr, weight_decay=self.args.weight_decay)
+        else:
+            return torch.optim.AdamW(self.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
 
     def training_step(self, batch, batch_idx):
         r_c, r_e, r_l, logit_scale_exp = self(batch)
@@ -220,8 +272,12 @@ class SSLModel(pl.LightningModule):
         for batch in DataLoader(query_ds, batch_size=len(query_ds), shuffle=False):
             r_e.append(self.ecg_encoder(batch["ecg"].to(self.device)))
 
-            labs = torch.cat([batch["labs_percentiles"], batch["labs_missingness"]], dim=1)
-            r_l.append(self.labs_encoder(labs.to(self.device)))
+            if self.args.labs_model == "ftt":
+                r_l.append(self.labs_encoder(batch["labs_percentiles"].to(self.device),
+                                             batch["labs_missingness"].to(self.device)))
+            else:
+                labs = torch.cat([batch["labs_percentiles"], batch["labs_missingness"]], dim=1)
+                r_l.append(self.labs_encoder(labs.to(self.device)))
 
             hadm_id.append(batch["hadm_id"])
 
