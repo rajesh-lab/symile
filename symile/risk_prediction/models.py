@@ -7,12 +7,22 @@ from pathlib import Path
 
 import lightning.pytorch as pl
 import numpy as np
+from rtdl_revisiting_models import FTTransformer
 import torch
 import torch.nn as nn
 from torchvision import models
 
 from symile.losses import clip, symile, zeroshot_retrieval_logits
 from symile.risk_prediction.constants import RISK_VECTOR_COLS
+
+
+def get_risk_vector_ranges():
+    value_ranges = {
+        "los_quantile": range(4),  # 0, 1, 2, 3
+        "hospital_expire_flag": range(2),  # 0, 1
+        "adm_within_30_days": range(2)  # 0, 1
+    }
+    return [value_ranges[col] for col in RISK_VECTOR_COLS]
 
 
 class PathToStrEncoder(JSONEncoder):
@@ -75,6 +85,41 @@ class CXREncoder(nn.Module):
         return x
 
 
+class RiskEncoderFTT(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        ranges = get_risk_vector_ranges()
+        cat_cardinalities = [len(r) for r in ranges]
+
+        self.model = FTTransformer(
+            n_cont_features=0,
+            cat_cardinalities=cat_cardinalities,
+            d_out=args.d,
+            n_blocks=3,
+            d_block=192,
+            attention_n_heads=8,
+            attention_dropout=0.2,
+            ffn_d_hidden=None,
+            ffn_d_hidden_multiplier=4 / 3,
+            ffn_dropout=0.1,
+            residual_dropout=0.0,
+        )
+
+        self.layer_norm = nn.LayerNorm(args.d)
+
+    def forward(self, x):
+        """
+        Args:
+            input_features (torch.Tensor): shape (batch_sz, 80, 3000)
+            attention_mask (torch.Tensor): shape (batch_sz, 3000)
+        Returns:
+            x (torch.Tensor): shape (batch_sz, d)
+        """
+        x = self.model(None, x.long())
+        x = self.layer_norm(x)
+        return x
+
+
 class RiskEncoder(nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -115,7 +160,11 @@ class SSLModel(pl.LightningModule):
 
         self.ecg_encoder = ECGEncoder(self.args)
         self.cxr_encoder = CXREncoder(self.args)
-        self.risk_encoder = RiskEncoder(self.args)
+
+        if self.args.risk_model == "ftt":
+            self.risk_encoder = RiskEncoderFTT(self.args)
+        else:
+            self.risk_encoder = RiskEncoder(self.args)
 
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
@@ -133,13 +182,7 @@ class SSLModel(pl.LightningModule):
         self.test_metrics = {}
 
     def get_candidate_risk_vectors(self):
-        value_ranges = {
-            "los_quantile": range(4),  # 0, 1, 2, 3
-            "hospital_expire_flag": range(2),  # 0, 1
-            "adm_within_30_days": range(2)  # 0, 1
-        }
-        ranges = [value_ranges[col] for col in RISK_VECTOR_COLS]
-
+        ranges = get_risk_vector_ranges()
         all_combinations = list(itertools.product(*ranges))
         return torch.tensor(all_combinations, dtype=torch.float32)
 
@@ -150,7 +193,15 @@ class SSLModel(pl.LightningModule):
         return r_c, r_e, r_r, self.logit_scale.exp()
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
+        if self.args.risk_model == "ftt":
+            # to protect some parameters from weight decay (per paper). see:
+            # https://github.com/yandex-research/rtdl-revisiting-models/tree/2542a25b2adbfd0e9d18ce00f75f9f64ad2c26bd/package#ft-transformer-
+            # https://github.com/yandex-research/rtdl-revisiting-models/blob/2542a25b2adbfd0e9d18ce00f75f9f64ad2c26bd/package/rtdl_revisiting_models.py#L780
+            param_group_less_risk_encoder = [{"params": [p for name, p in self.named_parameters() if "risk_encoder.model" not in name]}]
+            param_groups = param_group_less_risk_encoder + self.risk_encoder.model.make_parameter_groups()
+            return torch.optim.AdamW(param_groups, lr=self.args.lr, weight_decay=self.args.weight_decay)
+        else:
+            return torch.optim.AdamW(self.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
 
     def training_step(self, batch, batch_idx):
         r_c, r_e, r_r, logit_scale_exp = self(batch)

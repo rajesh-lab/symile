@@ -34,6 +34,7 @@ python main.py \
     --data_dir /gpfs/scratch/as16583/symile/symile/risk_prediction/datasets \
     --ckpt_save_dir /gpfs/scratch/as16583/ckpts/risk_prediction \
     --pretrained True \
+    --risk_model mlp \
     --efficient_loss True \
     --loss_fn clip \
     --load_from_ckpt None \
