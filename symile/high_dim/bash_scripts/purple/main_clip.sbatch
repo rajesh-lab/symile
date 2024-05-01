@@ -29,9 +29,7 @@ python main.py \
     --check_val_every_n_epoch 2 \
     --d 8192 \
     --drop_last True \
-    --early_stopping True \
-    --early_stopping_patience 5 \
-    --epochs 25 \
+    --epochs 24 \
     --freeze_logit_scale False \
     --limit_train_batches=1.0 \
     --limit_val_batches=1.0 \

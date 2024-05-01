@@ -22,12 +22,13 @@ python test.py \
     --batch_sz_test 256 \
     --data_dir /gpfs/scratch/as16583/symile/symile/risk_prediction/datasets \
     --save_dir /gpfs/scratch/as16583/results/risk_prediction \
-    --load_from_ckpt /gpfs/scratch/as16583/ckpts/risk_prediction/20240421_233259_8398/epoch=37-val_loss=23.1582.ckpt \
+    --load_from_ckpt /gpfs/scratch/as16583/ckpts/risk_prediction/20240427_145946_7160/epoch=12-val_loss=14.9533.ckpt \
     --bootstrap False \
-    --description "ckpt is the best CLIP val acc, \
-                   ckpt_pt /gpfs/scratch/as16583/ckpts/risk_prediction/20240421_233259_8398/epoch=37-val_loss=23.1582.ckpt \
-                   weight_decay 0.1, \
-                   learning_rate 0.001, \
-                   https://wandb.ai/rajesh-lab/symile/runs/b245r6xy"
+    --description "best CLIP ckpt using cr as logits"
+    # --description "ckpt is the best CLIP val acc, \
+    #                ckpt_pt /gpfs/scratch/as16583/ckpts/risk_prediction/20240421_233259_8398/epoch=37-val_loss=23.1582.ckpt \
+    #                weight_decay 0.1, \
+    #                learning_rate 0.001, \
+    #                https://wandb.ai/rajesh-lab/symile/runs/b245r6xy"
 
 echo 'done!'

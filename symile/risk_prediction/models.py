@@ -150,6 +150,20 @@ class RiskEncoder(nn.Module):
         return x
 
 
+class RiskEmbedding(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.risk_embedding = nn.Embedding(16, args.d)
+        self.fc = nn.Linear(args.d, args.d, bias=True)
+        self.layer_norm = nn.LayerNorm(args.d)
+
+    def forward(self, x):
+        x = self.risk_embedding(x)
+        x = self.fc(x)
+        x = self.layer_norm(x)
+        return x
+
+
 class SSLModel(pl.LightningModule):
     def __init__(self, **args):
         super().__init__()
@@ -161,9 +175,14 @@ class SSLModel(pl.LightningModule):
         self.ecg_encoder = ECGEncoder(self.args)
         self.cxr_encoder = CXREncoder(self.args)
 
-        if self.args.risk_model == "ftt":
-            self.risk_encoder = RiskEncoderFTT(self.args)
-        else:
+        try:
+            if self.args.risk_model == "ftt":
+                self.risk_encoder = RiskEncoderFTT(self.args)
+            elif self.args.risk_model == "embedding":
+                self.risk_encoder = RiskEmbedding(self.args)
+            else:
+                self.risk_encoder = RiskEncoder(self.args)
+        except AttributeError: # handles the case where model is loaded from checkpoint that didn't have args.risk_model
             self.risk_encoder = RiskEncoder(self.args)
 
         # temperature parameter is learned as done by CLIP:
@@ -175,6 +194,7 @@ class SSLModel(pl.LightningModule):
             self.logit_scale = nn.Parameter(torch.ones([]) * self.args.logit_scale_init)
 
         self.candidate_risk_vectors = self.get_candidate_risk_vectors()
+        self.candidate_risk_vector_to_index = {tuple(vector.numpy()): idx for idx, vector in enumerate(self.candidate_risk_vectors)}
 
         # logging attributes
         self.run_info = {}
@@ -189,18 +209,28 @@ class SSLModel(pl.LightningModule):
     def forward(self, x):
         r_c = self.cxr_encoder(x[0])
         r_e = self.ecg_encoder(x[1])
-        r_r = self.risk_encoder(x[2])
+
+        if self.args.risk_model == "embedding":
+            risk_ids = [self.candidate_risk_vector_to_index[tuple(vector.numpy())] for vector in x[2].cpu()]
+            risk_ids = torch.tensor(risk_ids, dtype=torch.long).to(self.device)
+            r_r = self.risk_encoder(risk_ids)
+        else:
+            r_r = self.risk_encoder(x[2])
+
         return r_c, r_e, r_r, self.logit_scale.exp()
 
     def configure_optimizers(self):
-        if self.args.risk_model == "ftt":
-            # to protect some parameters from weight decay (per paper). see:
-            # https://github.com/yandex-research/rtdl-revisiting-models/tree/2542a25b2adbfd0e9d18ce00f75f9f64ad2c26bd/package#ft-transformer-
-            # https://github.com/yandex-research/rtdl-revisiting-models/blob/2542a25b2adbfd0e9d18ce00f75f9f64ad2c26bd/package/rtdl_revisiting_models.py#L780
-            param_group_less_risk_encoder = [{"params": [p for name, p in self.named_parameters() if "risk_encoder.model" not in name]}]
-            param_groups = param_group_less_risk_encoder + self.risk_encoder.model.make_parameter_groups()
-            return torch.optim.AdamW(param_groups, lr=self.args.lr, weight_decay=self.args.weight_decay)
-        else:
+        try:
+            if self.args.risk_model == "ftt":
+                # to protect some parameters from weight decay (per paper). see:
+                # https://github.com/yandex-research/rtdl-revisiting-models/tree/2542a25b2adbfd0e9d18ce00f75f9f64ad2c26bd/package#ft-transformer-
+                # https://github.com/yandex-research/rtdl-revisiting-models/blob/2542a25b2adbfd0e9d18ce00f75f9f64ad2c26bd/package/rtdl_revisiting_models.py#L780
+                param_group_less_risk_encoder = [{"params": [p for name, p in self.named_parameters() if "risk_encoder.model" not in name]}]
+                param_groups = param_group_less_risk_encoder + self.risk_encoder.model.make_parameter_groups()
+                return torch.optim.AdamW(param_groups, lr=self.args.lr, weight_decay=self.args.weight_decay)
+            else:
+                return torch.optim.AdamW(self.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
+        except AttributeError: # handles the case where model is loaded from checkpoint that didn't have args.risk_model
             return torch.optim.AdamW(self.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
 
     def training_step(self, batch, batch_idx):
@@ -289,12 +319,46 @@ class SSLModel(pl.LightningModule):
         """Add a prefix to all metric names."""
         return {f"{split}_{key}": value for key, value in metrics.items()}
 
+    def get_clip_logits(self, r_x, r_y, r_z, logit_scale_exp):
+        """
+        assumes that r_z is the modality to predict
+        """
+        # logits is a (batch_sz, n) matrix where each row i is
+        # [ r_x[i]^T r_z[0] + r_z[0]^T r_y[i]   + r_x[i]^T r_y[i] ...
+        #   r_x[i]^T r_z[n-1] + r_z[n-1]^T r_y[i] + r_x[i]^T r_y[i] ]
+        xy = torch.diagonal(r_x @ torch.t(r_y)).unsqueeze(dim=1) # (batch_sz, 1)
+        xz = r_x @ torch.t(r_z)
+        yz = r_y @ torch.t(r_z)
+
+        return (logit_scale_exp * xy,
+                logit_scale_exp * xz,
+                logit_scale_exp * yz)
+
     def zeroshot_retrieval_accuracy(self, r_c, r_e, batch, split):
-        r_r_candidates = self.risk_encoder(self.candidate_risk_vectors.to(self.device))
+        if self.args.risk_model == "embedding":
+            risk_ids = [self.candidate_risk_vector_to_index[tuple(vector.numpy())] for vector in self.candidate_risk_vectors.cpu()]
+            risk_ids = torch.tensor(risk_ids, dtype=torch.long).to(self.device)
+            r_r_candidates = self.risk_encoder(risk_ids)
+        else:
+            r_r_candidates = self.risk_encoder(self.candidate_risk_vectors.to(self.device))
 
         logits = zeroshot_retrieval_logits(r_c, r_e, r_r_candidates, self.logit_scale.exp(),
                                            self.args.loss_fn)
         logits = logits.cpu()
+
+        ## BEGIN TEMP
+        # ce, cr, er = self.get_clip_logits(r_c, r_e, r_r_candidates, self.logit_scale.exp())
+        # ce = ce.cpu()
+        # cr = cr.cpu()
+        # er = er.cpu()
+
+        # torch.save(logits, self.args.save_dir / "logits.pt")
+        # torch.save(ce, self.args.save_dir / "ce.pt")
+        # torch.save(cr, self.args.save_dir / "cr.pt")
+        # torch.save(er, self.args.save_dir / "er.pt")
+
+        # logits = er
+        ## END TEMP
 
         acc_at_k = {}
         for k in [1, 5, 10]:

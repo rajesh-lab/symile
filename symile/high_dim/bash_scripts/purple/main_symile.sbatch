@@ -29,9 +29,7 @@ python main.py \
     --check_val_every_n_epoch 2 \
     --d 8192 \
     --drop_last True \
-    --early_stopping True \
-    --early_stopping_patience 5 \
-    --epochs 25 \
+    --epochs 24 \
     --freeze_logit_scale False \
     --limit_train_batches=1.0 \
     --limit_val_batches=1.0 \
@@ -45,7 +43,6 @@ python main.py \
     --data_reference /gpfs/scratch/as16583/symile/symile/high_dim/datasets/data_reference.json \
     --efficient_loss True \
     --loss_fn symile \
-    --load_from_ckpt /gpfs/scratch/as16583/ckpts/high_dim/20240415_181732_5622/best_val_loss_epoch=23-val_loss=0.74.ckpt \
-    --wandb_run_id hfgvpyvs
+    --load_from_ckpt None
 
 echo 'done!'

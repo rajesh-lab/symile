@@ -10,6 +10,12 @@ def parse_get_mimic_data():
     parser.add_argument("--data_type", type=str, default=None,
                         choices=["cxr", "ecg", "labs"],
                         help="Type of data to extract.")
+    parser.add_argument("--cxr_type", type=str, default=None,
+                        choices=["24_to_72", "post_24"],
+                        help="Type of data to extract.")
+    parser.add_argument("--ecg_labs_type", type=str, default=None,
+                        choices=["adm", "before_discharge"],
+                        help="Type of data to extract.")
 
     parser.add_argument("--mimiciv_hosp_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/mimiciv/2.2/hosp"),
@@ -28,6 +34,10 @@ def parse_get_mimic_data():
 
 def parse_create_dataset():
     parser = argparse.ArgumentParser()
+
+    parser.add_argument("--dataset_type", type=str, default=None,
+                        choices=["cxr_24_to_72", "cxr_post_24", "cxr_post_ecg_labs"],
+                        help="Type of data to extract.")
 
     parser.add_argument("--cxr_df_path", type=Path,
                         default=Path("/gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets/cxr_df.csv"),

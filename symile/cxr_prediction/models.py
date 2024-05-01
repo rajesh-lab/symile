@@ -331,6 +331,21 @@ class SSLModel(pl.LightningModule):
         """Add a prefix to all metric names."""
         return {f"{split}_{key}": value for key, value in metrics.items()}
 
+    def get_clip_logits(self, r_x, r_y, r_z, logit_scale_exp):
+        """
+        assumes that r_z is the modality to predict
+        """
+        # logits is a (batch_sz, n) matrix where each row i is
+        # [ r_x[i]^T r_z[0] + r_z[0]^T r_y[i]   + r_x[i]^T r_y[i] ...
+        #   r_x[i]^T r_z[n-1] + r_z[n-1]^T r_y[i] + r_x[i]^T r_y[i] ]
+        xy = torch.diagonal(r_x @ torch.t(r_y)).unsqueeze(dim=1) # (batch_sz, 1)
+        xz = r_x @ torch.t(r_z)
+        yz = r_y @ torch.t(r_z)
+
+        return (logit_scale_exp * xy,
+                logit_scale_exp * xz,
+                logit_scale_exp * yz)
+
     def zeroshot_retrieval_accuracy(self, split):
         queries = self.get_queries(split)
         candidates = self.get_candidates(split)
@@ -355,6 +370,20 @@ class SSLModel(pl.LightningModule):
             # logits are (query_sz, candidate_sz) or (5, 125)
             logits = zeroshot_retrieval_logits(r_e, r_l, r_c, self.logit_scale.exp(),
                                                self.args.loss_fn).cpu()
+
+            ## BEGIN TEMP
+            # el, ec, lc = self.get_clip_logits(r_e, r_l, r_c, self.logit_scale.exp())
+            # el = el.cpu()
+            # ec = ec.cpu()
+            # lc = lc.cpu()
+
+            # torch.save(logits, self.args.save_dir / "logits.pt")
+            # torch.save(el, self.args.save_dir / "el.pt")
+            # torch.save(ec, self.args.save_dir / "ec.pt")
+            # torch.save(lc, self.args.save_dir / "lc.pt")
+
+            # logits = lc
+            ## END TEMP
 
             for k in [1, 5, 10]:
                 # get indices of top k logits

@@ -1,12 +1,12 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_symile_pretrainedT_wd1p_lr0005
+#SBATCH --job-name=main_symile_embedding_pretrainedT_wd1p_lr001_rerun
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:a100:1
 #SBATCH --mem=150GB
-#SBATCH --time=5:00:00
+#SBATCH --time=8:00:00
 
 # when in AS's BP
 source ~/miniconda3/bin/activate symile
@@ -25,7 +25,7 @@ python main.py \
     --check_val_every_n_epoch 1 \
     --d 1024 \
     --drop_last False \
-    --epochs 50 \
+    --epochs 100 \
     --freeze_logit_scale False \
     --limit_train_batches=1.0 \
     --limit_val_batches=1.0 \
@@ -34,12 +34,12 @@ python main.py \
     --data_dir /gpfs/scratch/as16583/symile/symile/risk_prediction/datasets \
     --ckpt_save_dir /gpfs/scratch/as16583/ckpts/risk_prediction \
     --pretrained True \
-    --risk_model mlp \
+    --risk_model embedding \
     --efficient_loss True \
     --loss_fn symile \
     --load_from_ckpt None \
     --wandb True \
     --weight_decay 1.0 \
-    --lr 0.0005
+    --lr 0.001
 
 echo 'done!'

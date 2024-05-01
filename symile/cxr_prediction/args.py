@@ -83,8 +83,8 @@ def parse_args_collect_tuning_results():
 
     parser.add_argument("--results_pt", type=Path,
                         help="Path to yaml file with hyperparameter tuning results.")
-    parser.add_argument("--save_dir", type=Path,
-                        help="Where to save test results.")
+    parser.add_argument("--save_pt", type=Path,
+                        help="Path for saving test results.")
 
     return parser.parse_args()
 

@@ -38,7 +38,10 @@ if __name__ == '__main__':
 
     args = parse_create_dataset()
 
-    df = create_dataset(args)
+    if args.dataset_type == "cxr_post_ecg_labs":
+        pass
+    else:
+        df = create_dataset(args)
 
     df.to_csv(args.save_dir / "dataset.csv", index=False)
 

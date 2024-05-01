@@ -5,11 +5,11 @@
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=10GB
-#SBATCH --time=1:00:00
+#SBATCH --time=0:10:00
 
 # when in AS's BP
 source ~/miniconda3/bin/activate symile
-cd /gpfs/scratch/as16583/symile/symile/high_dim/data_processing
+cd /gpfs/scratch/as16583/symile/symile/high_dim
 
 # when in AP's BP
 # source "$(conda info --base)/etc/profile.d/conda.sh"

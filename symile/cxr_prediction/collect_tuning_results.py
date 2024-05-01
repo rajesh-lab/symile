@@ -50,18 +50,20 @@ def main(args, tuning_data):
             with open(run_info_path, "r") as f:
                 run_info = json.load(f)
 
-            assert len(run_info["validation_metrics"]) == 50, \
-                f"Expected 50 validation metrics, found {len(run_info['validation_metrics'])}."
-
             for val_metric in run_info["validation_metrics"]:
                 ckpt_pt = find_ckpt_file(path, val_metric['epoch'])
 
-                assert_matching_val_loss(val_metric['val_loss_epoch'], ckpt_pt)
+                assert_matching_val_loss(val_metric['val_loss'], ckpt_pt)
+
+                assert loss_fn == run_info['args']['loss_fn'], \
+                    f"Loss function mismatch: {loss_fn} != {run_info['args']['loss_fn']}"
 
                 row_data = {
                     'run_name': run_name,
                     'loss_fn': loss_fn,
                     'ckpt_pt': ckpt_pt,
+                    'pretrained': run_info['args']['pretrained'],
+                    'labs_model': run_info['args']['labs_model'],
                     'weight_decay': run_info['args']['weight_decay'],
                     'learning_rate': run_info['args']['lr'],
                     'wandb_path': run_info['wandb']
@@ -89,4 +91,4 @@ if __name__ == '__main__':
 
     df = main(args, tuning_data)
 
-    df.to_csv(args.save_dir / "tuning_runs.csv", index=False)
+    df.to_csv(args.save_pt, index=False)

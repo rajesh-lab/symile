@@ -1,0 +1,23 @@
+# ckpt directories for 2W_2L
+
+symile:
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240420_234318_0568"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240420_234318_5598"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240420_234318_7972"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240420_234418_3050"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240420_234418_2932"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240420_234418_5021"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240421_230625_7384"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240421_231024_8682"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240421_232822_1628"
+
+clip:
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240422_113547_4506"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240422_113547_4377"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240422_113618_9164"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240422_174900_5475"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240422_222843_3978"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240422_230041_4123"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240422_230301_2191"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240423_115834_8904"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240423_115936_9838"

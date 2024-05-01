@@ -149,3 +149,14 @@ def parse_args_collect_tuning_results():
                         help="Where to save test results.")
 
     return parser.parse_args()
+
+def parse_args_create_umap_reps():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--n_datapoints", type=int)
+    parser.add_argument("--n_components", type=int)
+    parser.add_argument("--metric", type=str)
+    parser.add_argument("--rep_dir", type=Path)
+    parser.add_argument("--save_dir", type=Path)
+
+    return parser.parse_args()
