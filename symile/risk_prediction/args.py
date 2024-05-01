@@ -17,7 +17,7 @@ def parse_args_main():
                         help="Dimensionality used by the linear projection heads \
                               of all three encoders.")
     parser.add_argument("--pretrained", type=str_to_bool, default=False,
-                        help="Whether to pretrained encoders for CXR and ECG.")
+                        help="Whether to use pretrained ECG encoder.")
     parser.add_argument("--risk_model", type=str,
                         choices = ["mlp", "ftt", "embedding"],
                         help="Model to use for risk vector encoder.")

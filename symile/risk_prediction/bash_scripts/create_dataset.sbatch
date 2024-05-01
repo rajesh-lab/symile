@@ -19,8 +19,8 @@ cd /gpfs/scratch/as16583/symile/symile/risk_prediction/data_processing
 # cd /gpfs/scratch/pulia01/adriel/symile/symile/healthcare/data_processing
 
 python create_dataset.py \
-    --cxr_df_path /gpfs/scratch/as16583/symile/symile/risk_prediction/datasets/cxr_df.csv \
     --ecg_df_path /gpfs/scratch/as16583/symile/symile/risk_prediction/datasets/ecg_df.csv \
+    --labs_df_path /gpfs/scratch/as16583/symile/symile/risk_prediction/datasets/labs_df.csv \
     --save_dir /gpfs/scratch/as16583/symile/symile/risk_prediction/datasets
 
 echo 'done!'

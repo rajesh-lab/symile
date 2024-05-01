@@ -1,14 +1,46 @@
 import json
 
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from statsmodels.distributions.empirical_distribution import StepFunction
 
 from args import parse_create_dataset
+from symile.risk_prediction.constants import LABS
 
 ADM_COLS = ["subject_id", "hadm_id", "admittime", "dischtime", "deathtime",
             "discharge_location", "hospital_expire_flag", "dod"]
-CXR_COLS = ["cxr_dicom_id", "cxr_study_id", "cxr_StudyDateTime", "cxr_path"]
 ECG_COLS = ["ecg_study_id", "ecg_time", "ecg_path"]
+
+
+class NaNAwareECDF(StepFunction):
+    """
+    Very similar to the statsmodels ECDF class
+    (https://www.statsmodels.org/stable/generated/statsmodels.distributions.empirical_distribution.ECDF.html)
+    except that it computes a NaN-aware ECDF by filling values corresponding to np.nan with np.nan.
+
+    Source: https://stackoverflow.com/a/68959320
+    """
+    def __init__(self, x, side='right'):
+        x = np.sort(x)
+
+        # count number of non-nan's instead of length
+        nobs = np.count_nonzero(~np.isnan(x))
+
+        # fill the y values corresponding to np.nan with np.nan
+        y = np.full_like(x, np.nan)
+        y[:nobs]  = np.linspace(1./nobs,1,nobs)
+        super(NaNAwareECDF, self).__init__(x, y, side=side, sorted=True)
+
+
+def save_mean_percentiles(df, args):
+    labs_means = {}
+    for col in df.columns:
+        if col.endswith("_percentile"):
+            labs_means[col] = df[col].mean()
+
+    with open(args.save_dir / "labs_means.json", "w") as f:
+        json.dump(labs_means, f, indent=4)
 
 
 def length_of_stay(df):
@@ -50,8 +82,6 @@ def mortality(df):
     `hospital_expire_flag` is the correct column (because `discharge_location` is consistent with `dod`).
     So we can use `hospital_expire_flag` as the label.
     """
-    inhospital_deaths_df = df[df.hospital_expire_flag == 1]
-
     # We'll remove all rows where `dod` is before `dischtime` since these are likely organ donor accounts.
     df = df[~(df["dod"].dt.date < df["dischtime"].dt.date)]
 
@@ -81,13 +111,21 @@ def readmission(df):
 
 
 def create_dataset(args):
-    cxr_df = pd.read_csv(args.cxr_df_path)[ADM_COLS + CXR_COLS]
     ecg_df = pd.read_csv(args.ecg_df_path)[ADM_COLS + ECG_COLS]
+    labs_df = pd.read_csv(args.labs_df_path)
 
-    # so that each row has both cxr and ecg
-    df = pd.merge(cxr_df, ecg_df, on=ADM_COLS, how="inner")
+    # add a column to labs_df in order to confirm that not all values are nan
+    labs_cols = labs_df.columns.drop(["subject_id", "hadm_id"])
+    labs_df["labs_all_nan"] = labs_df[labs_cols].isna().all(axis=1).astype(int)
 
-    for col in ["admittime", "dischtime", "deathtime", "dod", "cxr_StudyDateTime", "ecg_time"]:
+    # merge dataframes
+    df = pd.merge(ecg_df, labs_df, on=["subject_id", "hadm_id"], how="inner")
+
+    # make sure each row has ecg and at least one lab
+    assert df["ecg_study_id"].notna().all(), "'ecg_study_id' contains NaN values."
+    assert df["labs_all_nan"].eq(0).all(), "Each row should have at least one lab value."
+
+    for col in ["admittime", "dischtime", "deathtime", "dod", "ecg_time"]:
         df[col] = pd.to_datetime(df[col])
 
     df = length_of_stay(df)
@@ -127,6 +165,16 @@ if __name__ == '__main__':
     args = parse_create_dataset()
 
     (train_df, val_df, test_df) = create_dataset(args)
+
+    # normalize lab values and save mean percentiles
+    for col in LABS.keys():
+        ecdf = NaNAwareECDF(train_df[col])
+
+        train_df[col + "_percentile"] = ecdf(train_df[col])
+        val_df[col + "_percentile"] = ecdf(val_df[col])
+        test_df[col + "_percentile"] = ecdf(test_df[col])
+
+    save_mean_percentiles(train_df, args)
 
     train_df.to_csv(args.save_dir / "train.csv", index=False)
     val_df.to_csv(args.save_dir / "val.csv", index=False)

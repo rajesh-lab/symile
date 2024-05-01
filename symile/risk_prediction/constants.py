@@ -1,13 +1,6 @@
-CHEXPERT_LABELS = ["Atelectasis",
-                   "Cardiomegaly",
-                   "Consolidation",
-                   "Edema",
-                   "Pleural Effusion"]
+RISK_VECTOR_COLS = ["los_quantile", "hospital_expire_flag", "adm_within_30_days"]
 
-IMAGENET_MEAN = [0.485, 0.456, 0.406]
-IMAGENET_STD = [0.229, 0.224, 0.225]
-
-# top labs in MIMIC-IV
+# top labs in MIMIC-IV + Troponin T
 # keys are itemids, values are lab names
 LABS = {
     "51221": "Hematocrit",
@@ -59,5 +52,6 @@ LABS = {
     "52069": "Absolute Basophil Count",
     "51133": "Absolute Lymphocyte Count",
     "50910": "Creatine Kinase (CK)",
-    "52135": "Immature Granulocytes"
+    "52135": "Immature Granulocytes",
+    "51003": "Troponin T"
 }

@@ -8,7 +8,7 @@ def parse_get_mimic_data():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_type", type=str, default=None,
-                        choices=["cxr", "ecg"],
+                        choices=["ecg", "labs"],
                         help="Type of data to extract.")
 
     parser.add_argument("--mimiciv_hosp_dir", type=Path,
@@ -17,9 +17,6 @@ def parse_get_mimic_data():
     parser.add_argument("--ecg_data_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/mimic-iv-ecg/1.0"),
                         help="Directory with ECGs.")
-    parser.add_argument("--cxr_data_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/mimic-cxr-jpg/mimic-cxr-jpg-2.0.0.physionet.org"),
-                        help="Directory with CXRs.")
     parser.add_argument("--save_dir", type=Path,
                         help="Where to save data.")
 
@@ -29,10 +26,10 @@ def parse_get_mimic_data():
 def parse_create_dataset():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--cxr_df_path", type=Path,
-                        help="Path to dataframe with cxr data.")
     parser.add_argument("--ecg_df_path", type=Path,
                         help="Path to dataframe with ecg data.")
+    parser.add_argument("--labs_df_path", type=Path,
+                        help="Path to dataframe with labs data.")
     parser.add_argument("--save_dir", type=Path,
                         help="Where to save data.")
 
@@ -48,9 +45,9 @@ def parse_save_dataset_tensors():
     parser.add_argument("--ecg_data_dir", type=Path,
                         default=Path("/gpfs/data/ranganathlab/mimic-iv-ecg/1.0"),
                         help="Directory with ECGs.")
-    parser.add_argument("--cxr_data_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/mimic-cxr-jpg/mimic-cxr-jpg-2.0.0.physionet.org"),
-                        help="Directory with CXRs.")
+    parser.add_argument("--labs_means", type=Path,
+                        default=Path("labs_means.json"),
+                        help="json filename for labs means.")
     parser.add_argument("--train_csv", type=Path,
                         default=Path("train.csv"),
                         help="Filename for train csv.")
@@ -60,10 +57,6 @@ def parse_save_dataset_tensors():
     parser.add_argument("--test_csv", type=Path,
                         default=Path("test.csv"),
                         help="Filename for test csv.")
-    parser.add_argument("--cxr_scale", type=int, default=320,
-                        help="Scale for preprocessing CXRs.")
-    parser.add_argument("--cxr_crop", type=int, default=320,
-                        help="Crop for preprocessing CXRs.")
     parser.add_argument("--split", type=str, default=None,
                         choices=["train", "val", "test"])
 

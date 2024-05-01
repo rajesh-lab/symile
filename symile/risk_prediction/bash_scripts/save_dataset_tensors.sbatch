@@ -1,11 +1,11 @@
 #!/bin/bash
 
-#SBATCH --job-name=save_dataset_tensors_train
+#SBATCH --job-name=save_dataset_tensors_test
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:a100:1
-#SBATCH --mem=200GB
+#SBATCH --mem=150GB
 #SBATCH --time=4:00:00
 
 # when in AS's BP
@@ -19,8 +19,6 @@ cd /gpfs/scratch/as16583/symile/symile/risk_prediction/data_processing
 
 python save_dataset_tensors.py \
     --data_dir /gpfs/scratch/as16583/symile/symile/risk_prediction/datasets \
-    --cxr_scale 320 \
-    --cxr_crop 320 \
-    --split train
+    --split test
 
 echo 'done!'
