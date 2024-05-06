@@ -6,8 +6,8 @@ import torch
 import torch.nn as nn
 
 from utils import get_vector_support
-from src.losses import clip, symile
-from src.utils import l2_normalize
+from symile.losses import clip, symile
+from symile.utils import l2_normalize
 
 
 class LinearEncoders(nn.Module):

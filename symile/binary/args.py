@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from src.utils import str_to_bool
+from symile.utils import str_to_bool
 
 
 def parse_args_informations():
