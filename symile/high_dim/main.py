@@ -54,13 +54,14 @@ class LoggerCallback(Callback):
 def main(args, trainer):
     dm = HighDimDataModule(args)
 
+    model = SSLModel(**vars(args))
+
     if args.load_from_ckpt == "None":
         print("Training model from scratch!")
-        model = SSLModel(**vars(args))
+        trainer.fit(model, datamodule=dm)
     else:
         print("Loading checkpoint from ", args.load_from_ckpt)
-        model = SSLModel.load_from_checkpoint(args.load_from_ckpt)
-    trainer.fit(model, datamodule=dm)
+        trainer.fit(model, datamodule=dm, ckpt_path=args.load_from_ckpt)
 
     if args.num_langs == 2: # get oom error if num_langs > 2
         trainer.test(ckpt_path="best", datamodule=dm)
