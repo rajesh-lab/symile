@@ -1,8 +1,6 @@
 import os
 import time
 
-import json
-
 import numpy as np
 import pandas as pd
 import wfdb
@@ -37,9 +35,11 @@ def get_admissions_df(mimiciv_hosp_dir):
 
     return df
 
+
 ###########
 ### CXR ###
 ###########
+
 
 def get_cxr_df_24_to_72(admissions_df, cxr_data_dir):
     cxr_df = pd.read_csv(f"{cxr_data_dir}/mimic-cxr-2.0.0-metadata.csv.gz", compression='gzip')
@@ -171,9 +171,11 @@ def get_cxr_df_post_24(admissions_df, cxr_data_dir):
 
     return df
 
+
 ###########
 ### ECG ###
 ###########
+
 
 def get_ecg_df_adm(admissions_df, ecg_data_dir):
     ecg_df = pd.read_csv(f"{ecg_data_dir}/record_list.csv")
@@ -274,9 +276,11 @@ def get_ecg_df_before_discharge(admissions_df, ecg_data_dir):
 
     return df
 
+
 ############
 ### LABS ###
 ############
+
 
 def get_labs_df_adm(admissions_df, mimiciv_hosp_dir):
     labs_df = pd.read_csv(f"{mimiciv_hosp_dir}/labevents.csv.gz", compression='gzip')
