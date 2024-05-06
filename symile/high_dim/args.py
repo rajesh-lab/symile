@@ -39,9 +39,9 @@ def parse_args_main():
                         choices = ["eos", "bos"], default="eos",
                         help="Whether to use text encoder BOS or EOS embedding \
                               as input to projection head.")
-    parser.add_argument("--metadata_filename", type=Path,
+    parser.add_argument("--metadata_pt", type=Path,
                         default=Path("metadata.json"),
-                        help="json filename with metadata for all encoders.")
+                        help="Path to json file with metadata for all encoders.")
 
     ### TRAINING ARGS ###
     parser.add_argument("--batch_sz_train", type=int, default=256,
