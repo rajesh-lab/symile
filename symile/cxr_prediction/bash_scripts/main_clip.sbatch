@@ -1,12 +1,12 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_clip_ftt_pretrainedT_wd1p_lr005
+#SBATCH --job-name=main_clip_seed_9
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:a100:1
 #SBATCH --mem=150GB
-#SBATCH --time=4:00:00
+#SBATCH --time=3:00:00
 
 # when in AS's BP
 source ~/miniconda3/bin/activate symile
@@ -30,16 +30,17 @@ python main.py \
     --limit_train_batches=1.0 \
     --limit_val_batches=1.0 \
     --logit_scale_init -7 \
-    --use_seed True \
     --data_dir /gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets/cxr_24_to_72 \
     --ckpt_save_dir /gpfs/scratch/as16583/ckpts/cxr_prediction \
-    --pretrained True \
-    --labs_model ftt \
+    --pretrained False \
+    --labs_model mlp \
     --efficient_loss True \
     --loss_fn clip \
     --load_from_ckpt None \
     --wandb True \
-    --weight_decay 1.0 \
-    --lr 0.005
+    --weight_decay 0.1 \
+    --lr 0.01 \
+    --use_seed True \
+    --seed 9
 
 echo 'done!'

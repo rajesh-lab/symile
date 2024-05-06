@@ -85,27 +85,30 @@ if __name__ == '__main__':
     metrics = test(args, trainer)[0]
 
     if args.bootstrap:
-        pass
-        # accuracies = []
+        # NOTE: doesn't make sense to bootstrap here because seed isn't doing anything!!!
+        metric_data = {key: [] for key in metrics.keys()}
 
-        # for i in range(args.bootstrap_n):
-        #     print(f"\nbootstrap {i+1}/{args.bootstrap_n}")
+        for i in range(args.bootstrap_n):
+            print(f"\nbootstrap {i+1}/{args.bootstrap_n}")
 
-        #     if args.use_seed:
-        #         seed_everything(args.seed + i + 1, workers=True)
+            seed_everything(args.seed + i + 1, workers=True)
 
-        #     acc = test(args, trainer)[0]["test_accuracy"]
-        #     accuracies.append(acc)
+            bs_results = test(args, trainer)[0]
 
-        # ci_low = np.percentile(accuracies, 2.5)
-        # ci_high = np.percentile(accuracies, 97.5)
+            for key in metrics.keys():
+                metric_data[key].append(bs_results[key])
 
-        # print("\nsaving results to ", save_dir / "results.txt")
-        # print(f"\ntest accuracy: {test_acc:.4f}")
-        # print(f"95% CI: [{ci_low:.4f}, {ci_high:.4f}]")
-        # with open(save_dir / "results.txt", "w") as f:
-        #     f.write(f"test accuracy: {test_acc:.4f}\n")
-        #     f.write(f"95% CI: [{ci_low:.4f}, {ci_high:.4f}]")
+        print("\nsaving results to ", save_dir / "results.txt")
+
+        with open(save_dir / "results.txt", "w") as f:
+            for key in metrics.keys():
+                ci_low = np.percentile(metric_data[key], 2.5)
+                ci_high = np.percentile(metric_data[key], 97.5)
+                mean_acc = np.mean(metric_data[key])
+
+                f.write(f"{key}:\n")
+                f.write(f"Mean: {mean_acc}\n")
+                f.write(f"95% CI: [{ci_low}, {ci_high}]\n")
     else:
         save_pt = save_dir / "results.json"
         print("\nsaving results to ", save_pt)
