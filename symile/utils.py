@@ -1,5 +1,7 @@
 import argparse
 
+import torch.nn.functional as F
+
 
 def str_to_bool(arg):
     """Convert an argument string into its boolean value.
@@ -16,3 +18,15 @@ def str_to_bool(arg):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
+def l2_normalize(vectors):
+    """
+    L2 normalize a list of 2D vectors.
+
+    Args:
+        vectors (list): list of 2D torch.Tensor vectors.
+    Returns:
+        list of same 2D torch.Tensor vectors, normalized.
+    """
+    return [F.normalize(v, p=2.0, dim=1) for v in vectors]
