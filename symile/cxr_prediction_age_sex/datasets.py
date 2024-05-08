@@ -3,6 +3,7 @@ import os
 import lightning.pytorch as pl
 import torch
 from torch.utils.data import DataLoader, Dataset, TensorDataset
+import torchvision.transforms as t
 
 from symile.cxr_prediction_age_sex.constants import IMAGENET_MEAN, IMAGENET_STD
 
@@ -12,7 +13,7 @@ class CXRPredictionDataset(Dataset):
         self.args = args
 
         self.type = type
-        split_type = split if self.type else f"{split}_{type}"
+        split_type = f"{split}_{type}" if self.type else split
 
         self.split_dir = self.args.data_dir / f"{split_type}"
 
@@ -20,7 +21,7 @@ class CXRPredictionDataset(Dataset):
         self.age = torch.load(self.split_dir / f"age_{split_type}.pt")
         self.gender = torch.load(self.split_dir / f"gender_{split_type}.pt")
 
-        with open(f"{args.split_dir}/dicom_id_{split_type}.txt", 'r') as f:
+        with open(f"{self.split_dir}/dicom_id_{split_type}.txt", 'r') as f:
             self.dicom_id = f.read().splitlines()
 
         if self.type:

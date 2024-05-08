@@ -6,15 +6,14 @@ from pathlib import Path
 
 import lightning.pytorch as pl
 import numpy as np
-from rtdl_revisiting_models import FTTransformer
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import models
 
-from datasets import EvaluationDataset
+from datasets import CXRPredictionDataset
 from symile.losses import clip, symile, zeroshot_retrieval_logits
-from symile.cxr_prediction.constants import CHEXPERT_LABELS
+from symile.cxr_prediction_age_sex.constants import CHEXPERT_LABELS
 
 
 class PathToStrEncoder(JSONEncoder):
@@ -105,7 +104,7 @@ class SSLModel(pl.LightningModule):
     def forward(self, x):
         r_c = self.cxr_encoder(x["cxr"].to(self.device))
         r_a = self.age_encoder(x["age"].to(self.device))
-        r_g = self.age_encoder(x["gender"].to(self.device))
+        r_g = self.gender_encoder(x["gender"].to(self.device))
         return r_c, r_a, r_g, self.logit_scale.exp()
 
     def configure_optimizers(self):
@@ -167,46 +166,38 @@ class SSLModel(pl.LightningModule):
         self.log_dict(metrics, sync_dist=True, prog_bar=False)
 
     def get_queries(self, split):
-        query_ds = EvaluationDataset(self.args, split, "query")
+        query_ds = CXRPredictionDataset(self.args, split, "query")
 
-        r_e = []
-        r_l = []
-        hadm_id = []
+        r_a = []
+        r_g = []
+        dicom_id = []
         label_name = []
 
         for batch in DataLoader(query_ds, batch_size=len(query_ds), shuffle=False):
-            r_e.append(self.ecg_encoder(batch["ecg"].to(self.device)))
-
-            if self.args.labs_model == "ftt":
-                r_l.append(self.labs_encoder(batch["labs_percentiles"].to(self.device),
-                                             batch["labs_missingness"].to(self.device)))
-            else:
-                labs = torch.cat([batch["labs_percentiles"], batch["labs_missingness"]], dim=1)
-                r_l.append(self.labs_encoder(labs.to(self.device)))
-
-            hadm_id.append(batch["hadm_id"])
-
+            r_a.append(self.age_encoder(batch["age"].to(self.device)))
+            r_g.append(self.gender_encoder(batch["gender"].to(self.device)))
+            dicom_id += batch["dicom_id"]
             label_name += batch["label_name"]
 
-        r_e = torch.cat(r_e, dim=0)
-        r_l = torch.cat(r_l, dim=0)
+        r_a = torch.cat(r_a, dim=0)
+        r_g = torch.cat(r_g, dim=0)
 
-        assert len(r_e) == len(r_l) == len(query_ds), "r_e, r_l, and query_ds should have the same length"
+        assert len(r_a) == len(r_g) == len(query_ds), "r_a, r_g, and query_ds should have the same length"
 
-        return {"r_e": r_e, "r_l": r_l, "hadm_id": torch.cat(hadm_id, dim=0),
+        return {"r_a": r_a, "r_g": r_g, "dicom_id": dicom_id,
                 "label_name": label_name}
 
     def get_candidates(self, split):
-        candidate_ds = EvaluationDataset(self.args, split, "candidate")
+        candidate_ds = CXRPredictionDataset(self.args, split, "candidate")
 
         r_c = []
-        hadm_id = []
+        dicom_id = []
         label_name = []
         label_value = []
 
         for batch in DataLoader(candidate_ds, batch_size=256, shuffle=False):
             r_c.append(self.cxr_encoder(batch["cxr"].to(self.device)))
-            hadm_id.append(batch["hadm_id"])
+            dicom_id += batch["dicom_id"]
             label_name += batch["label_name"]
             label_value.append(batch["label_value"])
 
@@ -215,7 +206,7 @@ class SSLModel(pl.LightningModule):
         assert len(r_c) == len(candidate_ds), "r_c and candidate_ds should have the same length"
 
         return {"r_c": r_c,
-                "hadm_id": torch.cat(hadm_id, dim=0),
+                "dicom_id": dicom_id,
                 "label_name": label_name,
                 "label_value": torch.cat(label_value, dim=0)}
 
@@ -262,22 +253,30 @@ class SSLModel(pl.LightningModule):
         for label in CHEXPERT_LABELS:
             # get query set for `label`
             label_mask_q = torch.tensor([name == label for name in queries["label_name"]])
-            r_e = queries["r_e"][label_mask_q]
-            r_l = queries["r_l"][label_mask_q]
-            true_hadm_ids = queries["hadm_id"][label_mask_q]
+            r_a = queries["r_a"][label_mask_q]
+            r_g = queries["r_g"][label_mask_q]
 
             # get candidate set for `label`
             label_mask_c = torch.tensor([name == label for name in candidates["label_name"]])
             r_c = candidates["r_c"][label_mask_c]
             r_c_labels = candidates["label_value"][label_mask_c]
-            r_c_hadm_id = candidates["hadm_id"][label_mask_c]
+
+            # get dicom_ids for query and candidate sets
+            all_dicom_ids = queries["dicom_id"] + candidates["dicom_id"]
+            dicom_id_to_idx = {dicom_id: idx for idx, dicom_id in enumerate(set(all_dicom_ids))}
+
+            true_dicom_ids = torch.tensor([dicom_id_to_idx[id] for id in queries["dicom_id"]])
+            true_dicom_ids = true_dicom_ids[label_mask_q]
+
+            r_c_dicom_id = torch.tensor([dicom_id_to_idx[id] for id in candidates["dicom_id"]])
+            r_c_dicom_id = r_c_dicom_id[label_mask_c]
 
             # logits are (query_sz, candidate_sz) or (5, 125)
-            logits = zeroshot_retrieval_logits(r_e, r_l, r_c, self.logit_scale.exp(),
+            logits = zeroshot_retrieval_logits(r_a, r_g, r_c, self.logit_scale.exp(),
                                                self.args.loss_fn).cpu()
 
             ## BEGIN TEMP
-            # el, ec, lc = self.get_clip_logits(r_e, r_l, r_c, self.logit_scale.exp())
+            # el, ec, lc = self.get_clip_logits(r_a, r_g, r_c, self.logit_scale.exp())
             # el = el.cpu()
             # ec = ec.cpu()
             # lc = lc.cpu()
@@ -312,11 +311,11 @@ class SSLModel(pl.LightningModule):
 
                 ## TRUE CXR RETRIEVAL METRIC ##
 
-                # map indices to hadm_ids
-                topk_hadm_ids = r_c_hadm_id[topk_indices] # (query_sz, k)
+                # map indices to dicom_ids
+                topk_dicom_ids = r_c_dicom_id[topk_indices] # (query_sz, k)
 
-                # check if true hadm_id is in top k predicted hadm_ids
-                true_cxr_acc_at_k = (true_hadm_ids.unsqueeze(1) == topk_hadm_ids).any(dim=1).float()
+                # check if true dicom_id is in top k predicted dicom_ids
+                true_cxr_acc_at_k = (true_dicom_ids.unsqueeze(1) == topk_dicom_ids).any(dim=1).float()
                 mean_true_cxr_acc_at_k = torch.mean(true_cxr_acc_at_k).item()
 
                 # save metric
