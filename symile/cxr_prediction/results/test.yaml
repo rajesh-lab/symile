@@ -1,0 +1,23 @@
+symile:
+  0: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_140550_9990"
+  1: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_140550_6274"
+  2: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_140636_8415"
+  3: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_140636_8898"
+  4: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_140735_3620"
+  5: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_140735_3804"
+  6: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_140843_4264"
+  7: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_140843_0125"
+  8: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_140843_6161"
+  9: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_140937_5555"
+
+clip:
+  0: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_140937_9119"
+  1: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_140937_5180"
+  2: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_141038_5573"
+  3: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_141038_1689"
+  4: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_141038_0518"
+  5: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_141139_7830"
+  6: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_141139_0667"
+  7: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_141139_1160"
+  8: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_141240_1408"
+  9: "/gpfs/scratch/as16583/results/cxr_prediction/20240507_141240_9342"

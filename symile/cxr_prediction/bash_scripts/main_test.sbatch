@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_test_symile
+#SBATCH --job-name=main_test_clip_seed_9
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --partition=a100_dev
@@ -23,11 +23,9 @@ python test.py \
     --batch_sz_test 256 \
     --data_dir /gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets/cxr_24_to_72 \
     --save_dir /gpfs/scratch/as16583/results/cxr_prediction \
-    --load_from_ckpt /gpfs/scratch/as16583/ckpts/cxr_prediction/20240427_235312_1971/epoch=39-val_loss=4.6411.ckpt \
-    --bootstrap True \
-    --bootstrap_n 3 \
-    --description "ckpt is the best SYMILE val acc, \
-                   /gpfs/scratch/as16583/ckpts/cxr_prediction/20240427_235312_1971/epoch=39-val_loss=4.6411.ckpt \
-                   https://wandb.ai/rajesh-lab/symile/runs/uld2rmme"
+    --load_from_ckpt /gpfs/scratch/as16583/ckpts/cxr_prediction/20240506_200030_2465/epoch=72-val_loss=36.0605.ckpt \
+    --bootstrap False \
+    --description "ckpt is the best CLIP val acc, \
+                   /gpfs/scratch/as16583/ckpts/cxr_prediction/20240506_200030_2465/epoch=72-val_loss=36.0605.ckpt"
 
 echo 'done!'

@@ -78,6 +78,9 @@ def main(args, tuning_data):
                         else:
                             row_data[key] = value
 
+                if "seed" in run_info["args"]:
+                    row_data["seed"] = run_info["args"]["seed"]
+
                 data.append(row_data)
 
     return pd.DataFrame(data)
