@@ -17,7 +17,7 @@ cd /gpfs/scratch/as16583/symile/symile/cxr_prediction
 # cd /gpfs/scratch/pulia01/adriel/symile/symile/high_dim/data_processing
 
 python collect_tuning_results.py \
-    --results_pt /gpfs/scratch/as16583/symile/symile/cxr_prediction/results/check_tuning_runs.yaml \
-    --save_pt /gpfs/scratch/as16583/symile/symile/cxr_prediction/results/check_tuning_runs.csv
+    --results_pt /gpfs/scratch/as16583/symile/symile/cxr_prediction/results/tuning_runs.yaml \
+    --save_pt /gpfs/scratch/as16583/symile/symile/cxr_prediction/results/tuning_runs.csv
 
 echo 'done!'

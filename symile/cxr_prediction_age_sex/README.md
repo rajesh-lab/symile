@@ -1,0 +1,3 @@
+- first run get_mimic_data.py to pull data from MIMIC directories to create a dataset df.csv
+- then run create_splits.py to create train.csv, etc.
+- then run save_dataset_tensors.py to create dataset pt tensors in split specific directories
