@@ -18,6 +18,6 @@ cd /gpfs/scratch/as16583/symile/symile/risk_prediction
 
 python collect_tuning_results.py \
     --results_pt /gpfs/scratch/as16583/symile/symile/risk_prediction/results/tuning_runs.yaml \
-    --save_dir /gpfs/scratch/as16583/symile/symile/risk_prediction/results
+    --save_pt /gpfs/scratch/as16583/symile/symile/risk_prediction/results/tuning_runs.csv
 
 echo 'done!'

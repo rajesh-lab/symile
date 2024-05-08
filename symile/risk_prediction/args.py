@@ -85,7 +85,7 @@ def parse_args_collect_tuning_results():
     parser.add_argument("--results_pt", type=Path,
                         default=Path("/gpfs/scratch/as16583/symile/symile/risk_prediction/results/tuning_runs.yaml"),
                         help="Path to yaml file with hyperparameter tuning results.")
-    parser.add_argument("--save_dir", type=Path,
+    parser.add_argument("--save_pt", type=Path,
                         default=Path("/gpfs/scratch/as16583/symile/symile/risk_prediction/results"),
                         help="Where to save test results.")
 
