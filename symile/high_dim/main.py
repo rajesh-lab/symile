@@ -63,9 +63,6 @@ def main(args, trainer):
         print("Loading checkpoint from ", args.load_from_ckpt)
         trainer.fit(model, datamodule=dm, ckpt_path=args.load_from_ckpt)
 
-    if args.num_langs == 2: # get oom error if num_langs > 2
-        trainer.test(ckpt_path="best", datamodule=dm)
-
 
 if __name__ == '__main__':
     start = time.time()
