@@ -1,21 +1,21 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_clip_seed_9
+#SBATCH --job-name=main_clip_pretrainedF_wd1_lr0005
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #SBATCH --gres=gpu:a100:1
-#SBATCH --mem=150GB
-#SBATCH --time=3:00:00
+#SBATCH --mem=200GB
+#SBATCH --time=48:00:00
 
 # when in AS's BP
 source ~/miniconda3/bin/activate symile
-cd /gpfs/scratch/as16583/symile/symile/cxr_prediction
+cd /gpfs/scratch/as16583/symile/symile/cxr_prediction_age_sex
 
 # when in AP's BP
 # source "$(conda info --base)/etc/profile.d/conda.sh"
 # conda activate symile
-# cd /gpfs/scratch/pulia01/adriel/symile/symile/cxr_prediction
+# cd /gpfs/scratch/pulia01/adriel/symile/symile/cxr_prediction_age_sex
 
 echo 'training...'
 python main.py \
@@ -25,22 +25,20 @@ python main.py \
     --check_val_every_n_epoch 1 \
     --d 1024 \
     --drop_last False \
-    --epochs 100 \
+    --epochs 50 \
     --freeze_logit_scale False \
     --limit_train_batches=1.0 \
     --limit_val_batches=1.0 \
     --logit_scale_init -7 \
-    --data_dir /gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets/cxr_24_to_72 \
-    --ckpt_save_dir /gpfs/scratch/as16583/ckpts/cxr_prediction \
+    --use_seed True \
+    --data_dir /gpfs/scratch/as16583/symile/symile/cxr_prediction_age_sex/datasets \
+    --ckpt_save_dir /gpfs/data/ranganathlab/symile_tmp/cxr_prediction_age_sex_ckpts \
     --pretrained False \
-    --labs_model mlp \
     --efficient_loss True \
     --loss_fn clip \
     --load_from_ckpt None \
     --wandb True \
     --weight_decay 0.1 \
-    --lr 0.01 \
-    --use_seed True \
-    --seed 9
+    --lr 0.0005
 
 echo 'done!'

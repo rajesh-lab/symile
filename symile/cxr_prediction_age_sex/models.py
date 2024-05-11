@@ -37,6 +37,14 @@ class CXREncoder(nn.Module):
 
         self.layer_norm = nn.LayerNorm(args.d)
 
+        if args.pretrained:
+            # freeze all layers through layer3
+            for name, param in self.resnet.named_parameters():
+                if "layer4" in name or "fc" in name:
+                    param.requires_grad = True # finetune
+                else:
+                    param.requires_grad = False # freeze
+
     def forward(self, x):
         """
         Args:
@@ -53,7 +61,8 @@ class CXREncoder(nn.Module):
 class AgeEmbedding(nn.Module):
     def __init__(self, args):
         super().__init__()
-        self.age_embedding = nn.Embedding(100, args.d)
+        # age range is 16-100: 85 = 100 (max) - 16 (min) + 1
+        self.age_embedding = nn.Embedding(85, args.d)
         self.fc = nn.Linear(args.d, args.d, bias=True)
         self.layer_norm = nn.LayerNorm(args.d)
 
@@ -103,7 +112,7 @@ class SSLModel(pl.LightningModule):
 
     def forward(self, x):
         r_c = self.cxr_encoder(x["cxr"].to(self.device))
-        r_a = self.age_encoder(x["age"].to(self.device))
+        r_a = self.age_encoder((x["age"]-16).to(self.device)) # age range is 16-100
         r_g = self.gender_encoder(x["gender"].to(self.device))
         return r_c, r_a, r_g, self.logit_scale.exp()
 
@@ -174,7 +183,7 @@ class SSLModel(pl.LightningModule):
         label_name = []
 
         for batch in DataLoader(query_ds, batch_size=len(query_ds), shuffle=False):
-            r_a.append(self.age_encoder(batch["age"].to(self.device)))
+            r_a.append(self.age_encoder((batch["age"]-16).to(self.device))) # age range is 16-100
             r_g.append(self.gender_encoder(batch["gender"].to(self.device)))
             dicom_id += batch["dicom_id"]
             label_name += batch["label_name"]
