@@ -39,7 +39,7 @@ def parse_args_main():
                         choices = ["eos", "bos"], default="eos",
                         help="Whether to use text encoder BOS or EOS embedding \
                               as input to projection head.")
-    parser.add_argument("--metadata_pt", type=Path,
+    parser.add_argument("--metadata_filename", type=Path,
                         default=Path("metadata.json"),
                         help="Path to json file with metadata for all encoders.")
 
@@ -76,6 +76,10 @@ def parse_args_main():
                         help="Loss function to use for training.")
     parser.add_argument("--lr", type=float, default=1.0e-3,
                         help="Learning rate.")
+    parser.add_argument("--missingness", type=str_to_bool, default=False,
+                        help="Whether to train with algorithmic missingness.")
+    parser.add_argument("--missingness_prob", type=float, default=0.5,
+                        help="Probability with which a given modality is missing.")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")

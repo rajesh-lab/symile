@@ -24,6 +24,8 @@ LANGUAGES_10 = [
     "zh-CN" # chinese
 ]
 
+MISSING_TOKEN = "[MISSING]"
+
 # language ISO-639 codes
 # ALL_LANGUAGES = [
 #     "ar", # arabic

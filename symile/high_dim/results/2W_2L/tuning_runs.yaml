@@ -21,3 +21,5 @@ clip:
   - "/gpfs/scratch/as16583/ckpts/high_dim/20240422_230301_2191"
   - "/gpfs/scratch/as16583/ckpts/high_dim/20240423_115834_8904"
   - "/gpfs/scratch/as16583/ckpts/high_dim/20240423_115936_9838"
+
+  symile-all-negs:
