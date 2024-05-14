@@ -35,8 +35,6 @@ class HighDimDataset(Dataset):
 
         with open(self.split_dir / f"lang_{split}.txt", "r") as f:
             self.lang = f.read().splitlines()
-        with open(self.split_dir / f"cls_{split}.txt", "r") as f:
-            self.cls = f.read().splitlines()
 
         self.languages = get_language_constant(self.args.num_langs)
 
@@ -50,6 +48,7 @@ class HighDimDataset(Dataset):
                                             max_length=self.max_token_len)
         encoded_inputs["input_ids"] = torch.squeeze(encoded_inputs["input_ids"], dim=0)
         encoded_inputs["attention_mask"] = torch.squeeze(encoded_inputs["attention_mask"], dim=0)
+        encoded_inputs["attention_mask"] = encoded_inputs["attention_mask"].to(torch.float32)
         return encoded_inputs
 
     def __getitem__(self, idx):
@@ -106,9 +105,7 @@ class HighDimDataset(Dataset):
                 "audio": audio,
                 "cls_id": self.cls_id[idx],
                 "idx": self.idx[idx],
-                "lang": self.lang[idx],
                 "lang_id": self.languages.index(self.lang[idx]),
-                "cls": self.cls[idx],
                 "text_missing": text_missing,
                 "image_missing": image_missing,
                 "audio_missing": audio_missing,
