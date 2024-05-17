@@ -1,5 +1,4 @@
 import os
-import random
 
 import lightning.pytorch as pl
 import torch
@@ -37,6 +36,17 @@ class HighDimDataset(Dataset):
             self.lang = f.read().splitlines()
 
         self.languages = get_language_constant(self.args.num_langs)
+
+        if getattr(self.args, "missingness", False) and self.split != "test":
+            if self.args.missingness_prob == 0.5:
+                missingness_prob_str = "50"
+            elif self.args.missingness_prob == 0.75:
+                missingness_prob_str = "75"
+            else:
+                raise ValueError("Missingness probability not supported.")
+            self.text_missingness = torch.load(self.split_dir / f"text_missingness_prob{missingness_prob_str}_{split}.pt")
+            self.image_missingness = torch.load(self.split_dir / f"image_missingness_prob{missingness_prob_str}_{split}.pt")
+            self.audio_missingness = torch.load(self.split_dir / f"audio_missingness_prob{missingness_prob_str}_{split}.pt")
 
     def __len__(self):
         return len(self.image)
@@ -81,10 +91,10 @@ class HighDimDataset(Dataset):
         image_missing = 0
         audio_missing = 0
 
-        if self.args.missingness and self.split != "test":
-            text_missing = int(random.random() < self.args.missingness_prob)
-            image_missing = int(random.random() < self.args.missingness_prob)
-            audio_missing = int(random.random() < self.args.missingness_prob)
+        if getattr(self.args, "missingness", False) and self.split != "test":
+            text_missing = self.text_missingness[idx]
+            image_missing = self.image_missingness[idx]
+            audio_missing = self.audio_missingness[idx]
 
             if text_missing == 1:
                 text = self.get_missingness_text()

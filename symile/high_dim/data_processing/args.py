@@ -152,3 +152,16 @@ def parse_args_merge_representations():
                         help="Number of subdirectories.")
 
     return parser.parse_args()
+
+
+def parse_args_add_missingness():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--data_dir", type=Path,
+                        help="Directory with subdirectories.")
+    parser.add_argument("--save_dir", type=Path,
+                        help="Directory to save merged tensors in.")
+    parser.add_argument("--missingness_prob", type=float, default=0.5,
+                        help="Probability with which a given modality is missing.")
+
+    return parser.parse_args()
