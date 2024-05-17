@@ -65,7 +65,7 @@ if __name__ == '__main__':
         seed_everything(args.seed, workers=True)
 
     checkpoint_callback = ModelCheckpoint(dirpath=save_dir,
-                                          filename="{epoch}-{val_loss:.4f}-{val_accuracy:.4f}",
+                                          filename="{epoch}-{val_loss:.4f}-{val_acc:.4f}",
                                           every_n_epochs=args.check_val_every_n_epoch,
                                           save_top_k=-1)
 

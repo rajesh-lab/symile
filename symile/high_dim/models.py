@@ -1,6 +1,7 @@
 from argparse import Namespace
 import json
 from json import JSONEncoder
+from pathlib import Path
 
 import lightning.pytorch as pl
 import numpy as np
@@ -25,7 +26,7 @@ class AudioEncoder(nn.Module):
         super().__init__()
         self.args = args
 
-        if args.missingness:
+        if getattr(args, "missingness", False):
             self.missingness_embed = nn.Embedding(2, enc_hidden_size)
             self.fc = nn.Linear(enc_hidden_size*2, args.d, bias=True)
         else:
@@ -41,7 +42,7 @@ class AudioEncoder(nn.Module):
         Returns:
             x (torch.Tensor): shape (batch_sz, d)
         """
-        if self.args.missingness:
+        if getattr(self.args, "missingness", False):
             missingness_embed = self.missingness_embed(missingness_ind)
             x = torch.cat((audio_embed, missingness_embed), dim=1)
             x = self.fc(x)
@@ -57,7 +58,7 @@ class ImageEncoder(nn.Module):
         super().__init__()
         self.args = args
 
-        if args.missingness:
+        if getattr(args, "missingness", False):
             self.missingness_embed = nn.Embedding(2, enc_hidden_size)
             self.fc = nn.Linear(enc_hidden_size*2, args.d, bias=True)
         else:
@@ -72,7 +73,7 @@ class ImageEncoder(nn.Module):
         Returns:
             x (torch.Tensor): shape (batch_sz, d)
         """
-        if self.args.missingness:
+        if getattr(self.args, "missingness", False):
             missingness_embed = self.missingness_embed(missingness_ind)
             x = torch.cat((image_embed, missingness_embed), dim=1)
             x = self.fc(x)
@@ -91,7 +92,7 @@ class TextEncoder(nn.Module):
         elif args.text_model_id == "xlm-roberta-base" or args.text_model_id == "xlm-roberta-large":
             self.encoder = XLMRobertaModel.from_pretrained(args.text_model_id)
 
-        if args.missingness:
+        if getattr(args, "missingness", False):
             self.encoder.resize_token_embeddings(args.tokenizer_len)
 
         self.embeddings = self.encoder.embeddings
@@ -220,17 +221,9 @@ class SSLModel(pl.LightningModule):
             self.r_i_test_save = torch.cat((self.r_i_test_save, r_i.cpu()), dim=0)
             self.r_t_test_save = torch.cat((self.r_t_test_save, r_t.cpu()), dim=0)
 
-        acc = self.zeroshot_retrieval_accuracy(r_a, r_t, batch, "test")
+        accuracies = self.zeroshot_retrieval_accuracy(r_a, r_t, batch, "test")
 
-        self.log("test_accuracy", acc, sync_dist=True, prog_bar=True)
-
-        return acc
-
-    def on_test_epoch_end(self):
-        if self.args.save_representations:
-            torch.save(self.r_a_test_save, self.args.save_dir / "r_a_test.pt")
-            torch.save(self.r_i_test_save, self.args.save_dir / "r_i_test.pt")
-            torch.save(self.r_t_test_save, self.args.save_dir / "r_t_test.pt")
+        self.test_step_accuracies.extend(accuracies)
 
     def on_validation_epoch_start(self):
         """
@@ -262,6 +255,18 @@ class SSLModel(pl.LightningModule):
         self.run_info.setdefault("validation_metrics", []).append(val_metrics)
 
         self.val_step_accuracies.clear()
+
+    def on_test_epoch_end(self):
+        mean_acc = sum(self.test_step_accuracies) / len(self.test_step_accuracies)
+
+        self.log("test_acc", mean_acc, sync_dist=True, prog_bar=True)
+
+        self.test_step_accuracies.clear()
+
+        if self.args.save_representations:
+            torch.save(self.r_a_test_save, self.args.save_dir / "r_a_test.pt")
+            torch.save(self.r_i_test_save, self.args.save_dir / "r_i_test.pt")
+            torch.save(self.r_t_test_save, self.args.save_dir / "r_t_test.pt")
 
     def on_train_end(self):
         self.run_info["args"] = self.args
@@ -318,6 +323,9 @@ class SSLModel(pl.LightningModule):
             r_i_cls_id = self.r_i_cls_id_test
 
         mask = batch["all_observed"] == 1
+
+        if split == "test":
+            assert mask.all(), "All values should be observed in test set."
 
         r_a = r_a[mask]
         r_t = r_t[mask]
