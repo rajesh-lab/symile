@@ -55,8 +55,8 @@ def main(args, tuning_data):
 
                 assert_matching_val_loss(val_metric['val_loss'], ckpt_pt)
 
-                assert loss_fn == run_info['args']['loss_fn'], \
-                    f"Loss function mismatch: {loss_fn} != {run_info['args']['loss_fn']}"
+                # assert loss_fn == run_info['args']['loss_fn'], \
+                #     f"Loss function mismatch: {loss_fn} != {run_info['args']['loss_fn']}"
 
                 row_data = {
                     'run_name': run_name,

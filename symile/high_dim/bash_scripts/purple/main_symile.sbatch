@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_symile_2W_2L_wd001_lr00001
+#SBATCH --job-name=main_symile_missing50_2W_2L_wd001_lr00001
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --partition=a100_short
@@ -34,15 +34,18 @@ python main.py \
     --limit_train_batches=1.0 \
     --limit_val_batches=1.0 \
     --logit_scale_init -6 \
-    --lr 0.00001 \
-    --weight_decay 0.001 \
     --use_seed True \
     --wandb True \
-    --data_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L \
+    --missingness True \
+    --missingness_prob 0.5 \
+    --ckpt_save_dir /gpfs/scratch/as16583/ckpts/high_dim \
+    --data_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L_missingness \
     --num_langs 2 \
     --data_reference /gpfs/scratch/as16583/symile/symile/high_dim/datasets/data_reference.json \
     --efficient_loss True \
     --loss_fn symile \
-    --load_from_ckpt None
+    --load_from_ckpt None \
+    --weight_decay 0.001 \
+    --lr 0.00001
 
 echo 'done!'

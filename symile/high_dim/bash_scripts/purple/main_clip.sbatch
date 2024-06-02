@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_clip_2W_2L_wd001_lr00001
+#SBATCH --job-name=main_clip_5W_5L_wd001_lr00001
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --partition=a100_short
@@ -38,11 +38,12 @@ python main.py \
     --weight_decay 0.001 \
     --use_seed True \
     --wandb True \
-    --data_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L \
-    --num_langs 2 \
+    --data_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/5W_5L \
+    --num_langs 5 \
     --data_reference /gpfs/scratch/as16583/symile/symile/high_dim/datasets/data_reference.json \
     --efficient_loss True \
     --loss_fn clip \
-    --load_from_ckpt None
+    --load_from_ckpt /gpfs/scratch/as16583/ckpts/high_dim/20240424_084454_6489/epoch=21-val_loss=12.9136-val_accuracy=0.1879.ckpt \
+    --wandb_run_id 7sk4xyrg
 
 echo 'done!'

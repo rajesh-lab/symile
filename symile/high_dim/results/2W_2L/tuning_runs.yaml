@@ -22,4 +22,22 @@ clip:
   - "/gpfs/scratch/as16583/ckpts/high_dim/20240423_115834_8904"
   - "/gpfs/scratch/as16583/ckpts/high_dim/20240423_115936_9838"
 
-  symile-all-negs:
+symile-all-negs:
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240505_050747_1400"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240507_125540_7797"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240505_053048_7256"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240507_125636_3576"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240505_061947_1913"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240507_125636_1323"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240505_070649_0088"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240507_125842_2551"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240505_073132_7012"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240507_150555_1783"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240505_074033_4904"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240510_123521_5692"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240505_074504_8576"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240510_125216_1804"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240507_053115_9525"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240509_122905_8424"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240507_050818_5995"
+  - "/gpfs/scratch/as16583/ckpts/high_dim/20240509_123107_0754"

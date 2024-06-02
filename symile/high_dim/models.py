@@ -150,11 +150,15 @@ class SSLModel(pl.LightningModule):
         self.args = Namespace(**args)
         self.loss_fn = symile if self.args.loss_fn == "symile" else clip
 
-        metadata = json.load(open(self.args.data_dir / self.args.metadata_filename))
+        # metadata = json.load(open(self.args.data_dir / self.args.metadata_filename))
 
-        self.audio_encoder = AudioEncoder(self.args, metadata["audio_enc_hidden_sz"])
-        self.image_encoder = ImageEncoder(self.args, metadata["image_enc_hidden_sz"])
-        self.text_encoder = TextEncoder(self.args, metadata["text_enc_hidden_sz"])
+        # self.audio_encoder = AudioEncoder(self.args, metadata["audio_enc_hidden_sz"])
+        # self.image_encoder = ImageEncoder(self.args, metadata["image_enc_hidden_sz"])
+        # self.text_encoder = TextEncoder(self.args, metadata["text_enc_hidden_sz"])
+
+        self.audio_encoder = AudioEncoder(self.args, 1280)
+        self.image_encoder = ImageEncoder(self.args, 1024)
+        self.text_encoder = TextEncoder(self.args, 1024)
 
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295

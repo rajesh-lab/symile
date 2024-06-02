@@ -232,12 +232,12 @@ def get_ecg_df_before_discharge(admissions_df, ecg_data_dir):
     ecg_df["ecg_time"] = pd.to_datetime(ecg_df["ecg_time"])
     ecg_df["full_path"] = ecg_df["path"].apply(lambda x: ecg_data_dir / x)
 
-    # # remove ecg if signal is all zeros or if there are any nans
-    # def _remove_ecg(pt):
-    #     signal = wfdb.rdrecord(pt).p_signal
-    #     return np.isnan(signal).any() or np.all(signal == 0)
-    # remove_ecg_mask = ecg_df["full_path"].apply(_remove_ecg)
-    # ecg_df = ecg_df[~remove_ecg_mask].drop("full_path", axis=1)
+    # remove ecg if signal is all zeros or if there are any nans
+    def _remove_ecg(pt):
+        signal = wfdb.rdrecord(pt).p_signal
+        return np.isnan(signal).any() or np.all(signal == 0)
+    remove_ecg_mask = ecg_df["full_path"].apply(_remove_ecg)
+    ecg_df = ecg_df[~remove_ecg_mask].drop("full_path", axis=1)
 
     # get ecgs from 24 hours before admission to 24 hours before discharge
     def _find_ecgs(row):
