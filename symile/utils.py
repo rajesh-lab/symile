@@ -1,6 +1,10 @@
 import argparse
+from json import JSONEncoder
+from pathlib import Path
 
 import torch.nn.functional as F
+
+from constants import LANGUAGES_2, LANGUAGES_5, LANGUAGES_10
 
 
 def str_to_bool(arg):
@@ -30,3 +34,30 @@ def l2_normalize(vectors):
         list of same 2D torch.Tensor vectors, normalized.
     """
     return [F.normalize(v, p=2.0, dim=1) for v in vectors]
+
+
+def get_language_constant(num_langs):
+    """
+    For the Symile-M3 experiments. Returns a list of language abbreviations
+    (ISO-639 codes) based on the specified number of languages.
+    """
+    if num_langs == 10:
+        return LANGUAGES_10
+    elif num_langs == 5:
+        return LANGUAGES_5
+    elif num_langs == 2:
+        return LANGUAGES_2
+
+
+class PathToStrEncoder(JSONEncoder):
+    """
+    Custom JSON encoder that converts Path and Namespace objects to JSON
+    serializable formats by overriding the default method to handle Path and
+    Namespace objects.
+    """
+    def default(self, obj):
+        if isinstance(obj, Path):
+            return str(obj)     # convert Path object to string
+        elif isinstance(obj, Namespace):
+            return vars(obj)    # convert Namespace object to dictionary
+        return JSONEncoder.default(self, obj)  # default method

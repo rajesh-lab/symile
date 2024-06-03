@@ -5,35 +5,47 @@ import random
 import time
 
 from lightning.pytorch import Trainer, seed_everything
-from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning.pytorch.callbacks.early_stopping import EarlyStopping
-import numpy as np
-import torch
-from torch.utils.data import DataLoader, WeightedRandomSampler
+from torch.utils.data import DataLoader
 
 from args import parse_args_test
-from datasets import HighDimDataset
-from models import SSLModel
+import datasets
 
 
 def get_dataloader(args):
-    ds_test = HighDimDataset(args, "test")
+    if args.experiment == "symile_m3":
+        ds_test = datasets.SymileM3Dataset(args, "test")
+    elif args.experiment == "cxr_prediction":
+        dm = datasets.CXRPredictionDataModule(args)
+        dm.setup(stage="test")
+        ds_test = dm.ds_test
+    else:
+        raise ValueError("Unsupported experiment name specified.")
 
     num_workers = len(os.sched_getaffinity(0))
 
-    if args.bootstrap:
-        sampler = WeightedRandomSampler(torch.ones(len(ds_test)),
-                                        num_samples=len(ds_test),
-                                        replacement=True)
-        return DataLoader(ds_test, batch_size=args.batch_sz_test,
-                          sampler=sampler, num_workers=num_workers, drop_last=False)
+    return DataLoader(ds_test, batch_size=args.batch_sz_test,
+                      shuffle=False, num_workers=num_workers, drop_last=False)
+
+
+def load_model_from_ckpt(args):
+    """
+    Loads and returns a model instance from a checkpoint file based on experiment name.
+    """
+    if args.experiment == "symile_m3":
+        module = importlib.import_module("models.symile_m3_model")
+        ModelClass = getattr(module, "SymileM3Model")
+    elif args.experiment == "cxr_prediction":
+        module = importlib.import_module("models.cxr_prediction_model")
+        ModelClass = getattr(module, "CXRPredictionModel")
     else:
-        return DataLoader(ds_test, batch_size=args.batch_sz_test,
-                          shuffle=False, num_workers=num_workers, drop_last=False)
+        raise ValueError("Unsupported experiment name specified.")
+
+    return ModelClass.load_from_checkpoint(args.load_from_ckpt)
+
 
 def test(args, trainer):
     print("Loading checkpoint from ", args.load_from_ckpt)
-    model = SSLModel.load_from_checkpoint(args.load_from_ckpt)
+    model = load_model_from_ckpt(args)
 
     # override model args
     model.args.data_dir = args.data_dir
@@ -83,37 +95,14 @@ if __name__ == '__main__':
     if args.use_seed:
         seed_everything(args.seed, workers=True)
 
-    acc = test(args, trainer)[0]
+    metrics = test(args, trainer)[0]
+    metrics["description"] = args.description
 
-    if args.bootstrap:
-        accuracies = []
+    save_pt = save_dir / "results.json"
+    print("\nsaving results to ", save_pt)
 
-        for i in range(args.bootstrap_n):
-            print(f"\nbootstrap {i+1}/{args.bootstrap_n}")
-
-            # if args.use_seed:
-            #     seed_everything(args.seed + i + 1, workers=True)
-
-            acc = test(args, trainer)[0]["test_accuracy"]
-            accuracies.append(acc)
-
-        ci_low = np.percentile(accuracies, 2.5)
-        ci_high = np.percentile(accuracies, 97.5)
-
-        print("\nsaving results to ", save_dir / "results.txt")
-        print(f"\ntest accuracy: {test_acc:.4f}")
-        print(f"95% CI: [{ci_low:.4f}, {ci_high:.4f}]")
-        with open(save_dir / "results.txt", "w") as f:
-            f.write(f"test accuracy: {test_acc:.4f}\n")
-            f.write(f"95% CI: [{ci_low:.4f}, {ci_high:.4f}]")
-    else:
-        save_pt = save_dir / "results.json"
-        print("\nsaving results to ", save_pt)
-
-        acc["description"] = args.description
-
-        with open(save_pt, "w") as f:
-            json.dump(acc, f, indent=4)
+    with open(save_pt, "w") as f:
+        json.dump(metrics, f, indent=4)
 
     end = time.time()
     total_time = (end - start)/60

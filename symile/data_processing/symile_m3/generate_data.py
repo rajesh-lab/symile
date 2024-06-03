@@ -15,7 +15,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from args import parse_args_generate_data
-from symile.high_dim.utils import get_language_constant
+from symile.utils import get_language_constant
 
 
 def generate_data(args, data_ref):

@@ -1,8 +1,6 @@
 from argparse import Namespace
 from collections import defaultdict
 import json
-from json import JSONEncoder
-from pathlib import Path
 
 import lightning.pytorch as pl
 import numpy as np
@@ -13,17 +11,9 @@ from torch.utils.data import DataLoader
 from torchvision import models
 
 from datasets import EvaluationDataset
+from symile.constants import CHEXPERT_LABELS
 from symile.losses import clip, symile, zeroshot_retrieval_logits
-from symile.cxr_prediction.constants import CHEXPERT_LABELS
-
-
-class PathToStrEncoder(JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Path):
-            return str(obj)     # convert Path object to string
-        elif isinstance(obj, Namespace):
-            return vars(obj)    # convert Namespace object to dictionary
-        return JSONEncoder.default(self, obj)  # default method
+from symile.utils import PathToStrEncoder
 
 
 class ECGEncoder(nn.Module):
@@ -139,7 +129,7 @@ class LabsEncoder(nn.Module):
         return x
 
 
-class SSLModel(pl.LightningModule):
+class CXRPredictionModel(pl.LightningModule):
     def __init__(self, **args):
         super().__init__()
         self.save_hyperparameters()

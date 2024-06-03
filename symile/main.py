@@ -1,4 +1,7 @@
+"""Entry-point script to train using Symile or pairwise CLIP."""
+
 from datetime import datetime
+import importlib
 import os
 import random
 import time
@@ -8,21 +11,54 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
 from args import parse_args_main
-from datasets import CXRPredictionDataModule
-from models import SSLModel
+import datasets
+# import models
+
+
+def get_data_module(args):
+    """
+    Returns the appropriate DataModule based on the experiment.
+    """
+    if args.experiment == "symile_m3":
+        dm = datasets.SymileM3DataModule
+    elif args.experiment == "cxr_prediction":
+        dm = datasets.CXRPredictionDataModule
+    else:
+        raise ValueError("Unsupported experiment name specified.")
+
+    return dm(args)
+
+
+def get_model_module(args):
+    """
+    Imports and returns the appropriate model module based on the experiment.
+    """
+    if args.experiment == "symile_m3":
+        module = importlib.import_module("models.symile_m3_model")
+        ModelClass = getattr(module, "SymileM3Model")
+    elif args.experiment == "cxr_prediction":
+        module = importlib.import_module("models.cxr_prediction_model")
+        ModelClass = getattr(module, "CXRPredictionModel")
+    else:
+        raise ValueError("Unsupported experiment name specified.")
+
+    return ModelClass(**vars(args))
 
 
 def main(args, trainer):
-    dm = CXRPredictionDataModule(args)
+    dm = get_data_module(args)
+
+    if args.missingness:
+        setattr(args, "tokenizer_len", dm.tokenizer_len)
+
+    model = get_model_module(args)
 
     if args.load_from_ckpt == "None":
-        print("Training from scratch!")
-        model = SSLModel(**vars(args))
+        print("Training model from scratch!")
+        trainer.fit(model, datamodule=dm)
     else:
         print("Loading checkpoint from ", args.load_from_ckpt)
-        model = SSLModel.load_from_checkpoint(args.load_from_ckpt)
-
-    trainer.fit(model, datamodule=dm)
+        trainer.fit(model, datamodule=dm, ckpt_path=args.load_from_ckpt)
 
 
 if __name__ == '__main__':
@@ -52,7 +88,8 @@ if __name__ == '__main__':
     print("\nSaving to: ", save_dir)
 
     if args.wandb:
-        logger = WandbLogger(project="symile", log_model=False, save_dir=args.ckpt_save_dir)
+        logger = WandbLogger(project="symile", log_model=False,
+                             save_dir=args.ckpt_save_dir, id=args.wandb_run_id)
     else:
         logger = False
 
@@ -60,9 +97,9 @@ if __name__ == '__main__':
         seed_everything(args.seed, workers=True)
 
     checkpoint_callback = ModelCheckpoint(dirpath=save_dir,
-                                 filename="{epoch}-{val_loss:.4f}",
-                                 every_n_epochs=args.check_val_every_n_epoch,
-                                 save_top_k=-1)
+                                          filename="{epoch}-{val_loss:.4f}-{val_acc:.4f}",
+                                          every_n_epochs=args.check_val_every_n_epoch,
+                                          save_top_k=-1)
 
     trainer = Trainer(
         callbacks=checkpoint_callback,

@@ -1,7 +1,5 @@
 from argparse import Namespace
 import json
-from json import JSONEncoder
-from pathlib import Path
 
 import lightning.pytorch as pl
 import numpy as np
@@ -10,15 +8,7 @@ import torch.nn as nn
 from transformers import BertModel, XLMRobertaModel
 
 from symile.losses import clip, symile, zeroshot_retrieval_logits
-
-
-class PathToStrEncoder(JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Path):
-            return str(obj)     # convert Path object to string
-        elif isinstance(obj, Namespace):
-            return vars(obj)    # convert Namespace object to dictionary
-        return JSONEncoder.default(self, obj)  # default method
+from symile.utils import PathToStrEncoder
 
 
 class AudioEncoder(nn.Module):
@@ -142,7 +132,7 @@ class TextEncoder(nn.Module):
         return x
 
 
-class SSLModel(pl.LightningModule):
+class SymileM3Model(pl.LightningModule):
     def __init__(self, **args):
         super().__init__()
         self.save_hyperparameters()
@@ -150,15 +140,11 @@ class SSLModel(pl.LightningModule):
         self.args = Namespace(**args)
         self.loss_fn = symile if self.args.loss_fn == "symile" else clip
 
-        # metadata = json.load(open(self.args.data_dir / self.args.metadata_filename))
+        metadata = json.load(open(self.args.data_dir / self.args.metadata_filename))
 
-        # self.audio_encoder = AudioEncoder(self.args, metadata["audio_enc_hidden_sz"])
-        # self.image_encoder = ImageEncoder(self.args, metadata["image_enc_hidden_sz"])
-        # self.text_encoder = TextEncoder(self.args, metadata["text_enc_hidden_sz"])
-
-        self.audio_encoder = AudioEncoder(self.args, 1280)
-        self.image_encoder = ImageEncoder(self.args, 1024)
-        self.text_encoder = TextEncoder(self.args, 1024)
+        self.audio_encoder = AudioEncoder(self.args, metadata["audio_enc_hidden_sz"])
+        self.image_encoder = ImageEncoder(self.args, metadata["image_enc_hidden_sz"])
+        self.text_encoder = TextEncoder(self.args, metadata["text_enc_hidden_sz"])
 
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295

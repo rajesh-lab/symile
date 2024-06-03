@@ -1,7 +1,7 @@
+import glob
 import json
 import os
 import re
-import glob
 
 import pandas as pd
 import yaml
@@ -9,9 +9,11 @@ import yaml
 from args import parse_args_collect_tuning_results
 
 
-def find_ckpt_file(run_path, epoch):
-    # match 'epoch={epoch}-' and ends with '.ckpt'
-    pattern = re.compile(rf"epoch={epoch}-.*\.ckpt$")
+def find_ckpt_file(run_path, epoch, experiment):
+    if experiment == "symile_m3":
+        pattern = re.compile(rf"epoch={epoch}-val_loss=\d+\.\d+-val_accuracy=\d+\.\d+\.ckpt$")
+    elif experiment == "cxr_prediction":
+        pattern = re.compile(rf"epoch={epoch}-.*\.ckpt$")
 
     # all '.ckpt' files in the directory
     ckpt_files = glob.glob(os.path.join(run_path, "*.ckpt"))
@@ -24,7 +26,7 @@ def find_ckpt_file(run_path, epoch):
     return matched_files[0] if matched_files else None
 
 
-def assert_matching_val_loss(val_loss, ckpt_pt):
+def assert_matching_val_loss(val_loss, ckpt_pt, experiment):
      # extract val_loss from ckpt_pt
     match = re.search(r'val_loss=([0-9]+\.[0-9]+)', ckpt_pt)
     if match:
@@ -32,7 +34,10 @@ def assert_matching_val_loss(val_loss, ckpt_pt):
     else:
         raise ValueError("No valid val_loss found in the checkpoint path.")
 
-    decimal_places = len(ckpt_pt.split('=')[-1].split('.')[1].rstrip('.ckpt'))
+    if experiment == "symile_m3":
+        decimal_places = len(match.group(1).split('.')[1])
+    elif experiment == "cxr_prediction":
+        decimal_places = len(ckpt_pt.split('=')[-1].split('.')[1].rstrip('.ckpt'))
 
     # assert that the rounded values match
     assert file_val_loss == round(val_loss, decimal_places), \
@@ -40,7 +45,43 @@ def assert_matching_val_loss(val_loss, ckpt_pt):
           match the loss from metrics ({round(val_loss, decimal_places)})."
 
 
-def main(args, tuning_data):
+def main_symile_m3(tuning_data, experiment):
+    data = []
+
+    # regular expression to parse the ckpt filename
+    ckpt_pattern = re.compile(r"^epoch=(\d+)-val_loss=([\d.]+)\.ckpt$")
+
+    for loss_fn, paths in tuning_data.items():
+        for path in paths:
+            run_name = os.path.basename(path)
+            run_info_path = os.path.join(path, "run_info.json")
+            with open(run_info_path, "r") as f:
+                run_info = json.load(f)
+
+            for val_metric in run_info["validation_metrics"]:
+                ckpt_pt = find_ckpt_file(path, val_metric["epoch"], experiment)
+
+                assert_matching_val_loss(val_metric['val_loss'], ckpt_pt, experiment)
+
+                # Prepare a dictionary for each row
+                row_data = {
+                    'run_name': run_name,
+                    'loss_fn': loss_fn,
+                    'ckpt_pt': ckpt_pt,
+                    'epoch': val_metric['epoch'],
+                    'val_loss': val_metric['val_loss'],
+                    'val_accuracy': val_metric['val_accuracy'],
+                    'weight_decay': run_info['args']['weight_decay'],
+                    'learning_rate': run_info['args']['lr'],
+                    'wandb_path': run_info['wandb']
+                }
+
+                data.append(row_data)
+
+    return pd.DataFrame(data)
+
+
+def main_cxr_prediction(tuning_data, experiment):
     data = []
 
     for loss_fn, paths in tuning_data.items():
@@ -51,12 +92,9 @@ def main(args, tuning_data):
                 run_info = json.load(f)
 
             for val_metric in run_info["validation_metrics"]:
-                ckpt_pt = find_ckpt_file(path, val_metric['epoch'])
+                ckpt_pt = find_ckpt_file(path, val_metric['epoch'], experiment)
 
-                assert_matching_val_loss(val_metric['val_loss'], ckpt_pt)
-
-                # assert loss_fn == run_info['args']['loss_fn'], \
-                #     f"Loss function mismatch: {loss_fn} != {run_info['args']['loss_fn']}"
+                assert_matching_val_loss(val_metric['val_loss'], ckpt_pt, experiment)
 
                 row_data = {
                     'run_name': run_name,
@@ -85,6 +123,7 @@ def main(args, tuning_data):
 
     return pd.DataFrame(data)
 
+
 if __name__ == '__main__':
     args = parse_args_collect_tuning_results()
 
@@ -92,6 +131,11 @@ if __name__ == '__main__':
     with open(args.results_pt, "r") as file:
         tuning_data = yaml.safe_load(file)
 
-    df = main(args, tuning_data)
+    if args.experiment == "symile_m3":
+        df = main_symile_m3(tuning_data, args.experiment)
+    elif args.experiment == "cxr_prediction":
+        df = main_cxr_prediction(tuning_data, args.experiment)
+    else:
+        raise ValueError("Invalid experiment.")
 
-    df.to_csv(args.save_pt, index=False)
+    df.to_csv(args.save_dir / "tuning_runs.csv", index=False)
