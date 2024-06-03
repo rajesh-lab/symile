@@ -4,7 +4,21 @@ import torch.nn.functional as F
 
 def zeroshot_retrieval_logits(r_x, r_y, r_z, logit_scale_exp, loss_fn):
     """
-    assumes that r_z is the modality to predict
+    Computes logits for zeroshot retrieval based on the specified loss function.
+
+    Calculates the logits for predicting the modality represented by r_z using
+    the representations r_x and r_y, and scales the logits by the exponentiated
+    logit scale parameter.
+
+    Args:
+        r_x (Tensor): Encoded representations of the first modality (batch_sz, d).
+        r_y (Tensor): Encoded representations of the second modality (batch_sz, d).
+        r_z (Tensor): Encoded representations of the modality to predict (num_candidates, d).
+        logit_scale_exp (Tensor): Exponentiated logit scale parameter.
+        loss_fn (str): The loss function to use, either "symile" or "clip".
+
+    Returns:
+        Tensor: Logits for zeroshot retrieval, of shape (batch_sz, num_candidates).
     """
     if loss_fn == "symile":
         # logits is a (batch_sz, n) matrix where each row i is

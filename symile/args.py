@@ -35,7 +35,7 @@ def parse_args_main():
     parser.add_argument("--image_model_id", type=str,
                         help="Hugging Face model id for image encoder.")
     parser.add_argument("--text_model_id", type=str,
-                        help="Hugging Face model id for text encoder.")
+                        help="Hugging Face XLMRobertaModel model id for text encoder.")
     parser.add_argument("--d", type=int,
                         help="Dimensionality used by the linear projection heads \
                               of all three encoders.")
@@ -127,8 +127,6 @@ def parse_args_test():
                         help="Directory with dataset csvs.")
     parser.add_argument("--num_langs", type=int,
                         help="Number of languages in generated text.")
-    parser.add_argument("--text_model_id", type=str,
-                        help="Hugging Face model id for text encoder.")
 
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,

@@ -12,7 +12,6 @@ from pytorch_lightning.loggers import WandbLogger
 
 from args import parse_args_main
 import datasets
-# import models
 
 
 def get_data_module(args):

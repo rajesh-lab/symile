@@ -150,3 +150,8 @@ Note that for support classification model fitting and testing are both in this 
 ## 3. Experiment: predict CXR from ECG and labs
 
 Note that running get_mimic_data.py for `cxr` takes about 10 minutes, for `ecg` takes about 2.5 hours, and for `labs` takes about 5 hours.
+
+- first run get_mimic_data.py to pull data from MIMIC directories into three separate csv files: cxr_df.csv, ecg_df.csv, labs_df.csv. All of these are admissions-based df whose unique identifiers are hadm_id.
+- then run create_dataset.py to create dataset.csv
+- then run create_splits.py to create train.csv, etc.
+- then run save_dataset_tensors.py to create dataset pt tensors in split specific directories

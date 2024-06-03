@@ -3,7 +3,7 @@ import os
 import lightning.pytorch as pl
 import torch
 from torch.utils.data import Dataset, DataLoader, TensorDataset
-from transformers import BertTokenizer, XLMRobertaTokenizer, MT5Tokenizer
+from transformers import XLMRobertaTokenizer
 
 from symile.constants import MISSING_TOKEN
 from symile.utils import get_language_constant
@@ -14,7 +14,19 @@ from symile.utils import get_language_constant
 #############
 
 class SymileM3Dataset(Dataset):
+    """
+    Symile-M3 Dataset
+    """
     def __init__(self, args, split, txt_tokenizer=None):
+        """
+        Loads data for `split` from disk.
+
+        Args:
+            args (Namespace): contains arguments for dataset configuration.
+            split (str): dataset split to use (`train`, `val`, or `test`).
+            txt_tokenizer (Tokenizer, optional): Tokenizer for processing text
+                data; txt_tokenizer is not None when args.missingness is True.
+        """
         self.args = args
         self.split = split
         self.txt_tokenizer = txt_tokenizer
@@ -23,8 +35,6 @@ class SymileM3Dataset(Dataset):
 
         self.text_input_ids = torch.load(self.split_dir / f"text_input_ids_{split}.pt").long()
         self.text_attention_mask = torch.load(self.split_dir / f"text_attention_mask_{split}.pt")
-        if self.args.text_model_id == "bert-base-multilingual-cased":
-            self.text_token_type_ids = torch.load(self.split_dir / f"text_token_type_ids_{split}.pt").long()
         self.max_token_len = self.text_input_ids.shape[1]
 
         self.image = torch.load(self.split_dir / f"image_{split}.pt")
@@ -41,6 +51,8 @@ class SymileM3Dataset(Dataset):
 
         self.languages = get_language_constant(self.args.num_langs)
 
+        # If running an experiment that includes missingness, load the missingness tensors.
+        # The missingness tensors are only used during training and validation.
         if getattr(self.args, "missingness", False) and self.split != "test":
             if self.args.missingness_prob == 0.5:
                 missingness_prob_str = "50"
@@ -56,6 +68,13 @@ class SymileM3Dataset(Dataset):
         return len(self.image)
 
     def get_missingness_text(self):
+        """
+        Get a tokenized representation for MISSING_TOKEN.
+
+        Returns:
+            dict: with keys "input_ids" and "attention_mask", whose values are
+                  Torch.tensors with shape (self.max_token_len).
+        """
         encoded_inputs = self.txt_tokenizer(text=MISSING_TOKEN,
                                             return_tensors="pt",
                                             padding="max_length",
@@ -67,27 +86,33 @@ class SymileM3Dataset(Dataset):
 
     def __getitem__(self, idx):
         """
-        Returns:
-            (dict): containing the following key-value pairs:
-                - audio: (dict) whose key-value pairs are
-                    (input_features: torch.Tensor of shape (80, 3000)) and
-                    (attention_mask: torch.Tensor of shape (3000)).
-                - image: (dict) whose key-value pairs are
-                    (pixel_values: torch.Tensor of shape (3, 224, 224)).
-                - text: (str) with data sample text.
-                - lang: (str) with language ISO-639 code for audio sample.
-                - cls: (str) with class label for image sample.
-                - target_text: (str) with target text.
-                - idx: (int) unique identifier for data sample.
-        """
-        if self.args.text_model_id == "bert-base-multilingual-cased":
-            text = {"input_ids": self.text_input_ids[idx],
-                    "token_type_ids": self.text_token_type_ids[idx],
-                    "attention_mask": self.text_attention_mask[idx]}
-        else:
-            text = {"input_ids": self.text_input_ids[idx],
-                    "attention_mask": self.text_attention_mask[idx]}
+        Indexes into the dataset.
 
+        If running a missingness experiment, the text, image, and audio data may be missing.
+        If the text data is missing, the text data is replaced with a tokenized representation of MISSING_TOKEN.
+        If the image or audio data is missing, it is replaced with the mean image or mean audio computed from
+        the training set, respectively.
+
+        Args:
+            idx (int): Index of data sample to retrieve.
+
+        Returns:
+            dict: A dictionary containing the following key-value pairs:
+                - text (dict): Dictionary with keys "input_ids" and "attention_mask".
+                - image (Tensor): Tensor with image data.
+                - audio (Tensor): Tensor with audio data.
+                - cls_id (torch.float32): Tensor containing the class id for the sample
+                    (as determined by the image class name).
+                - idx (torch.float32): Tensor containing the unique identifier for the sample.
+                - lang_id (int): Integer representing the language id for the sample.
+                - text_missing (torch.int32): Integer indicating whether the text data is observed (0) or missing (1).
+                - image_missing (torch.int32): Integer indicating whether the image data is observed (0) or missing (1).
+                - audio_missing (torch.int32): Integer indicating whether the audio data is observed (0) or missing (1).
+                - all_observed (int): Integer indicating whether all modalities are observed (1) or if some modalities
+                    are missing (0).
+        """
+        text = {"input_ids": self.text_input_ids[idx],
+                "attention_mask": self.text_attention_mask[idx]}
         image = self.image[idx]
         audio = self.audio[idx]
 
@@ -95,6 +120,8 @@ class SymileM3Dataset(Dataset):
         image_missing = 0
         audio_missing = 0
 
+        # If running an experiment that includes missingness, load the missingness tensors.
+        # The missingness tensors are only used during training and validation.
         if getattr(self.args, "missingness", False) and self.split != "test":
             text_missing = self.text_missingness[idx]
             image_missing = self.image_missingness[idx]
@@ -128,6 +155,12 @@ class SymileM3Dataset(Dataset):
 
 class SymileM3DataModule(pl.LightningDataModule):
     def __init__(self, args):
+        """
+        Initialize LightningDataModule for the Symile-M3 dataset.
+
+        Args:
+            args (Namespace): contains arguments for dataset configuration and training.
+        """
         super().__init__()
         self.args = args
 
@@ -135,19 +168,21 @@ class SymileM3DataModule(pl.LightningDataModule):
         self.num_workers = len(os.sched_getaffinity(0))
 
         self.txt_tokenizer = None
+
+        # Text tokenizer needed for missingness experiments to get a tokenized
+        # representation for MISSING_TOKEN.
         if self.args.missingness:
-            self.txt_tokenizer = self.get_tokenizer()
+
+            self.txt_tokenizer = XLMRobertaTokenizer.from_pretrained(args.text_model_id)
+
             if MISSING_TOKEN not in self.txt_tokenizer.get_vocab():
                 self.txt_tokenizer.add_tokens([MISSING_TOKEN])
-                self.tokenizer_len = len(self.txt_tokenizer)
 
-    def get_tokenizer(self):
-        if self.args.text_model_id == "bert-base-multilingual-cased":
-            return BertTokenizer.from_pretrained(self.args.text_model_id)
-        elif self.args.text_model_id == "xlm-roberta-base" or self.args.text_model_id == "xlm-roberta-large":
-            return XLMRobertaTokenizer.from_pretrained(self.args.text_model_id)
-        elif self.args.text_model_id == "google/mt5-base" or self.args.text_model_id == "google/mt5-small" or self.args.text_model_id == "google/mt5-large" or self.args.text_model_id == "google/mt5-xxl":
-            return MT5Tokenizer.from_pretrained(self.args.text_model_id)
+                # update the tokenizer length to include the missing token
+                # (needed during model initialization)
+                self.tokenizer_len = len(self.txt_tokenizer)
+            else:
+                raise ValueError("MISSING_TOKEN already exists in the tokenizer vocab.")
 
     def setup(self, stage):
         self.ds_train = SymileM3Dataset(self.args, "train", self.txt_tokenizer)

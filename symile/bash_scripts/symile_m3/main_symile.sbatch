@@ -22,7 +22,6 @@ echo 'training...'
 python main.py \
     --audio_model_id openai/whisper-large-v3 \
     --image_model_id openai/clip-vit-large-patch14 \
-    --text_model_id xlm-roberta-large \
     --batch_sz_train 256 \
     --batch_sz_val 256 \
     --batch_sz_test 256 \
@@ -35,17 +34,18 @@ python main.py \
     --limit_val_batches=1.0 \
     --logit_scale_init -6 \
     --use_seed True \
-    --wandb True \
+    --wandb False \
     --missingness True \
     --missingness_prob 0.5 \
     --ckpt_save_dir /gpfs/scratch/as16583/ckpts/high_dim \
-    --data_dir /gpfs/scratch/as16583/symile/symile/high_dim/datasets/disjoint/2W_2L_missingness \
+    --data_dir /gpfs/scratch/as16583/symile/symile/datasets/symile_m3/2W_2L_missingness \
     --num_langs 2 \
-    --data_reference /gpfs/scratch/as16583/symile/symile/high_dim/datasets/data_reference.json \
+    --data_reference /gpfs/scratch/as16583/symile/symile/datasets/symile_m3/data_reference.json \
     --efficient_loss True \
     --loss_fn symile \
     --load_from_ckpt None \
     --weight_decay 0.001 \
-    --lr 0.00001
+    --lr 0.00001 \
+    --experiment symile_m3
 
 echo 'done!'
