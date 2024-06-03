@@ -199,7 +199,7 @@ class CXRPredictionModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         r_c, r_e, r_l, logit_scale_exp = self(batch)
 
-        loss = self.loss_fn(r_c, r_e, r_l, logit_scale_exp, self.args.efficient_loss)
+        loss = self.loss_fn(r_c, r_e, r_l, logit_scale_exp, self.args.negative_sampling)
 
         log_n = np.log(len(batch[0]))
 
@@ -211,7 +211,7 @@ class CXRPredictionModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         r_c, r_e, r_l, logit_scale_exp = self(batch)
 
-        loss = self.loss_fn(r_c, r_e, r_l, logit_scale_exp, self.args.efficient_loss)
+        loss = self.loss_fn(r_c, r_e, r_l, logit_scale_exp, self.args.negative_sampling)
 
         self.log("val_loss", loss,
                  on_step=True, on_epoch=True, sync_dist=True, prog_bar=True)

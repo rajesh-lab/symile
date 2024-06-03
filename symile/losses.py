@@ -11,10 +11,10 @@ def zeroshot_retrieval_logits(r_x, r_y, r_z, logit_scale_exp, loss_fn):
     logit scale parameter.
 
     Args:
-        r_x (Tensor): Encoded representations of the first modality (batch_sz, d).
-        r_y (Tensor): Encoded representations of the second modality (batch_sz, d).
-        r_z (Tensor): Encoded representations of the modality to predict (num_candidates, d).
-        logit_scale_exp (Tensor): Exponentiated logit scale parameter.
+        r_x (torch.Tensor): Encoded representations of the first modality (batch_sz, d).
+        r_y (torch.Tensor): Encoded representations of the second modality (batch_sz, d).
+        r_z (torch.Tensor): Encoded representations of the modality to predict (num_candidates, d).
+        logit_scale_exp (torch.Tensor): Exponentiated logit scale parameter.
         loss_fn (str): The loss function to use, either "symile" or "clip".
 
     Returns:
@@ -38,16 +38,17 @@ def zeroshot_retrieval_logits(r_x, r_y, r_z, logit_scale_exp, loss_fn):
 ########
 # clip #
 ########
+
+
 def infonce(u, v, logit_scale):
     """
-    Computes the InfoNCE loss for a batch of representations.
+    Computes the CLIP (InfoNCE) loss for a batch of representations.
 
     Args:
-        u, v (torch.Tensor): representation vectors each of size (batch_sz, d_r).
-        logit_scale (torch.Tensor): temperature parameter as a log-parameterized
-                                    multiplicative scalar (see CLIP).
+        u, v (torch.Tensor): Representation vectors each of size (batch_sz, d_r).
+        logit_scale (torch.Tensor): Learned temperature parameter.
     Returns:
-        (torch.Tensor): InfoNCE loss
+        (torch.Tensor): CLIP (InfoNCE) loss
     """
     logits_u = logit_scale * u @ v.T
     logits_v = logit_scale * v @ u.T
@@ -56,31 +57,37 @@ def infonce(u, v, logit_scale):
     labels = torch.arange(logits_u.shape[0]).to(u.device)
     return (F.cross_entropy(logits_u, labels) + F.cross_entropy(logits_v, labels)) / 2.0
 
-def clip(r_a, r_b, r_c, logit_scale, efficient_loss):
+def clip(r_a, r_b, r_c, logit_scale, negative_sampling=None):
     """
-    Computes the pairwise InfoNCE loss for a batch of representations.
+    Computes the pairwise CLIP loss for a batch of representations.
 
     Args:
-        r_a, r_b, r_c (torch.Tensor): representation vectors each of size (batch_sz, d_r).
+        r_a, r_b, r_c (torch.Tensor): Representation vectors each of size (batch_sz, d_r).
+        logit_scale (torch.Tensor): Learned temperature parameter.
+        negative_sampling (None): Argument is included for compatibility but is not used in the function.
     Returns:
-        (torch.Tensor): average over the pairwise InfoNCE losses
+        (torch.Tensor): Average over the pairwise CLIP (InfoNCE) losses
     """
     loss_ab = infonce(r_a, r_b, logit_scale)
     loss_bc = infonce(r_b, r_c, logit_scale)
     loss_ac = infonce(r_a, r_c, logit_scale)
     return loss_ab + loss_bc + loss_ac
 
+
 ##########
 # symile #
 ##########
-def compute_logits_efficient(x, y, z):
-    """
-    Computes the logits for x with only (batch_size^2 - batch_size) negatives.
 
-    If batch size is n, then returned logits have size (n, n) with n positive
+
+def compute_logits_neg_sampling_n(x, y, z):
+    """
+    Computes the logits for anchor modality x with batch_sz - 1 negatives for
+    each positive - or (batch_sz^2 - batch_sz) total negatives.
+
+    If batch_sz is n, then returned logits have size (n, n) with n positive
     multilinear inner products and (n^2 - n) negative multilinear inner products.
 
-    Positive multilinear inner products (MIP) are along the diagonal of the
+    Positive multilinear inner products (MIPs) are along the diagonal of the
     square logits matrix. For example, the second row of `logits` might be:
 
     [ MIP(x[1], y[3], z[2]) MIP(x[1], y[1], z[1]) MIP(x[1], y[0], z[1]) MIP(x[1], y[2], z[3]) ].
@@ -89,11 +96,11 @@ def compute_logits_efficient(x, y, z):
     There is a small chance of a false negative MIP.
 
     Args:
-        x (torch.Tensor): representation vector of size (batch_size, d_r).
-        y (torch.Tensor): representation vector of size (batch_size, d_r).
-        z (torch.Tensor): representation vector of size (batch_size, d_r).
+        x (torch.Tensor): Representation vector of size (batch_sz, d_r).
+        y (torch.Tensor): Representation vector of size (batch_sz, d_r).
+        z (torch.Tensor): Representation vector of size (batch_sz, d_r).
     Returns:
-        logits (torch.Tensor): logits for x of size (batch_size, batch_size).
+        logits (torch.Tensor): Logits for x of size (batch_sz, batch_sz).
     """
     # shuffle rows of y and z
     y_shuff = y[torch.randperm(y.shape[0])]
@@ -104,9 +111,10 @@ def compute_logits_efficient(x, y, z):
     return torch.where(torch.eye(n=x.shape[0]).to(x.device) > 0.5, MIP_of_pos_triples, logits_x)
 
 
-def compute_logits(x, y, z):
+def compute_logits_neg_sampling_n_squared(x, y, z):
     """
-    Computes the logits for x.
+    Computes the logits for anchor modality x with batch_sz^2 - 1 negatives for
+    each positive.
 
     If batch size is n, then returned logits have size (n, n^2) with n positive
     multilinear inner products and (n^3 - n) negative multilinear inner products.
@@ -123,11 +131,11 @@ def compute_logits(x, y, z):
     Notice that only the second element is the positive MIP; all others are negative.
 
     Args:
-        x (torch.Tensor): representation vector of size (batch_size, d_r).
-        y (torch.Tensor): representation vector of size (batch_size, d_r).
-        z (torch.Tensor): representation vector of size (batch_size, d_r).
+        x (torch.Tensor): Representation vector of size (batch_sz, d_r).
+        y (torch.Tensor): Representation vector of size (batch_sz, d_r).
+        z (torch.Tensor): Representation vector of size (batch_sz, d_r).
     Returns:
-        logits (torch.Tensor): logits for x of size (batch_size, batch_size^2).
+        logits (torch.Tensor): Logits for x of size (batch_sz, batch_sz^2).
     """
     y_z = []
     for i in range(y.shape[0]):
@@ -144,15 +152,36 @@ def compute_logits(x, y, z):
     return logits
 
 
-def symile(r_a, r_b, r_c, logit_scale, efficient_loss):
-    if efficient_loss:
-        logits_a = logit_scale * compute_logits_efficient(r_a, r_b, r_c)
-        logits_b = logit_scale * compute_logits_efficient(r_b, r_a, r_c)
-        logits_c = logit_scale * compute_logits_efficient(r_c, r_a, r_b)
+def symile(r_a, r_b, r_c, logit_scale, negative_sampling):
+    """
+    Computes the Symile loss for a batch of representations. The final Symile
+    loss is an average of the loss terms where each modality is treated as the
+    anchor in turn.
+
+    The argument `negative_sampling` can take on one of two values:
+        - `n` (for O(n)): draws n - 1 negative samples for each positive
+        - `n_squared` (for O(n^2)): draws n^2 - 1 negative samples for each positive
+
+    Args:
+        r_a, r_b, r_c (torch.Tensor): Representation vectors each of size (batch_sz, d_r).
+        logit_scale (torch.Tensor): Learned temperature parameter.
+        negative_sampling (str): Specifies the negative sampling strategy.
+                                 Must be either `n` or `n_squared`.
+
+    Returns:
+        (torch.Tensor): Average over the losses where each modality is treated
+                        as the anchor in turn.
+    """
+    if negative_sampling == "n":
+        logits_a = logit_scale * compute_logits_neg_sampling_n(r_a, r_b, r_c)
+        logits_b = logit_scale * compute_logits_neg_sampling_n(r_b, r_a, r_c)
+        logits_c = logit_scale * compute_logits_neg_sampling_n(r_c, r_a, r_b)
+    elif negative_sampling == "n_squared":
+        logits_a = logit_scale * compute_logits_neg_sampling_n_squared(r_a, r_b, r_c)
+        logits_b = logit_scale * compute_logits_neg_sampling_n_squared(r_b, r_a, r_c)
+        logits_c = logit_scale * compute_logits_neg_sampling_n_squared(r_c, r_a, r_b)
     else:
-        logits_a = logit_scale * compute_logits(r_a, r_b, r_c)
-        logits_b = logit_scale * compute_logits(r_b, r_a, r_c)
-        logits_c = logit_scale * compute_logits(r_c, r_a, r_b)
+        raise ValueError("negative_sampling must be either 'n' or 'n_squared'.")
 
     labels = torch.arange(logits_a.shape[0]).to(r_a.device)
     loss_a = F.cross_entropy(logits_a, labels)

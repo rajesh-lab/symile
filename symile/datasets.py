@@ -99,8 +99,8 @@ class SymileM3Dataset(Dataset):
         Returns:
             dict: A dictionary containing the following key-value pairs:
                 - text (dict): Dictionary with keys "input_ids" and "attention_mask".
-                - image (Tensor): Tensor with image data.
-                - audio (Tensor): Tensor with audio data.
+                - image (torch.Tensor): Tensor with image data.
+                - audio (torch.Tensor): Tensor with audio data.
                 - cls_id (torch.float32): Tensor containing the class id for the sample
                     (as determined by the image class name).
                 - idx (torch.float32): Tensor containing the unique identifier for the sample.

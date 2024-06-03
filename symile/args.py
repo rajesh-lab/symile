@@ -61,9 +61,13 @@ def parse_args_main():
     parser.add_argument("--drop_last", type=str_to_bool,
                         help="Whether to drop the last non-full batch of each \
                               DataLoader worker's dataset replica.")
-    parser.add_argument("--efficient_loss", type=str_to_bool,
-                        help="Whether to compute logits with only \
-                              (batch_size^2 - batch_size) negatives.")
+    parser.add_argument("--negative_sampling", type=str,
+                        choices = ["n", "n_squared"],
+                        help="We explore two variants for negative sampling within \
+                              a batch of n samples: `n` [for O(n)] draws n - 1 \
+                              negative samples for each positive, `n_squared` \
+                              [for O(n^2)] draws n^2 - 1 negative samples for each \
+                              positive.")
     parser.add_argument("--epochs", type=int,
                         help="Number of epochs to pretrain for.")
     parser.add_argument("--freeze_logit_scale", type=str_to_bool, default=False,
@@ -110,15 +114,20 @@ def parse_args_main():
 def parse_args_test():
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("--description" , type=str, default="",
+                        help="Description of the test run.")
+    parser.add_argument("--experiment", type=str,
+                        choices = ["symile_m3", "cxr_prediction"],
+                        help="Which experiment is being run.")
     parser.add_argument("--load_from_ckpt", type=str,
                         default=None,
                         help="Checkpoint to load from.")
     parser.add_argument("--save_dir", type=Path,
                         help="Where to save test results.")
-    parser.add_argument("--description" , type=str, default="",
-                        help="Description of the test run.")
     parser.add_argument("--save_representations", type=str_to_bool, default=False,
                         help="Whether to save test representations.")
+    parser.add_argument("--text_model_id", type=str,
+                        help="Hugging Face XLMRobertaModel model id for text encoder.")
 
     ### DATA ARGS ###
     parser.add_argument("--batch_sz_test", type=int,

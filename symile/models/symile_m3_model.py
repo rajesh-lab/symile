@@ -39,11 +39,11 @@ class AudioEncoder(nn.Module):
     def forward(self, audio_embed, missingness_ind):
         """
         Args:
-            audio_embed (Tensor): precomputed audio representations (batch_sz, 1280).
-            missingness_ind (Tensor): binary indicators, where 0 indicates the audio
+            audio_embed (torch.Tensor): precomputed audio representations (batch_sz, 1280).
+            missingness_ind (torch.Tensor): binary indicators, where 0 indicates the audio
                 data is observed and 1 indicates the audio data is missing (batch_sz).
         Returns:
-            x (Tensor): learned audio representations (batch_sz, d)
+            x (torch.Tensor): learned audio representations (batch_sz, d)
         """
         if getattr(self.args, "missingness", False):
             missingness_embed = self.missingness_embed(missingness_ind)
@@ -83,11 +83,11 @@ class ImageEncoder(nn.Module):
     def forward(self, image_embed, missingness_ind):
         """
         Args:
-            image_embed (Tensor): precomputed image representations (batch_sz, 1024).
-            missingness_ind (Tensor): binary indicators, where 0 indicates the image
+            image_embed (torch.Tensor): precomputed image representations (batch_sz, 1024).
+            missingness_ind (torch.Tensor): binary indicators, where 0 indicates the image
                 data is observed and 1 indicates the image data is missing (batch_sz).
         Returns:
-            x (Tensor): learned image representations (batch_sz, d)
+            x (torch.Tensor): learned image representations (batch_sz, d)
         """
         if getattr(self.args, "missingness", False):
             missingness_embed = self.missingness_embed(missingness_ind)
@@ -140,11 +140,11 @@ class TextEncoder(nn.Module):
         """
         Args:
             x (dict): A dictionary containing the following key-value pairs:
-                - input_ids (Tensor): token_ids for the text (batch_sz, max_token_len).
-                - attention_mask (Tensor): attention mask for the text (batch_sz, max_token_len).
+                - input_ids (torch.Tensor): token_ids for the text (batch_sz, max_token_len).
+                - attention_mask (torch.Tensor): attention mask for the text (batch_sz, max_token_len).
 
         Returns:
-            x (Tensor): learned text representations (batch_sz, d).
+            x (torch.Tensor): learned text representations (batch_sz, d).
         """
         # https://github.com/huggingface/transformers/blob/a0857740c0e6127485c11476650314df3accc2b6/src/transformers/modeling_utils.py#L941
         # attention mask has shape (batch_sz, seq_len)
@@ -212,8 +212,8 @@ class SymileM3Model(pl.LightningModule):
         Args:
             x (dict): A dictionary containing the following key-value pairs:
                 - text (dict): Dictionary with keys "input_ids" and "attention_mask" whose values are each (batch_sz, max_token_len).
-                - image (Tensor): Tensor with image data (batch_sz, 1024).
-                - audio (Tensor): Tensor with audio data (batch_sz, 1280).
+                - image (torch.Tensor): Tensor with image data (batch_sz, 1024).
+                - audio (torch.Tensor): Tensor with audio data (batch_sz, 1280).
                 - cls_id (torch.float32): Tensor containing the class id for the sample (as determined by the image class name) (batch_sz).
                 - idx (torch.float32): Tensor containing the unique identifier for the sample (batch_sz).
                 - lang_id (int): Integer representing the language id for the sample (batch_sz).
@@ -224,10 +224,10 @@ class SymileM3Model(pl.LightningModule):
 
         Returns:
             A tuple containing:
-                - r_a (Tensor): Encoded audio representations.
-                - r_i (Tensor): Encoded image representations.
-                - r_t (Tensor): Encoded text representations.
-                - logit_scale_exp (Tensor): Exponentiated logit scale.
+                - r_a (torch.Tensor): Encoded audio representations.
+                - r_i (torch.Tensor): Encoded image representations.
+                - r_t (torch.Tensor): Encoded text representations.
+                - logit_scale_exp (torch.Tensor): Exponentiated logit scale.
         """
         r_a = self.audio_encoder(x["audio"], x["audio_missing"])
         r_i = self.image_encoder(x["image"], x["image_missing"])
@@ -246,11 +246,11 @@ class SymileM3Model(pl.LightningModule):
             batch_idx (int): Index of the batch.
 
         Returns:
-            Tensor: The computed loss for the batch.
+            (torch.Tensor): The computed loss for the batch.
         """
         r_a, r_i, r_t, logit_scale_exp = self(batch)
 
-        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.efficient_loss)
+        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.negative_sampling)
 
         # tracking to help evaluate optimization (given total correlation lower bound established in paper)
         log_n = np.log(len(batch["image"]))
@@ -270,11 +270,11 @@ class SymileM3Model(pl.LightningModule):
             batch_idx (int): Index of the batch.
 
         Returns:
-            Tensor: The computed loss for the batch.
+            (torch.Tensor): The computed loss for the batch.
         """
         r_a, r_i, r_t, logit_scale_exp = self(batch)
 
-        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.efficient_loss)
+        loss = self.loss_fn(r_a, r_i, r_t, logit_scale_exp, self.args.negative_sampling)
 
         accuracies = self.zeroshot_retrieval(r_a, r_t, batch, "val")
 
@@ -295,7 +295,7 @@ class SymileM3Model(pl.LightningModule):
             batch_idx (int): Index of the batch.
 
         Returns:
-            Tensor: The computed loss for the batch.
+            (torch.Tensor): The computed loss for the batch.
         """
         r_a, r_i, r_t, logit_scale_exp = self(batch)
 
@@ -421,8 +421,8 @@ class SymileM3Model(pl.LightningModule):
         Perform zeroshot retrieval to predict images given audio and text representations.
 
         Args:
-            r_a (Tensor): Learned audio representations of shape (batch_size, d).
-            r_t (Tensor): Learned text representations of shape (batch_size, d).
+            r_a (torch.Tensor): Learned audio representations of shape (batch_sz, d).
+            r_t (torch.Tensor): Learned text representations of shape (batch_sz, d).
             batch (dict): A dictionary containing the input batch. Refer to the `forward` method
                 for detailed descriptions of the keys and their shapes.
             split (str): The dataset split to process ('val' or 'test').
