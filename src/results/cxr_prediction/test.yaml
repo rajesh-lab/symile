@@ -1,0 +1,9 @@
+symile-all-negs:
+  0: "/gpfs/scratch/as16583/results/cxr_prediction/20240517_215544_5071"
+  1: "/gpfs/scratch/as16583/results/cxr_prediction/20240517_215636_5138"
+  2: "/gpfs/scratch/as16583/results/cxr_prediction/20240517_215636_5816"
+
+clip:
+  0: "/gpfs/scratch/as16583/results/cxr_prediction/20240517_215830_7671"
+  1: "/gpfs/scratch/as16583/results/cxr_prediction/20240517_215927_0275"
+  2: "/gpfs/scratch/as16583/results/cxr_prediction/20240517_215927_0550"

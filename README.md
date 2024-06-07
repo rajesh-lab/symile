@@ -1,8 +1,4 @@
-# SYMILE
-
-<!-- **General repo structure**
-- `./src/`: project library
-- `./tests/`: tests for project library -->
+# Symile
 
 ### Table of Contents
 - [Set up environment](#environment)
