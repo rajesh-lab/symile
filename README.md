@@ -212,7 +212,7 @@ Note that running get_mimic_data.py for `cxr` takes about 10 minutes, for `ecg` 
 
 <a name="questions"></a>
 ## Questions?
-For questions related to the paper, please post on alphaXiv (TODO link) for a prompt from the authors. For questions related to the code, please open an issue in this repo or email Adriel Saporta (adriel@nyu.edu).
+For questions related to the paper, please post on alphaXiv (TODO link) for a prompt response from the authors. For questions related to the code, please open an issue in this repo or email Adriel Saporta (adriel@nyu.edu).
 
 <a name="license"></a>
 ## License
