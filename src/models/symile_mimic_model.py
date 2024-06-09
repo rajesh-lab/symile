@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import models
 
-from datasets import EvaluationDataset
+from datasets import SymileMIMICEvaluationDataset
 from src.constants import CHEXPERT_LABELS
 from src.losses import clip, symile, zeroshot_retrieval_logits
 from src.utils import PathToStrEncoder
@@ -179,7 +179,7 @@ class LabsEncoderFTT(nn.Module):
         return x
 
 
-class CXRPredictionModel(pl.LightningModule):
+class SymileMIMICModel(pl.LightningModule):
     def __init__(self, **args):
         """
         Initialize the PyTorch Lightning module, which learns CXR, ECG, and labs
@@ -217,7 +217,7 @@ class CXRPredictionModel(pl.LightningModule):
 
     def forward(self, x):
         """
-        Forward pass through the CXRPredictionModel.
+        Forward pass through the SymileMIMICModel.
 
         If `x` is a list, it represents the training or validation dataset. If
         `x` is a dictionary, it represents the query or candidate dataset.
@@ -380,7 +380,7 @@ class CXRPredictionModel(pl.LightningModule):
                 - "hadm_id" (torch.Tensor): Tensor containing the hospital admission IDs (query_sz,).
                 - "label_name" (list): List of label names corresponding to each query (len query_sz).
         """
-        query_ds = EvaluationDataset(self.args, split, "query")
+        query_ds = SymileMIMICEvaluationDataset(self.args, split, "query")
 
         r_e = []
         r_l = []
@@ -426,7 +426,7 @@ class CXRPredictionModel(pl.LightningModule):
                                                 for the label (candidate_sz,) (since each label has positive
                                                 and negative candidates).
         """
-        candidate_ds = EvaluationDataset(self.args, split, "candidate")
+        candidate_ds = SymileMIMICEvaluationDataset(self.args, split, "candidate")
 
         r_c = []
         hadm_id = []

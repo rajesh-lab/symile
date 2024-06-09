@@ -35,8 +35,8 @@ def get_data_module(args):
         dm = datasets.BinaryXORDataModule
     elif args.experiment == "symile_m3":
         dm = datasets.SymileM3DataModule
-    elif args.experiment == "cxr_prediction":
-        dm = datasets.CXRPredictionDataModule
+    elif args.experiment == "symile_mimic":
+        dm = datasets.SymileMIMICDataModule
     else:
         raise ValueError("Unsupported experiment name specified.")
 
@@ -53,9 +53,9 @@ def get_model_module(args):
     elif args.experiment == "symile_m3":
         module = importlib.import_module("models.symile_m3_model")
         ModelClass = getattr(module, "SymileM3Model")
-    elif args.experiment == "cxr_prediction":
-        module = importlib.import_module("models.cxr_prediction_model")
-        ModelClass = getattr(module, "CXRPredictionModel")
+    elif args.experiment == "symile_mimic":
+        module = importlib.import_module("models.symile_mimic_model")
+        ModelClass = getattr(module, "SymileMIMICModel")
     else:
         raise ValueError("Unsupported experiment name specified.")
 
@@ -193,7 +193,7 @@ if __name__ == '__main__':
 
     if args.experiment == "binary_xor":
         binary_main(args)
-    elif args.experiment in ["symile_m3", "cxr_prediction"]:
+    elif args.experiment in ["symile_m3", "symile_mimic"]:
         main(args)
     else:
         raise ValueError("Unsupported experiment name specified.")

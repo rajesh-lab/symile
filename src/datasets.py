@@ -334,7 +334,7 @@ class SymileM3DataModule(pl.LightningDataModule):
 ################
 
 
-class EvaluationDataset(Dataset):
+class SymileMIMICEvaluationDataset(Dataset):
     def __init__(self, args, split, type):
         self.cxr = torch.load(args.data_dir / f"{split}_{type}/cxr_{split}_{type}.pt")
         self.ecg = torch.load(args.data_dir / f"{split}_{type}/ecg_{split}_{type}.pt")
@@ -359,7 +359,7 @@ class EvaluationDataset(Dataset):
                 "label_value": self.label_value[idx]}
 
 
-class CXRPredictionDataModule(pl.LightningDataModule):
+class SymileMIMICDataModule(pl.LightningDataModule):
     def __init__(self, args):
         super().__init__()
         self.args = args

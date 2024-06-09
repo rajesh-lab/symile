@@ -30,18 +30,18 @@ python main.py \
     --limit_train_batches=1.0 \
     --limit_val_batches=1.0 \
     --logit_scale_init -7 \
-    --data_dir /gpfs/scratch/as16583/symile/symile/datasets/cxr_prediction \
+    --use_seed True \
+    --data_dir /gpfs/scratch/as16583/symile/src/datasets/symile_mimic \
     --ckpt_save_dir /gpfs/scratch/as16583/ckpts/cxr_prediction \
     --pretrained False \
     --labs_model mlp \
     --negative_sampling n_squared \
     --loss_fn symile \
     --load_from_ckpt None \
-    --wandb False \
+    --wandb True \
     --weight_decay 0.001 \
     --lr 0.01 \
-    --use_seed True \
     --seed 0 \
-    --experiment cxr_prediction
+    --experiment symile_mimic
 
 echo 'done!'

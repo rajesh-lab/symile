@@ -33,7 +33,7 @@ def parse_args_main():
     # first parse only the --experiment argument
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--experiment", type=str,
-                        choices=["binary_xor", "symile_m3", "cxr_prediction"],
+                        choices=["binary_xor", "symile_m3", "symile_mimic"],
                         required=True,
                         help="Which experiment is being run.")
     args, remaining_argv = parser.parse_known_args()
@@ -150,7 +150,7 @@ def parse_args_main():
         parser.add_argument("--weight_decay", type=float,
                         help="Weight decay coefficient used by AdamW optimizer.")
     ### CXR PREDICTION ARGS ###
-    elif args.experiment == "cxr_prediction":
+    elif args.experiment == "symile_mimic":
         parser.add_argument("--pretrained", type=str_to_bool, default=False,
                             help="Whether to pretrained encoders for CXR and ECG.")
         parser.add_argument("--labs_model", type=str, default=None,
