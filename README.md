@@ -52,9 +52,9 @@ From the root directory, run
 
 The following command-line arguments are common to all three sets of experiments (Binary XOR, Symile-M3, and Symile-MIMIC) and can be specified when running `main.py`.
 
-TODO: make sure wandb set to false by default, and set symile to default loss function, and make sure use_seed is False by default.
+TODO: make sure wandb set to false by default, and set symile to default loss function, and make sure use_seed is False by default. also update bash script examples so people have default... or include a txt with examples. maybe make save ckpts the default be current directory
 
-| Flag                          | Description                                                   | Type                | Choices                          | Default Value |
+| Flag                          | Description                                                   | Type                | Choices                          | Default |
 |-------------------------------|---------------------------------------------------------------|---------------------|----------------------------------|---------------|
 | `--experiment`                | Experiment identifier                                         | str                 | `binary_xor`, `symile_m3`, `symile_mimic` |               |
 | `--batch_sz_train`            | Batch size for training                                       | int                 |                                  |               |
@@ -71,7 +71,7 @@ TODO: make sure wandb set to false by default, and set symile to default loss fu
 
 The following arguments are helpful for debugging and are set with default values non-debugging use:
 
-| Flag                          | Description                                                   | Type                | Choices                          | Default Value |
+| Flag                          | Description                                                   | Type                | Choices                          | Default |
 |-------------------------------|---------------------------------------------------------------|---------------------|----------------------------------|---------------|
 | `--limit_train_batches`       | Fraction of training batches to use (e.g. set to 0.1 to check 10% of dataset) | float | Any float between 0.0 and 1.0  | 1.0 |
 | `--limit_val_batches`         | Fraction of validation batches to use (e.g. set to 0.1 to check 10% of dataset) | float | Any float between 0.0 and 1.0| 1.0 |
@@ -83,47 +83,36 @@ The following arguments are helpful for debugging and are set with default value
 <a name="binary_xor"></a>
 ## Binary XOR experiments
 
-The below command runs a suite of binary data experiments according to the below data generating process:
+In this section, we reproduce the binary XOR experiment from Section 5.1 of the paper (TODO link) in which a synthetic dataset is drawn according to the following sampling procedure:
+$$a_j, b_j \sim \text{Bernoulli}(0.5), \quad i \sim \text{Bernoulli}(\hat{p}), \quad c_j = (a_j \text{ XOR } b_j)^i \cdot a_j^{(1-i)}$$
+$$\mathbf{a} = [a_1,\dots, a_d], \quad \mathbf{b} = [b_1,\dots, b_d], \quad \mathbf{c} = [c_1,\dots, c_d].$$
 
-[TODO: insert screenshot, or latex for DGP from Section 5.1.]
-
-First, `cd` into `src/binary/`. Then run:
+The following command runs the binary XOR experiment for values of $\hat{p}$ in $`\{0.0, 0.1,0.2,\dots,1.0\}`$:
 
 ```
 (symile-env) > python main.py [FLAGS]
 ```
 
-**Flags (with values used in the paper)**
-* `--train_n 10000`
-* `--val_n 1000`
-* `--test_n 5000`
-* `--bsz_train 1000`
-* `--bsz_val 1000`
-* `--bsz_test 1000`
-* `--check_val_every_n_epoch 10`: check val every n train epochs.
-* `--d_r 16`: dimensionality of representation vectors.
-* `--d_v 5`: dimensionality of dataset vectors.
-* `--efficient_loss True`: whether to compute logits with only (bsz^2 - bsz) negatives.
-* `--epochs 100`
-* `--logit_scale_init -0.3`: value used to initialize the learned logit_scale. CLIP used np.log(1 / 0.07) = 2.65926.
-* `--lr 1.0e-1`: learning rate.
-* `--num_runs 10`: number of runs to run, each with a different seed.
-* `--save_dir .`: where to save model checkpoints and results.
-* `--wandb True`: whether to use wandb for logging.
+In addition to the [common command-line arguments](#common_args) outlined above, this command takes the following experiment-specific flags:
+
+| Flag        | Description                               | Type   | Choices           | Default |
+|-------------|-------------------------------------------|--------|-------------------|---------|
+| `--train_n` | Number of training samples to draw        | int    |  |    |
+| `--val_n`   | Number of validation samples to draw      | int    |  |     |
+| `--test_n`  | Number of test samples to draw            | int    |  |     |
+| `--d_v`     | Dimensionality of the input vectors $\mathbf{a}$, $\mathbf{b}$, and $\mathbf{c}$            | int    |  |       |
+| `--d_r`     | Dimensionality of the learned representation vectors   | int    |  |       |
 
 ### Calculate information terms
 
-The following command runs a script that calculates $I(\mathbf{a};\mathbf{c}), I(\mathbf{b};\mathbf{c}), I(\mathbf{a};\mathbf{b}|\mathbf{c}), I(\mathbf{c};\mathbf{b}|\mathbf{a}),$ and $TC(\mathbf{a},\mathbf{b},\mathbf{c})$ for each $`\hat{p} \in \{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0\}`$:
+We also include the code to track the changing information dynamics between the variables $\mathbf{a}$, $\mathbf{b}$, and $\mathbf{c}$ as $\hat{p}$ moves from 0 to 1 (Figure 3b in the paper (TODO link)).
+Specifically, the following command calculates $\mathbf{I}(\mathbf{a};\mathbf{c}), \mathbf{I}(\mathbf{b};\mathbf{c}), \mathbf{I}(\mathbf{a};\mathbf{b}|\mathbf{c}), \mathbf{I}(\mathbf{c};\mathbf{b}|\mathbf{a}),$ and $\mathbf{TC}(\mathbf{a},\mathbf{b},\mathbf{c})$ for each $\hat{p}$ in $`\{0.0, 0.1,0.2,\dots,1.0\}`$:
 
 ```
-(symile-env) > python informations.py [FLAGS]
+(symile-env) > python informations.py --d_v <input_vector_dim> --save_dir <path/to/save_dir>
 ```
 
-**Flags**
-* `--d_v`: dimensionality of $\mathbf{a}$, $\mathbf{b}$, and $\mathbf{c}$.
-* `--save_dir`: directory in which results will be saved. TODO: Eventually have: `Default is current directory`.
-
-Running this script for `d_v = 5` takes about 1.5 hours.
+Note that running this script for `d_v = 5` takes about 1.5 hours.
 
 ## 2. Run SYMILE dataset experiments
 
