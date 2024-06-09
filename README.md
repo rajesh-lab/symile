@@ -106,7 +106,7 @@ In addition to the [common command-line arguments](#common_args) outlined above,
 ### Calculate information terms
 
 We also include the code to track the changing information dynamics between the variables $\mathbf{a}$, $\mathbf{b}$, and $\mathbf{c}$ as $\hat{p}$ moves from 0 to 1 (Figure 3b in the paper (TODO link)).
-Specifically, the following command calculates $\mathbf{I}(\mathbf{a};\mathbf{c}), \mathbf{I}(\mathbf{b};\mathbf{c}), \mathbf{I}(\mathbf{a};\mathbf{b}|\mathbf{c}), \mathbf{I}(\mathbf{c};\mathbf{b}|\mathbf{a}),$ and $\mathbf{TC}(\mathbf{a},\mathbf{b},\mathbf{c})$ for each $\hat{p}$ in $`\{0.0, 0.1,0.2,\dots,1.0\}`$:
+Specifically, the following command calculates $\mathbf{I}(\mathbf{a};\mathbf{c})$, $\mathbf{I}(\mathbf{b};\mathbf{c})$, $`\mathbf{I}(\mathbf{a};\mathbf{b}\,|\,\mathbf{c})`$, $`\mathbf{I}(\mathbf{c};\mathbf{b}\,|\,\mathbf{a})`$, and $\mathbf{TC}(\mathbf{a},\mathbf{b},\mathbf{c})$ for each $\hat{p}$ in $`\{0.0, 0.1,0.2,\dots,1.0\}`$:
 
 ```
 (symile-env) > python informations.py --d_v <input_vector_dim> --save_dir <path/to/save_dir>
