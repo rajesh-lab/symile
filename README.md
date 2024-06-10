@@ -120,7 +120,7 @@ Note that running this script for `d_v = 5` takes about 1.5 hours.
 
 ![symile_m3](/img/symile_m3.png)
 
-In this section, we describe how to access Symile-M3, a new multilingual dataset comprising 33 million (audio, image, text) samples. We also provide the code to reproduce the Symile-M3 experiments from Section 5.2 of the paper (TODO link). See [here]() for details on how to create the Symile-M3 dataset from scratch.
+In this section, we describe how to access Symile-M3, a new multilingual dataset comprising 33 million (audio, image, text) samples. We also provide the code to reproduce the Symile-M3 experiments from Section 5.2 of the paper (TODO link). See [here](https://github.com/rajesh-lab/symile/tree/main/src/data_processing/symile_mimic) for details on how to create the Symile-M3 dataset from scratch.
 
 ### Dataset description
 
