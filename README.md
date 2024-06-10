@@ -17,7 +17,7 @@ We release the weights of all models trained and used for our work TODO.
 
 ### Table of Contents
 - [Set up environment](#environment)
-- [Command-line arguments](#common_args)
+- [Pre-training command-line arguments](#pretrain_args)
 - [Binary XOR experiments](#binary_xor)
 - [Symile-M3 experiments](#symile_m3)
 - [Symile-MIMIC experiments](#cxr_prediction)
@@ -48,8 +48,8 @@ From the root directory, run
 (symile-env) > pip install -e .
 ```
 
-<a name="common_args"></a>
-## Command-line arguments
+<a name="pretrain_args"></a>
+## Pre-training command-line arguments
 
 The following command-line arguments are common to all three sets of experiments (Binary XOR, Symile-M3, and Symile-MIMIC) and can be specified when running `main.py`.
 
@@ -61,6 +61,7 @@ TODO: make sure wandb set to false by default, and set symile to default loss fu
 | `--batch_sz_train`            | Batch size for training                                       | int                 |                                  |               |
 | `--batch_sz_val`              | Batch size for validation                                     | int                 |                                  |               |
 | `--batch_sz_test`             | Batch size for testing                                        | int                 |                                  |               |
+| `--d`                         | Shared dimensionality for all learned representations         | int                 |                                  |               |
 | `--epochs`                    | Number of training epochs                                     | int                 |                                  |               |
 | `--check_val_every_n_epoch`   | Frequency of validation checks (in epochs)                    | int                 |                                  |               |
 | `--drop_last`                 | Drop the last incomplete training batch if the training set is not divisible by batch size | bool | `True`, `False`                  |               |
@@ -94,15 +95,14 @@ The following command runs the binary XOR experiment for values of $\hat{p}$ in 
 (symile-env) > python main.py --experiment binary_xor [FLAGS]
 ```
 
-In addition to the [common command-line arguments](#common_args) outlined above, this command takes the following experiment-specific flags:
+In addition to the [common pre-training command-line arguments](#pretrain_args), this command takes the following experiment-specific flags:
 
 | Flag        | Description                               | Type   | Choices           | Default |
 |-------------|-------------------------------------------|--------|-------------------|---------|
 | `--train_n` | Number of training samples to draw        | int    |  |    |
 | `--val_n`   | Number of validation samples to draw      | int    |  |     |
 | `--test_n`  | Number of test samples to draw            | int    |  |     |
-| `--d_v`     | Dimensionality of the input vectors $\mathbf{a}$, $\mathbf{b}$, and $\mathbf{c}$            | int    |  |       |
-| `--d_r`     | Dimensionality of the learned representation vectors   | int    |  |       |
+| `--d_v`     | Dimensionality of the input vectors $\mathbf{a}$, $\mathbf{b}$, and $\mathbf{c}$ | int |  |  |
 
 ### Calculate information terms
 
@@ -146,19 +146,19 @@ The following command runs pretraining on Symile-M3:
 (symile-env) > python main.py --experiment symile_m3 [FLAGS]
 ```
 
-In addition to the [common command-line arguments](#common_args), this command takes the following experiment-specific flags:
+In addition to the [common pre-training command-line arguments](#pretrain_args), this command takes the following experiment-specific flags:
 
 | Flag                    | Description                                         | Type   | Choices                        | Default                                                  |
 |-------------------------|-----------------------------------------------------|--------|--------------------------------|----------------------------------------------------------|
 | `--audio_model_id`      | Hugging Face model id for audio encoder                               | str    |       | `openai/whisper-large-v3`                                |
 | `--image_model_id`      | Hugging Face model id for image encoder                               | str    | | `openai/clip-vit-large-patch14`                           |
 | `--text_model_id`       | Hugging Face model id for text encoder (must correspond to an XLMRobertaModel) | str    |             | `xlm-roberta-large` |
-| `--missingness`         | Enable missing data handling                        | bool   | `True`, `False`                | `False`                                                  |
-| `--missingness_prob`    | Probability of missing data                         | float  | Any float between 0.0 and 1.0  | `0.5`                                                    |
 | `--num_langs`           | Number of languages                                 | int    | Any positive integer           | `2`                                                      |
 | `--data_reference`      | Path to the data reference JSON file                | str    | Any valid file path            | `/gpfs/scratch/as16583/symile/symile/datasets/symile_m3/data_reference.json` |
+| `--missingness`               | Whether to train with missingness                             | bool                | `True`, `False`                  | `False`        |
+| `--missingness_prob`          | Probability with which a given modality is missing            | float  | Any float between 0.0 and 1.0  |  |
 
-going to have to explain that the script expects the representations to be saved in advance
+TOOD: explain missingness, and going to have to explain that the script expects the representations to be saved in advance
 
 explain these
     --ckpt_save_dir /gpfs/scratch/as16583/ckpts/high_dim \
