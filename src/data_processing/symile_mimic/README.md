@@ -1,16 +1,16 @@
-### Generate data
+# Generating Symile-M3
 
-In order to generate We also provide the code used to create the dataset from scratch
+In this section, we provide the code to generate Symile-M3 data from scratch.
 
-#### Google Cloud APIs
+## Setup
 
-We use the Google Cloud Translation and Text-to-Speech APIs to create our dataset. You'll need the following Google client libraries to run `generate_data.py`.
+### Google Cloud APIs
 
-##### Translate
+You will need the Google Cloud Translation and Text-to-Speech client libraries:
 
-https://cloud.google.com/translate/docs/setup
+#### Translation
 
-just need basic client libraries
+Follow the instructions [here](https://cloud.google.com/translate/docs/setup) to create a project that has the Cloud Translation API enabled and credentials to make authenticated calls. When you get to the section [Installing client libraries](https://cloud.google.com/translate/docs/setup#installing_client_libraries), you will only need the basic client libraries.
 
 ##### Text-to-Speech
 
