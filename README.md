@@ -152,9 +152,9 @@ In addition to the [common pre-training command-line arguments](#pretrain_args),
 
 | Flag                    | Description                                         | Type   | Choices                        | Default                                                  |
 |-------------------------|-----------------------------------------------------|--------|--------------------------------|----------------------------------------------------------|
-| `--audio_model_id`      | Hugging Face model id for audio encoder                               | str    |       |  |
-| `--image_model_id`      | Hugging Face model id for image encoder                               | str    | |  |
-| `--text_model_id`       | Hugging Face model id for text encoder (must correspond to an XLMRobertaModel) | str    |             |  |
+| `--audio_model_id`      | Hugging Face model id for audio encoder             | str    |       |  |
+| `--image_model_id`      | Hugging Face model id for image encoder             | str    | |  |
+| `--text_model_id`       | Hugging Face model id for text encoder              | str    |             |  |
 | `--num_langs`           | Number of languages                                 | int    | Any positive integer           | `2`                                                      |
 | `--data_reference`      | Path to the data reference JSON file                | str    | Any valid file path            | `/gpfs/scratch/as16583/symile/symile/datasets/symile_m3/data_reference.json` |
 | `--missingness`               | Whether to train with missingness                             | bool                | `True`, `False`                  | `False`        |
