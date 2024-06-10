@@ -110,7 +110,7 @@ We also include the code to track the changing information dynamics between the 
 Specifically, the following command calculates $\mathbf{I}(\mathbf{a};\mathbf{c})$, $\mathbf{I}(\mathbf{b};\mathbf{c})$, $`\mathbf{I}(\mathbf{a};\mathbf{b}\,|\,\mathbf{c})`$, $`\mathbf{I}(\mathbf{c};\mathbf{b}\,|\,\mathbf{a})`$, and $\mathbf{TC}(\mathbf{a},\mathbf{b},\mathbf{c})$ for each $\hat{p}$ in $`\{0.0, 0.1,0.2,\dots,1.0\}`$:
 
 ```
-(symile-env) > python informations.py --d_v <input_vector_dim> --save_dir <path/to/save_dir>
+(symile-env) > python ./data_processing/binary_xor/informations.py --d_v <input_vector_dim> --save_dir <path/to/save_dir>
 ```
 
 Note that running this script for `d_v = 5` takes about 1.5 hours.
@@ -120,7 +120,7 @@ Note that running this script for `d_v = 5` takes about 1.5 hours.
 
 ![symile_m3](/img/symile_m3.png)
 
-In this section, we describe how to access Symile-M3, a new multilingual dataset comprising 33 million (audio, image, text) samples. We also provide the code used to create the dataset from scratch and to reproduce the Symile-M3 experiments from Section 5.2 of the paper (TODO link).
+In this section, we describe how to access Symile-M3, a new multilingual dataset comprising 33 million (audio, image, text) samples. We also provide the code to reproduce the Symile-M3 experiments from Section 5.2 of the paper (TODO link). See [here]() for details on how to create the Symile-M3 dataset from scratch.
 
 ### Dataset description
 
@@ -132,37 +132,7 @@ Notice that predicting an image from audio and text requires both inputs; relyin
 
 As mentioned, Symile-M3 is divided into three subsets, each corresponding to 2, 5, or 10 languages. For each subset, 10M training, 500K validation, and 500K test samples were generated.
 
-### Generate data
-
-#### Google Cloud APIs
-
-We use the Google Cloud Translation and Text-to-Speech APIs to create our dataset. You'll need the following Google client libraries to run `generate_data.py`.
-
-##### Translate
-
-https://cloud.google.com/translate/docs/setup
-
-just need basic client libraries
-
-##### Text-to-Speech
-
-Follow the instruction here (although can we just package it up in the environment?): https://cloud.google.com/text-to-speech/docs/libraries (probably will need to still install and initialize gcloud CLI and create credential file like in here: https://cloud.google.com/docs/authentication/provide-credentials-adc)
-
-- Include instructions for how to install google translate/tts
-
-#### Create splits from ImageNet
-
-#### Create datasets
-
-`cd` into `src/symile_data/` and set dataset parameters in `args.py`. You'll likely want to update `--n_per_language` and `--save_path`. If you're generating data for the support classification experiment, you'll want to set `--negative_samples` to `True`.
-
-Then run:
-
-```
-(symile-env) > python generate_data.py
-```
-
-Note that you should use this script to generate train/val/test sets separately in order to ensure that each split has the same number of samples from each template.
+TODO: fill out instructions for accessing the data once you've added to repo.
 
 ### Pre-train
 
