@@ -134,12 +134,12 @@ def parse_args_main():
         parser.add_argument("--num_langs", type=int,
                                 help="Number of languages in generated text.")
         # model args
-        parser.add_argument("--audio_model_id", type=str,
-                                help="Hugging Face model id for audio encoder.")
-        parser.add_argument("--image_model_id", type=str,
-                                help="Hugging Face model id for image encoder.")
-        parser.add_argument("--text_model_id", type=str,
-                                help="Hugging Face XLMRobertaModel model id for text encoder.")
+        parser.add_argument("--audio_model_id", type=str, default="openai/whisper-large-v3",
+                            help="Hugging Face model id for audio encoder.")
+        parser.add_argument("--image_model_id", type=str, default="openai/clip-vit-large-patch14",
+                            help="Hugging Face model id for image encoder.")
+        parser.add_argument("--text_model_id", type=str, default="xlm-roberta-large",
+                            help="Hugging Face XLMRobertaModel model id for text encoder.")
         parser.add_argument("--text_embedding", type=str,
                                 choices = ["eos", "bos"], default="eos",
                                 help="Whether to use text encoder BOS or EOS embedding \
