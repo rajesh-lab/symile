@@ -91,7 +91,7 @@ $$\mathbf{a} = [a_1,\dots, a_d], \quad \mathbf{b} = [b_1,\dots, b_d], \quad \mat
 The following command runs the binary XOR experiment for values of $\hat{p}$ in $`\{0.0, 0.1,0.2,\dots,1.0\}`$:
 
 ```
-(symile-env) > python main.py [FLAGS]
+(symile-env) > python main.py --experiment binary_xor [FLAGS]
 ```
 
 In addition to the [common command-line arguments](#common_args) outlined above, this command takes the following experiment-specific flags:
@@ -120,7 +120,7 @@ Note that running this script for `d_v = 5` takes about 1.5 hours.
 
 ![symile_m3](/img/symile_m3.png)
 
-In this section, we describe how to access Symile-M3, a new multilingual dataset comprising 33 million (audio, image, text) samples. We also provide the code to reproduce the Symile-M3 experiments from Section 5.2 of the paper (TODO link). See [here](https://github.com/rajesh-lab/symile/tree/main/src/data_processing/symile_mimic) for details on how to create the Symile-M3 dataset from scratch.
+In this section, we describe how to access Symile-M3, a new multilingual dataset comprising 33 million (audio, image, text) samples. We also provide the code to reproduce the Symile-M3 experiments from Section 5.2 of the paper (TODO link). See [here](https://github.com/rajesh-lab/symile/tree/main/src/data_processing/symile_mimic) for details on how to create the Symile-M3 dataset from scratch (TODO: maybe??).
 
 ### Dataset description
 
@@ -134,29 +134,37 @@ As mentioned, Symile-M3 is divided into three subsets, each corresponding to 2, 
 
 TODO: fill out instructions for accessing the data once you've added to repo.
 
-### Pre-train
+### Saving representations
 
-`cd` into `src/symile_data/` and set arguments in `parse_args_pretrain()` in `args.py`.
+TODO
 
-Then run:
+### Pre-training
 
-```
-(symile-env) > python pretrain.py
-```
-
-All checkpoints will be saved to `./ckpts/pretrain/`.
-
-### Evaluation: zero-shot classification
-
-`cd` into `src/symile_data/` and set arguments in `parse_args_test()` in `args.py`. Be sure to update `--ckpt_path` and `--evaluation`.
-
-Then run:
+The following command runs pretraining on Symile-M3:
 
 ```
-(symile-env) > python test.py
+(symile-env) > python main.py --experiment symile_m3 [FLAGS]
 ```
 
-### Evaluation: in-support classification
+In addition to the [common command-line arguments](#common_args), this command takes the following experiment-specific flags:
+
+| Flag                    | Description                                         | Type   | Choices                        | Default                                                  |
+|-------------------------|-----------------------------------------------------|--------|--------------------------------|----------------------------------------------------------|
+| `--audio_model_id`      | Hugging Face model id for audio encoder                               | str    |       | `openai/whisper-large-v3`                                |
+| `--image_model_id`      | Hugging Face model id for image encoder                               | str    | | `openai/clip-vit-large-patch14`                           |
+| `--text_model_id`       | Hugging Face model id for text encoder (must correspond to an XLMRobertaModel) | str    |             | `xlm-roberta-large` |
+| `--missingness`         | Enable missing data handling                        | bool   | `True`, `False`                | `False`                                                  |
+| `--missingness_prob`    | Probability of missing data                         | float  | Any float between 0.0 and 1.0  | `0.5`                                                    |
+| `--num_langs`           | Number of languages                                 | int    | Any positive integer           | `2`                                                      |
+| `--data_reference`      | Path to the data reference JSON file                | str    | Any valid file path            | `/gpfs/scratch/as16583/symile/symile/datasets/symile_m3/data_reference.json` |
+
+going to have to explain that the script expects the representations to be saved in advance
+
+explain these
+    --ckpt_save_dir /gpfs/scratch/as16583/ckpts/high_dim \
+    --data_dir /gpfs/scratch/as16583/symile/symile/datasets/symile_m3/2W_2L \
+
+### Evaluation
 
 `cd` into `src/symile_data/` and set arguments in `parse_args_test()` in `args.py`. Be sure to update `--ckpt_path` and `--evaluation`.
 
@@ -167,8 +175,6 @@ Then run:
 ```
 
 All checkpoints will be saved to `./ckpts/support/`.
-
-Note that for support classification model fitting and testing are both in this scipt: because we run trainer.test() directly after trainer.fit(), trainer.test() automatically loads the best weights from training. As a result, DDP should not be used when running this script (i.e. no more than a single GPU should be used). During trainer.test(), it is recommended to use Trainer(devices=1) to ensure each sample/batch gets evaluated exactly once. Otherwise, multi-device settings use `DistributedSampler` that replicates some samples to make sure all devices have same batch size in case of uneven inputs.
 
 <a name="predict_cxr"></a>
 ## 3. Experiment: predict CXR from ECG and labs
