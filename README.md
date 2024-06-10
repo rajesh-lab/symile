@@ -66,9 +66,11 @@ TODO: make sure wandb set to false by default, and set symile to default loss fu
 | `--check_val_every_n_epoch`   | Frequency of validation checks (in epochs)                    | int                 |                                  |               |
 | `--drop_last`                 | Drop the last incomplete training batch if the training set is not divisible by batch size | bool | `True`, `False`                  |               |
 | `--lr`                        | Learning rate                                                 | float               |                                  |               |
+| `--weight_decay`                        | Weight decay coefficient used by AdamW optimizer | float               |                                  | 0.01 |
 | `--logit_scale_init`          | Initial value for the logit scale, which is the temperature parameter $\tau$ is directly optimized during training as a multiplicative scalar to avoid having to tune it as a hyperparameter | float | | |
 | `--negative_sampling`         | Negative sampling strategy: $O(N)$ or $O(N^2)$                | str                 | `n`, `n_squared`                 |               |
 | `--loss_fn`                   | Loss function to use                                          | str                 | `symile`, `clip`        |  `symile`             |
+| `--ckpt_path`            | Path of the checkpoint from which training is resumed | str                 |         | `None` |
 | `--ckpt_save_dir`             | Directory to save checkpoints                                 | str                 |         |               |
 
 The following arguments are helpful for debugging and are set with default values non-debugging use:
