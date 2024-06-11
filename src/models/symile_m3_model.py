@@ -6,7 +6,7 @@ import lightning.pytorch as pl
 import numpy as np
 import torch
 import torch.nn as nn
-from transformers import XLMRobertaModel
+from transformers import AutoModel
 
 from src.losses import clip, symile, zeroshot_retrieval_logits
 from src.utils import PathToStrEncoder
@@ -117,10 +117,9 @@ class ImageEncoder(nn.Module):
 class TextEncoder(nn.Module):
     def __init__(self, args, enc_hidden_size):
         """
-        Initialize the TextEncoder, which uses XLM-RoBERTa to encode text features.
-        The model freezes all parameters except for those in XLM-RoBERTa's embedding
-        layer and first encoder layer, which are fine-tuned. A linear layer and
-        layer normalization are applied to the encoded features.
+        Initialize the TextEncoder, which freezes all parameters except for those
+        in model's embedding layer and first encoder layer, which are fine-tuned.
+        A linear layer and layer normalization are applied to the encoded features.
 
         If missingness is specified in the arguments, resizes the token embeddings
         to accommodate the additional token for missing text data.
@@ -131,7 +130,7 @@ class TextEncoder(nn.Module):
         """
         super().__init__()
 
-        self.encoder = XLMRobertaModel.from_pretrained(args.text_model_id)
+        self.encoder = AutoModel.from_pretrained(args.text_model_id)
 
         if getattr(args, "missingness", False):
             self.encoder.resize_token_embeddings(args.tokenizer_len)

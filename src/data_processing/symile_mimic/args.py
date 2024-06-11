@@ -1,55 +1,22 @@
 import argparse
 from pathlib import Path
 
-from src.utils import str_to_bool
 
-
-def parse_get_mimic_data():
+def parse_process_mimic_data():
     parser = argparse.ArgumentParser()
-
-    parser.add_argument("--data_type", type=str, default=None,
-                        choices=["cxr", "ecg", "labs"],
-                        help="Type of data to extract.")
-    parser.add_argument("--cxr_type", type=str, default=None,
-                        choices=["24_to_72", "post_24"],
-                        help="Type of data to extract.")
-    parser.add_argument("--ecg_labs_type", type=str, default=None,
-                        choices=["adm", "before_discharge"],
-                        help="Type of data to extract.")
 
     parser.add_argument("--mimiciv_hosp_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/mimiciv/2.2/hosp"),
-                        help="Path to MIMIC-IV hospital module directory.")
-    parser.add_argument("--ecg_data_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/mimic-iv-ecg/1.0"),
-                        help="Directory with ECGs.")
+                        help="Path to MIMIC-IV hospital module directory, which \
+                        must include the files patients.csv.gz, admissions.csv.gz, \
+                            and labevents.csv.gz.")
     parser.add_argument("--cxr_data_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/mimic-cxr-jpg/mimic-cxr-jpg-2.0.0.physionet.org"),
-                        help="Directory with CXRs.")
+                        help="Directory with MIMIC CXR data, which must include the \
+                        files mimic-cxr-2.0.0-metadata.csv.gz and mimic-cxr-2.0.0-chexpert.csv.gz.")
+    parser.add_argument("--ecg_data_dir", type=Path,
+                        help="Directory with MIMIC ECG data, which must include the \
+                        file record_list.csv.")
     parser.add_argument("--save_dir", type=Path,
-                        help="Where to save data.")
-
-    return parser.parse_args()
-
-
-def parse_create_dataset():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--dataset_type", type=str, default=None,
-                        choices=["cxr_24_to_72", "cxr_post_24", "cxr_post_ecg_labs"],
-                        help="Type of data to extract.")
-
-    parser.add_argument("--cxr_df_path", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets/cxr_df.csv"),
-                        help="Path to dataframe with cxr data.")
-    parser.add_argument("--ecg_df_path", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets/ecg_df.csv"),
-                        help="Path to dataframe with ecg data.")
-    parser.add_argument("--labs_df_path", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets/labs_df.csv"),
-                        help="Path to dataframe with labs data.")
-    parser.add_argument("--save_dir", type=Path,
-                        help="Where to save data.")
+                        help="Where to save DataFrame with processed data.")
 
     return parser.parse_args()
 

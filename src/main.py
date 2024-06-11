@@ -103,9 +103,6 @@ def binary_main(args):
 
         dm = get_data_module(args)
 
-        if args.missingness:
-            setattr(args, "tokenizer_len", dm.tokenizer_len)
-
         model = get_model_module(args)
 
         trainer.fit(model, datamodule=dm)
@@ -155,17 +152,17 @@ def main(args):
 
     dm = get_data_module(args)
 
-    if args.missingness:
+    if args.experiment == "symile_m3" and args.missingness:
         setattr(args, "tokenizer_len", dm.tokenizer_len)
 
     model = get_model_module(args)
 
-    if args.load_from_ckpt == "None":
+    if args.ckpt_path == "None":
         print("Training model from scratch!")
         trainer.fit(model, datamodule=dm)
     else:
-        print("Loading checkpoint from ", args.load_from_ckpt)
-        trainer.fit(model, datamodule=dm, ckpt_path=args.load_from_ckpt)
+        print("Loading checkpoint from ", args.ckpt_path)
+        trainer.fit(model, datamodule=dm, ckpt_path=args.ckpt_path)
 
 
 if __name__ == '__main__':

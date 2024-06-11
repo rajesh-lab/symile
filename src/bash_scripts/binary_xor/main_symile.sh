@@ -29,7 +29,7 @@ python main.py \
     --train_n 10000 \
     --val_n 1000 \
     --test_n 5000 \
-    --d_r 16 \
+    --d 16 \
     --d_v 5 \
     --negative_sampling n \
     --seed 0 \

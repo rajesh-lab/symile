@@ -52,7 +52,7 @@ class BinaryXORModel(pl.LightningModule):
 
         self.loss_fn = symile if self.args.loss_fn == "symile" else clip
 
-        self.encoders = LinearEncoders(self.args.d_v, self.args.d_r)
+        self.encoders = LinearEncoders(self.args.d_v, self.args.d)
 
         # temperature parameter is learned as done by CLIP:
         # https://github.com/openai/CLIP/blob/a1d071733d7111c9c014f024669f959182114e33/clip/model.py#L295
@@ -69,7 +69,8 @@ class BinaryXORModel(pl.LightningModule):
         return r_a, r_b, r_c, self.logit_scale.exp()
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.args.lr)
+        return torch.optim.AdamW(self.parameters(), lr=self.args.lr,
+                                 weight_decay=self.args.weight_decay)
 
     def _shared_step(self, batch, batch_idx):
         v_a, v_b, v_c = batch

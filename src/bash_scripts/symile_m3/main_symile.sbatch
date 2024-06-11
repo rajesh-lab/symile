@@ -7,11 +7,11 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --gres=gpu:a100:1
 #SBATCH --mem=200GB
-#SBATCH --time=12:00:00
+#SBATCH --time=48:00:00
 
 # when in AS's BP
 source ~/miniconda3/bin/activate symile
-cd /gpfs/scratch/as16583/symile/symile
+cd /gpfs/scratch/as16583/symile/src
 
 # when in AP's BP
 # source "$(conda info --base)/etc/profile.d/conda.sh"
@@ -35,16 +35,17 @@ python main.py \
     --limit_val_batches=1.0 \
     --logit_scale_init -6 \
     --use_seed True \
+    --seed 0 \
     --wandb True \
     --missingness False \
     --missingness_prob 0.5 \
     --ckpt_save_dir /gpfs/scratch/as16583/ckpts/high_dim \
-    --data_dir /gpfs/scratch/as16583/symile/symile/datasets/symile_m3/2W_2L \
+    --data_dir /gpfs/scratch/as16583/symile/src/datasets/symile_m3/2W_2L \
     --num_langs 2 \
     --data_reference /gpfs/scratch/as16583/symile/symile/datasets/symile_m3/data_reference.json \
     --negative_sampling n \
     --loss_fn symile \
-    --load_from_ckpt None \
+    --ckpt_path None \
     --weight_decay 0.0 \
     --lr 0.0001 \
     --experiment symile_m3

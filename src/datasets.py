@@ -5,7 +5,7 @@ import lightning.pytorch as pl
 from scipy.stats import bernoulli
 import torch
 from torch.utils.data import Dataset, DataLoader, TensorDataset
-from transformers import XLMRobertaTokenizer
+from transformers import AutoTokenizer
 
 from src.constants import MISSING_TOKEN
 from src.utils import get_language_constant
@@ -22,36 +22,36 @@ class BinaryXORDataset(Dataset):
     Generate n samples of data (v_a, v_b, v_c) according to the below.
 
     i ~ Bernoulli(p_hat)
-    dim(v_a) = dim(v_b) = dim(v_c) = d
+    dim(v_a) = dim(v_b) = dim(v_c) = d_v
     v_a[j], v_b[j] ~ Bernoulli(0.5)
     v_c[j] = (v_a[j] XOR v_b[j])^i * v_a[j]^(1-i)
     """
-    def __init__(self, d, n, p_hat):
+    def __init__(self, d_v, n, p_hat):
         """
         Args:
-            d (int): dimensionality for each of the vectors v_a, v_b, v_c.
+            d_v (int): dimensionality for each of the vectors v_a, v_b, v_c.
             n (int): number of data samples to generate.
             p_hat (float): Bernoulli distribution parameter for i.
         """
-        self.v_a, self.v_b, self.v_c = self.generate_data(d, n, p_hat)
+        self.v_a, self.v_b, self.v_c = self.generate_data(d_v, n, p_hat)
 
-    def generate_data(self, d, n, p_hat):
+    def generate_data(self, d_v, n, p_hat):
         """
         Returns:
-            v_a, v_b, v_c: each is an torch.Tensor of size (n, d).
+            v_a, v_b, v_c: each is an torch.Tensor of size (n, d_v).
         """
-        v_a = bernoulli.rvs(0.5, size=(n, d))
-        v_b = bernoulli.rvs(0.5, size=(n, d))
+        v_a = bernoulli.rvs(0.5, size=(n, d_v))
+        v_b = bernoulli.rvs(0.5, size=(n, d_v))
         i = bernoulli.rvs(p_hat, size=n)
 
         xor = np.bitwise_xor(v_a, v_b)
 
-        if d == 1:
+        if d_v == 1:
             i = np.expand_dims(i, axis=1)
             v_c = np.where(i, xor, v_a)
-        else: # d > 1
+        else: # d_v > 1
             c_columns = []
-            for j in range(d):
+            for j in range(d_v):
                 c_columns.append(np.where(i, xor[:, j], v_a[:, j]))
             v_c = np.stack(c_columns, axis=1)
 
@@ -63,7 +63,7 @@ class BinaryXORDataset(Dataset):
             "Random variables must be the same shape"
         for arr in (v_a, v_b, v_c):
             assert torch.all((arr == 0) | (arr == 1)), "Random variables must be 0 or 1."
-        assert v_a.shape[1] == d, "Vectors must have dimension d."
+        assert v_a.shape[1] == d_v, "Vectors must have dimension d_v."
 
         return v_a, v_b, v_c
 
@@ -83,7 +83,7 @@ class BinaryXORDataset(Dataset):
         Args:
             idx (int): index of data sample to retrieve.
         Returns
-            v_a, v_b, v_c (tuple): each of v_a, v_b, v_c is a torch.Tensor of size d.
+            v_a, v_b, v_c (tuple): each of v_a, v_b, v_c is a torch.Tensor of size d_v.
         """
         v_a = self.v_a[idx, :]
         v_b = self.v_b[idx, :]
@@ -294,7 +294,7 @@ class SymileM3DataModule(pl.LightningDataModule):
         # representation for MISSING_TOKEN.
         if self.args.missingness:
 
-            self.txt_tokenizer = XLMRobertaTokenizer.from_pretrained(args.text_model_id)
+            self.txt_tokenizer = AutoTokenizer.from_pretrained(args.text_model_id)
 
             if MISSING_TOKEN not in self.txt_tokenizer.get_vocab():
                 self.txt_tokenizer.add_tokens([MISSING_TOKEN])

@@ -71,9 +71,8 @@ def parse_args_main():
                         help="Number of epochs to pretrain for.")
     parser.add_argument("--freeze_logit_scale", type=str_to_bool, default=False,
                         help="Whether to freeze logit scale during pretraining.")
-    parser.add_argument("--load_from_ckpt", type=str,
-                        default=None,
-                        help="Checkpoint to load from.")
+    parser.add_argument("--ckpt_path", type=str, default=None,
+                        help="Path of the checkpoint from which training is resumed.")
     parser.add_argument("--logit_scale_init", type=float,
                         help="Value used to initialize the learned logit_scale. \
                               CLIP used np.log(1 / 0.07) = 2.65926.")
@@ -82,10 +81,8 @@ def parse_args_main():
                         help="Loss function to use for training.")
     parser.add_argument("--lr", type=float,
                         help="Learning rate.")
-    parser.add_argument("--missingness", type=str_to_bool, default=False,
-                                help="Whether to train with algorithmic missingness.")
-    parser.add_argument("--missingness_prob", type=float, default=0.5,
-                                help="Probability with which a given modality is missing.")
+    parser.add_argument("--weight_decay", type=float, default=0.01,
+                        help="Weight decay coefficient used by AdamW optimizer.")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--use_seed", type=str_to_bool, default=True,
                         help="Whether to use a seed for reproducibility.")
@@ -114,8 +111,6 @@ def parse_args_main():
                             help="Number of samples (a, b, c) in test dataset.")
         parser.add_argument("--d_v", type=int,
                             help="Dimensionality of dataset vectors.")
-        parser.add_argument("--d_r", type=int,
-                            help="Dimensionality of representation vectors.")
     ### SYMILE-M3 ARGS ###
     elif args.experiment == "symile_m3":
         # data args
@@ -133,13 +128,17 @@ def parse_args_main():
                                     id, and language translations.")
         parser.add_argument("--num_langs", type=int,
                                 help="Number of languages in generated text.")
+        parser.add_argument("--missingness", type=str_to_bool, default=False,
+                                help="Whether to train with missingness.")
+        parser.add_argument("--missingness_prob", type=float,
+                                help="Probability with which a given modality is missing.")
         # model args
-        parser.add_argument("--audio_model_id", type=str, default="openai/whisper-large-v3",
+        parser.add_argument("--audio_model_id", type=str,
                             help="Hugging Face model id for audio encoder.")
-        parser.add_argument("--image_model_id", type=str, default="openai/clip-vit-large-patch14",
+        parser.add_argument("--image_model_id", type=str,
                             help="Hugging Face model id for image encoder.")
-        parser.add_argument("--text_model_id", type=str, default="xlm-roberta-large",
-                            help="Hugging Face XLMRobertaModel model id for text encoder.")
+        parser.add_argument("--text_model_id", type=str,
+                            help="Hugging Face model id for text encoder.")
         parser.add_argument("--text_embedding", type=str,
                                 choices = ["eos", "bos"], default="eos",
                                 help="Whether to use text encoder BOS or EOS embedding \
@@ -147,16 +146,12 @@ def parse_args_main():
         parser.add_argument("--metadata_filename", type=Path,
                                 default=Path("metadata.json"),
                                 help="Path to json file with metadata for all encoders.")
-        parser.add_argument("--weight_decay", type=float,
-                        help="Weight decay coefficient used by AdamW optimizer.")
     ### CXR PREDICTION ARGS ###
     elif args.experiment == "symile_mimic":
         parser.add_argument("--pretrained", type=str_to_bool, default=False,
                             help="Whether to pretrained encoders for CXR and ECG.")
         parser.add_argument("--labs_model", type=str, default=None,
                             choices=["mlp", "ftt"])
-        parser.add_argument("--weight_decay", type=float,
-                        help="Weight decay coefficient used by AdamW optimizer.")
 
     all_args = parser.parse_args(remaining_argv)
 
@@ -180,9 +175,8 @@ def parse_args_test():
                         help="Directory with dataset csvs.")
     parser.add_argument("--description" , type=str, default="",
                         help="Description of the test run.")
-    parser.add_argument("--load_from_ckpt", type=str,
-                        default=None,
-                        help="Checkpoint to load from.")
+    parser.add_argument("--ckpt_path", type=str, default=None,
+                        help="Path of the checkpoint from which training is resumed.")
     parser.add_argument("--save_dir", type=Path,
                         help="Where to save test results.")
     parser.add_argument("--seed", type=int, default=0)
