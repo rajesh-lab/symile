@@ -20,7 +20,7 @@ We release the weights of all models trained and used for our work TODO.
 - [Pre-training command-line arguments](#pretrain_args)
 - [Binary XOR experiments](#binary_xor)
 - [Symile-M3 experiments](#symile_m3)
-- [Symile-MIMIC experiments](#cxr_prediction)
+- [Symile-MIMIC experiments](#symile_mimic)
 - [Questions or bugs?](#questions)
 - [License](#license)
 - [Citation](#citation)
@@ -178,8 +178,16 @@ Then run:
 
 All checkpoints will be saved to `./ckpts/support/`.
 
-<a name="predict_cxr"></a>
-## 3. Experiment: predict CXR from ECG and labs
+<a name="symile_mimic"></a>
+## Symile-MIMIC experiments
+
+TODO: figure?
+
+In this section, we describe how to generate Symile-MIMIC, a clinical dataset comprised of chest X-rays (CXRs), electrocardiograms (ECGs), and blood labs from the MIMIC-IV and MIMIC-CXR datasets, and how to reproduce the CXR prediction experiments from Section 5.3 of the paper (TODO link).
+
+### Generating Symile-MIMIC
+
+#### Download MIMIC data
 
 Note that running get_mimic_data.py for `cxr` takes about 10 minutes, for `ecg` takes about 2.5 hours, and for `labs` takes about 5 hours.
 
