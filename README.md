@@ -21,7 +21,7 @@ We release the weights of all models trained and used for our work TODO.
 - [Binary XOR experiments](#binary_xor)
 - [Symile-M3 experiments](#symile_m3)
 - [Symile-MIMIC experiments](#cxr_prediction)
-- [Questions?](#questions)
+- [Questions or bugs?](#questions)
 - [License](#license)
 - [Citation](#citation)
 
@@ -189,7 +189,7 @@ Note that running get_mimic_data.py for `cxr` takes about 10 minutes, for `ecg` 
 - then run save_dataset_tensors.py to create dataset pt tensors in split specific directories
 
 <a name="questions"></a>
-## Questions?
+## Questions or bugs?
 For questions related to the paper, please post on alphaXiv (TODO link) for a prompt response from the authors. For questions related to the code, please open an issue in this repo or email Adriel Saporta (adriel@nyu.edu).
 
 <a name="license"></a>
