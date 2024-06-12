@@ -26,9 +26,7 @@ This command takes the following flags:
 | `--ecg_data_dir`       | Directory with MIMIC ECG data, which must include the file `record_list.csv`.                                                         | str    |
 | `--save_dir`           | Directory where the DataFrame with processed data will be saved.                                                                      | str    |
 
-Note that running get_mimic_data.py for `cxr` takes about 10 minutes, for `ecg` takes about 2.5 hours, and for `labs` takes about 5 hours.
-
-The script typically completes in [TODO estimated time] hours when executed with 16 CPUs and [TODO: amount of memory] of memory.
+The script typically completes in 7 hours when executed with 16 CPUs and 100GB of memory.
 
 ## Create dataset splits
 
