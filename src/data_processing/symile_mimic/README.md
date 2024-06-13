@@ -30,5 +30,24 @@ The script typically completes in 7 hours when executed with 16 CPUs and 100GB o
 
 ## Create dataset splits
 
-- then run create_dataset_splits.py to create train.csv, etc.
+The following command creates dataset splits from the Symile-MIMIC dataset CSV saved by the previous command:
+
+```
+(symile-env) > python create_dataset_splits.py [FLAGS]
+```
+
+| Flag               | Description                                              | Type         | Default |
+|--------------------|----------------------------------------------------------|--------------|---------|
+| `--dataset_path`   | Path to CSV file with the full dataset.                  | str       |     |
+| `--save_dir`       | Directory where the data will be saved.                  | str       |     |
+| `--seed`           | Seed value for random number generation.                 | int        | 0       |
+| `--use_seed`       | Whether to use a seed for reproducibility.               | bool| `True`    |
+| `--train_n`        | Number of samples in the training set.                   | `int`        |     |
+| `--val_n`          | Number of samples in the validation set.                 | `int`        |     |
+| `--candidate_n`    | Number of negative candidates to sample for each test sample. | `int`        |     |
+
+TODO: describe the splits that are created in detail
+
+## Save representations
+
 - then run save_dataset_tensors.py to create dataset pt tensors in split specific directories
