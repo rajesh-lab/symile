@@ -36,6 +36,8 @@ The following command creates dataset splits from the Symile-MIMIC dataset CSV s
 (symile-env) > python create_dataset_splits.py [FLAGS]
 ```
 
+This command takes the following flags:
+
 | Flag               | Description                                              | Type         | Default |
 |--------------------|----------------------------------------------------------|--------------|---------|
 | `--dataset_path`   | Path to CSV file with the full dataset.                  | str       |     |
@@ -48,6 +50,28 @@ The following command creates dataset splits from the Symile-MIMIC dataset CSV s
 
 TODO: describe the splits that are created in detail
 
-## Save representations
+## Process and save dataset tensors
 
-- then run save_dataset_tensors.py to create dataset pt tensors in split specific directories
+To accelerate training, the following command loads and preprocesses the Symile-MIMIC dataset splits, saving the
+resulting tensors to split-specific directories in `data_dir`:
+
+```
+(symile-env) > python process_and_save_tensors.py [FLAGS]
+```
+
+This command takes the following flags:
+
+| Flag               | Description                                              | Type         | Default          |
+|--------------------|----------------------------------------------------------|--------------|------------------|
+| `--data_dir`       | Directory with dataset csvs.                             | str       |              |
+| `--ecg_data_dir`   | Directory that contains the MIMIC `files` directory with ECG data. | str       |              |
+| `--cxr_data_dir`   | Directory that contains the MIMIC `files` directory with CXR data. | str       |              |
+| `--labs_means`     | JSON filename for labs means.                            | str       | `labs_means.json`|
+| `--train_csv`      | Filename for train csv.                                  | str       | `train.csv`      |
+| `--val_csv`        | Filename for val csv.                                    | str       | `val.csv`        |
+| `--val_acc_csv`    | Filename for val accuracy csv.                           | str       | `val_acc.csv`    |
+| `--test_csv`       | Filename for test csv.                                   | str       | `test.csv`       |
+| `--cxr_scale`      | Scale for preprocessing CXRs.                            | int        | 320              |
+| `--cxr_crop`       | Crop for preprocessing CXRs.                             | int        | 320              |
+
+The script typically completes in TODO hours when executed with 16 CPUs and TODO of memory.
