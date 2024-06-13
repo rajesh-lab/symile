@@ -26,11 +26,52 @@ This command takes the following flags:
 | `--ecg_data_dir`       | Directory with MIMIC ECG data, which must include the file `record_list.csv`.                                                         | str    |
 | `--save_dir`           | Directory where the DataFrame with processed data will be saved.                                                                      | str    |
 
-Note that running get_mimic_data.py for `cxr` takes about 10 minutes, for `ecg` takes about 2.5 hours, and for `labs` takes about 5 hours.
-
-The script typically completes in [TODO estimated time] hours when executed with 16 CPUs and [TODO: amount of memory] of memory.
+The script typically completes in 7 hours when executed with 16 CPUs and 100GB of memory.
 
 ## Create dataset splits
 
-- then run create_dataset_splits.py to create train.csv, etc.
-- then run save_dataset_tensors.py to create dataset pt tensors in split specific directories
+The following command creates dataset splits from the Symile-MIMIC dataset CSV saved by the previous command:
+
+```
+(symile-env) > python create_dataset_splits.py [FLAGS]
+```
+
+This command takes the following flags:
+
+| Flag               | Description                                              | Type         | Default |
+|--------------------|----------------------------------------------------------|--------------|---------|
+| `--dataset_path`   | Path to CSV file with the full dataset.                  | str       |     |
+| `--save_dir`       | Directory where the data will be saved.                  | str       |     |
+| `--train_n`        | Number of samples in the training set.                   | `int`        |     |
+| `--val_n`          | Number of samples in the validation set.                 | `int`        |     |
+| `--candidate_n`    | Number of negative candidates to sample for each test sample. | `int`        |     |
+| `--seed`           | Seed value for random number generation.                 | int        | 0       |
+| `--use_seed`       | Whether to use a seed for reproducibility.               | bool| `True`    |
+
+TODO: describe the splits that are created in detail
+
+## Process and save dataset tensors
+
+To accelerate training, the following command loads and preprocesses the Symile-MIMIC dataset splits, saving the
+resulting tensors to split-specific directories in `data_dir`:
+
+```
+(symile-env) > python process_and_save_tensors.py [FLAGS]
+```
+
+This command takes the following flags:
+
+| Flag               | Description                                              | Type         | Default          |
+|--------------------|----------------------------------------------------------|--------------|------------------|
+| `--data_dir`       | Directory with dataset csvs.                             | str       |              |
+| `--ecg_data_dir`   | Directory that contains the MIMIC `files` directory with ECG data. | str       |              |
+| `--cxr_data_dir`   | Directory that contains the MIMIC `files` directory with CXR data. | str       |              |
+| `--labs_means`     | JSON filename for labs means.                            | str       | `labs_means.json`|
+| `--train_csv`      | Filename for train csv.                                  | str       | `train.csv`      |
+| `--val_csv`        | Filename for val csv.                                    | str       | `val.csv`        |
+| `--val_acc_csv`    | Filename for val accuracy csv.                           | str       | `val_acc.csv`    |
+| `--test_csv`       | Filename for test csv.                                   | str       | `test.csv`       |
+| `--cxr_scale`      | Scale for preprocessing CXRs.                            | int        | 320              |
+| `--cxr_crop`       | Crop for preprocessing CXRs.                             | int        | 320              |
+
+The script typically completes in TODO hours when executed with 16 CPUs and TODO of memory.
