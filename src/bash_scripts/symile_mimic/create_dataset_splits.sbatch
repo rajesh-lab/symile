@@ -18,8 +18,13 @@ cd /gpfs/scratch/as16583/symile/symile/cxr_prediction/data_processing
 # conda activate symile
 # cd /gpfs/scratch/pulia01/adriel/symile/symile/healthcare/data_processing
 
-python create_splits.py \
-    --dataset_path /gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets/dataset.csv \
-    --save_dir /gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets
+python create_dataset_splits.py \
+    --dataset_path /gpfs/scratch/as16583/symile/src/datasets/symile_mimic/symile_mimic_data.csv \
+    --train_n 10000 \
+    --val_n 800 \
+    --candidate_n 9 \
+    --save_dir /gpfs/scratch/as16583/symile/src/datasets/symile_mimic \
+    --use_seed True \
+    --seed 0
 
 echo 'done!'

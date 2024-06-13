@@ -41,8 +41,8 @@ MISSING_TOKEN = "[MISSING]"
 
 CHEXPERT_LABELS = ["Atelectasis",
                    "Cardiomegaly",
-                   "Consolidation",
                    "Edema",
+                   "Lung Opacity",
                    "Pleural Effusion"]
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]

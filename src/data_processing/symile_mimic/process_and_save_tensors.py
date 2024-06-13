@@ -1,3 +1,7 @@
+"""
+This script loads and preprocesses the Symile-MIMIC dataset splits, saving the
+resulting tensors to split-specific directories in `data_dir`.
+"""
 import json
 import os
 
@@ -8,11 +12,14 @@ import torchvision.transforms as t
 from tqdm import tqdm
 import wfdb
 
-from args import parse_save_dataset_tensors
-from src.cxr_prediction.constants import IMAGENET_MEAN, IMAGENET_STD
+from args import parse_process_and_save_tensors
+from src.constants import IMAGENET_MEAN, IMAGENET_STD
 
 
 def get_cxr(args, pt, split):
+    """
+    Loads and preprocesses a chest X-ray (CXR) image.
+    """
     cxr_pt = args.cxr_data_dir / pt
     img = Image.open(cxr_pt).convert('RGB')
 
@@ -34,6 +41,9 @@ def get_cxr(args, pt, split):
 
 
 def get_ecg(args, pt):
+    """
+    Loads and preprocesses an ECG signal.
+    """
     ecg_pt = args.ecg_data_dir / pt
     signal = torch.from_numpy(wfdb.rdrecord(ecg_pt).p_signal)
 
@@ -44,6 +54,14 @@ def get_ecg(args, pt):
 
 
 def get_labs(args, row):
+    """
+    Processes laboratory data for a given row, handling missing values and
+    ensuring consistent order.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: Two tensors, one for the lab percentiles
+                                           and one for the missing indicators.
+    """
     percentiles = []
     missing_indicators = []
 
@@ -69,7 +87,11 @@ def get_labs(args, row):
             torch.tensor(missing_indicators, dtype=torch.int64))
 
 
-def save_dataset_tensors(args, df, split):
+def process_and_save_tensors(args, df, split):
+    """
+    Processes the data from df and saves the resulting tensors to the specified
+    directory.
+    """
     save_dir = args.data_dir / split
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -79,8 +101,8 @@ def save_dataset_tensors(args, df, split):
     labs_percentiles_list = []
     labs_missingness_list = []
     hadm_id_list = []
-    label_name_list = []
-    label_value_list = []
+    label_hadm_id_list = []
+    label_list = []
 
     for _, row in tqdm(df.iterrows(), total=df.shape[0]):
         cxr = get_cxr(args, row["cxr_path"], split)
@@ -93,9 +115,9 @@ def save_dataset_tensors(args, df, split):
         labs_missingness_list.append(labs_missingness)
         hadm_id_list.append(row["hadm_id"])
 
-        if split in ["val_query", "val_candidate", "test_query", "test_candidate"]:
-            label_name_list.append(row["label_name"])
-            label_value_list.append(row["label_value"])
+        if split in ["val_acc", "test"]:
+            label_hadm_id_list.append(row["label_hadm_id"])
+            label_list.append(row["label"])
 
     cxr_tensor = torch.stack(cxr_list) # (n, 3, cxr_crop, cxr_crop)
     ecg_tensor = torch.stack(ecg_list) # (n, 1, 5000, 12)
@@ -109,59 +131,40 @@ def save_dataset_tensors(args, df, split):
     torch.save(labs_missingness_tensor, save_dir / f"labs_missingness_{split}.pt")
     torch.save(hadm_id_tensor, save_dir / f"hadm_id_{split}.pt")
 
-    if split in ["val_query", "val_candidate", "test_query", "test_candidate"]:
-        label_value_tensor = torch.tensor(label_value_list)
-        torch.save(label_value_tensor, save_dir / f"label_value_{split}.pt")
+    if split in ["val_acc", "test"]:
+        label_hadm_id_tensor = torch.tensor(label_hadm_id_list)
+        torch.save(label_hadm_id_tensor, save_dir / f"label_hadm_id_{split}.pt")
 
-        with open(f"{save_dir}/label_name_{split}.txt", 'w') as f:
-            f.writelines("\n".join(label_name_list))
+        label_tensor = torch.tensor(label_list)
+        torch.save(label_tensor, save_dir / f"label_{split}.pt")
 
 
 if __name__ == '__main__':
-    args = parse_save_dataset_tensors()
+    args = parse_process_and_save_tensors()
 
     train_df = pd.read_csv(args.data_dir / args.train_csv)
-
-    val_query_df = pd.read_csv(args.data_dir / args.val_query_csv)
-    val_candidate_df = pd.read_csv(args.data_dir / args.val_candidate_csv)
     val_df = pd.read_csv(args.data_dir / args.val_csv)
-
-    test_query_df = pd.read_csv(args.data_dir / args.test_query_csv)
-    test_candidate_df = pd.read_csv(args.data_dir / args.test_candidate_csv)
-    # full test set is the candidate set without duplicates
-    test_df = test_candidate_df.drop_duplicates(subset=["hadm_id"])
-    test_df.to_csv(args.data_dir / "test.csv", index=False)
+    val_acc_df = pd.read_csv(args.data_dir / args.val_acc_csv)
+    test_df = pd.read_csv(args.data_dir / args.test_csv)
 
     print("Saving train tensors...")
-    save_dataset_tensors(args, train_df, "train")
-
-    print("Saving val query tensors...")
-    save_dataset_tensors(args, val_query_df, "val_query")
-
-    print("Saving val candidate tensors...")
-    save_dataset_tensors(args, val_candidate_df, "val_candidate")
+    process_and_save_tensors(args, train_df, "train")
 
     print("Saving val tensors...")
-    save_dataset_tensors(args, val_df, "val")
+    process_and_save_tensors(args, val_df, "val")
 
-    print("Saving test query tensors...")
-    save_dataset_tensors(args, test_query_df, "test_query")
-
-    print("Saving test candidate tensors...")
-    save_dataset_tensors(args, test_candidate_df, "test_candidate")
+    print("Saving val accuracy tensors...")
+    process_and_save_tensors(args, val_acc_df, "val_acc")
 
     print("Saving test tensors...")
-    save_dataset_tensors(args, test_df, "test")
+    process_and_save_tensors(args, test_df, "test")
 
     with open(args.data_dir / "metadata.json", "w") as f:
         json.dump({
-            "train set size": len(train_df),
-            "val set size": len(val_df),
-            "val query set size": len(val_query_df),
-            "val candidate set size": len(val_candidate_df),
-            "test set size": len(test_df),
-            "test query set size": len(test_query_df),
-            "test candidate set size": len(test_candidate_df),
+            "train size": len(train_df),
+            "val size": len(val_df),
+            "val acc size": len(val_acc_df),
+            "test size": len(test_df),
             "cxr_scale": args.cxr_scale,
             "cxr_crop": args.cxr_crop
         }, f, indent=4)

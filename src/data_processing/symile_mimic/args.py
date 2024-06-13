@@ -1,6 +1,8 @@
 import argparse
 from pathlib import Path
 
+from src.utils import str_to_bool
+
 
 def parse_process_mimic_data():
     parser = argparse.ArgumentParser()
@@ -21,37 +23,39 @@ def parse_process_mimic_data():
     return parser.parse_args()
 
 
-def parse_create_splits():
+def parse_create_dataset_splits():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--dataset_path", type=Path,
-                        default=Path("/gpfs/scratch/as16583/symile/symile/cxr_prediction/datasets/dataset.csv"),
-                        help="Path to dataframe with full dataset.")
+                        help="Path to csv file with full dataset.")
     parser.add_argument("--save_dir", type=Path,
                         help="Where to save data.")
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--use_seed", type=str_to_bool, default=True,
+                        help="Whether to use a seed for reproducibility.")
 
-    parser.add_argument("--num_query", type=int, default=5,
-                        help="Number of query samples per CXR label.")
-    parser.add_argument("--num_positive", type=int, default=5,
-                        help="Number of positive candidate samples per CXR label.")
-    parser.add_argument("--num_negative", type=int, default=120,
-                        help="Number of negative candidate samples per CXR label.")
+    parser.add_argument("--train_n", type=int,
+                        help="Number of samples in train set.")
+    parser.add_argument("--val_n", type=int,
+                        help="Number of samples in val set.")
+    parser.add_argument("--candidate_n", type=int,
+                        help="Number of negative candidates to sample for each test sample.")
 
     return parser.parse_args()
 
 
-def parse_save_dataset_tensors():
+def parse_process_and_save_tensors():
     parser = argparse.ArgumentParser()
 
     ### DATASET ARGS ###
     parser.add_argument("--data_dir", type=Path,
                         help="Directory with dataset csvs.")
     parser.add_argument("--ecg_data_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/mimic-iv-ecg/1.0"),
-                        help="Directory with ECGs.")
+                        help="Directory that contains the MIMIC `files` directory \
+                              with ECG data.")
     parser.add_argument("--cxr_data_dir", type=Path,
-                        default=Path("/gpfs/data/ranganathlab/mimic-cxr-jpg/mimic-cxr-jpg-2.0.0.physionet.org"),
-                        help="Directory with CXRs.")
+                        help="Directory that contains the MIMIC `files` directory \
+                              with CXR data.")
     parser.add_argument("--labs_means", type=Path,
                         default=Path("labs_means.json"),
                         help="json filename for labs means.")
@@ -61,18 +65,12 @@ def parse_save_dataset_tensors():
     parser.add_argument("--val_csv", type=Path,
                         default=Path("val.csv"),
                         help="Filename for val csv.")
-    parser.add_argument("--val_query_csv", type=Path,
-                        default=Path("test_query.csv"),
-                        help="Filename for val query csv.")
-    parser.add_argument("--val_candidate_csv", type=Path,
-                        default=Path("test_candidate.csv"),
-                        help="Filename for val candidate csv.")
-    parser.add_argument("--test_query_csv", type=Path,
-                        default=Path("test_query.csv"),
-                        help="Filename for test query csv.")
-    parser.add_argument("--test_candidate_csv", type=Path,
-                        default=Path("test_candidate.csv"),
-                        help="Filename for test candidate csv.")
+    parser.add_argument("--val_acc_csv", type=Path,
+                        default=Path("val_acc.csv"),
+                        help="Filename for val accuracy csv.")
+    parser.add_argument("--test_csv", type=Path,
+                        default=Path("test.csv"),
+                        help="Filename for test csv.")
     parser.add_argument("--cxr_scale", type=int, default=320,
                         help="Scale for preprocessing CXRs.")
     parser.add_argument("--cxr_crop", type=int, default=320,
