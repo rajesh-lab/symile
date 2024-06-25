@@ -74,4 +74,4 @@ This command takes the following flags:
 | `--cxr_scale`      | Scale for preprocessing CXRs.                            | int        | 320              |
 | `--cxr_crop`       | Crop for preprocessing CXRs.                             | int        | 320              |
 
-The script typically completes in TODO hours when executed with 16 CPUs and TODO of memory.
+The script typically completes in 1 hour when executed with 16 CPUs and 150GB of memory.
