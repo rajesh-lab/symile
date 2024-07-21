@@ -11,8 +11,8 @@ def zeroshot_retrieval_logits(r_x, r_y, r_z, logit_scale_exp, loss_fn):
     logit scale parameter.
 
     Args:
-        r_x (torch.Tensor): Encoded representations of the first modality (batch_sz, d).
-        r_y (torch.Tensor): Encoded representations of the second modality (batch_sz, d).
+        r_x (torch.Tensor): Encoded representations of the first modality (batch_sz, d) or (d,).
+        r_y (torch.Tensor): Encoded representations of the second modality (batch_sz, d) or (d,).
         r_z (torch.Tensor): Encoded representations of the modality to predict (num_candidates, d).
         logit_scale_exp (torch.Tensor): Exponentiated logit scale parameter.
         loss_fn (str): The loss function to use, either "symile" or "clip".
@@ -29,6 +29,8 @@ def zeroshot_retrieval_logits(r_x, r_y, r_z, logit_scale_exp, loss_fn):
         # logits is a (batch_sz, n) matrix where each row i is
         # [ r_x[i]^T r_z[0] + r_z[0]^T r_y[i]   + r_x[i]^T r_y[i] ...
         #   r_x[i]^T r_z[n-1] + r_z[n-1]^T r_y[i] + r_x[i]^T r_y[i] ]
+        r_x = r_x.unsqueeze(0) if r_x.dim() == 1 else r_x # (batch_sz, d)
+        r_y = r_y.unsqueeze(0) if r_y.dim() == 1 else r_y # (batch_sz, d)
         xy = torch.diagonal(r_x @ torch.t(r_y)).unsqueeze(dim=1) # (batch_sz, 1)
         logits = xy + (r_x @ torch.t(r_z)) + (r_y @ torch.t(r_z))
 
