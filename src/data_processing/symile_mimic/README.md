@@ -69,9 +69,9 @@ This command takes the following flags:
 | `--labs_means`     | JSON filename for labs means.                            | str       | `labs_means.json`|
 | `--train_csv`      | Filename for train csv.                                  | str       | `train.csv`      |
 | `--val_csv`        | Filename for val csv.                                    | str       | `val.csv`        |
-| `--val_acc_csv`    | Filename for val accuracy csv.                           | str       | `val_acc.csv`    |
+| `--val_retrieval_csv`    | Filename for val accuracy csv.                           | str       | `val_retrieval.csv`    |
 | `--test_csv`       | Filename for test csv.                                   | str       | `test.csv`       |
 | `--cxr_scale`      | Scale for preprocessing CXRs.                            | int        | 320              |
 | `--cxr_crop`       | Crop for preprocessing CXRs.                             | int        | 320              |
 
-The script typically completes in TODO hours when executed with 16 CPUs and TODO of memory.
+The script typically completes in 1 hour when executed with 16 CPUs and 150GB of memory.
