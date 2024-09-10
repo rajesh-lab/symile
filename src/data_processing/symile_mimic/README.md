@@ -79,3 +79,5 @@ This command takes the following flags:
 | `--cxr_crop`       | Crop for preprocessing CXRs.                             | int        | 320              |
 
 The script typically completes in 1 hour when executed with 16 CPUs and 150GB of memory.
+
+Following [CheXpert](https://github.com/stanfordmlgroup/chexpert-model), each CXR is scaled such that the smaller edge is set to `cxr_scale = 320`, followed by a square crop (random for training or center for validation and testing). Images are then normalized using the ImageNet mean and standard deviation. The ECG signal is normalized to lie within the range $[-1, 1]$.
