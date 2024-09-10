@@ -81,3 +81,5 @@ This command takes the following flags:
 The script typically completes in 1 hour when executed with 16 CPUs and 150GB of memory.
 
 Following [CheXpert](https://github.com/stanfordmlgroup/chexpert-model), each CXR is scaled such that the smaller edge is set to `cxr_scale = 320`, followed by a square crop (random for training or center for validation and testing). Images are then normalized using the ImageNet mean and standard deviation. The ECG signal is normalized to lie within the range [-1, 1].
+
+Eventually, for the labs model, we will use a 100-dimensional vector as input: the first 50 coordinates are lab values standardized to percentiles based on the training set's empirical CDF, and the remaining 50 coordinates are binary indicators that denote whether each lab value is missing. When a lab value is unobserved, the mean percentile for that lab is substituted. This script computes the percentiles and the missingness indicators for the lab values, and then saves them as separate tensors.
