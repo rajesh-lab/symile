@@ -28,6 +28,8 @@ This command takes the following flags:
 
 The script typically completes in 7 hours when executed with 16 CPUs and 100GB of memory.
 
+Each data sample includes an ECG reading and blood labs taken within 24 hours of the patient's admission to the hospital, and a CXR taken in the 24-72 hour period post-admission. For each admission, we choose the earliest CXR, ECG, and labs. Only CXRs with a posteroanterior (PA) or anteroposterior (AP) view are considered, and any ECGs with NaN values or with a signal of all zeros are removed from consideration. Labs are filtered to include only the 50 most common blood laboratory measurements (see `constants.py`). Each admission has a CXR, an ECG, and at least one of the 50 lab values.
+
 ## Create dataset splits
 
 The following command creates dataset splits from the Symile-MIMIC dataset CSV saved by the previous command:
@@ -44,11 +46,13 @@ This command takes the following flags:
 | `--save_dir`       | Directory where the data will be saved.                  | str       |     |
 | `--train_n`        | Number of samples in the training set.                   | `int`        |     |
 | `--val_n`          | Number of samples in the validation set.                 | `int`        |     |
-| `--candidate_n`    | Number of negative candidates to sample for each test sample. | `int`        |     |
+| `--candidate_n`    | Number of candidates for each test sample (`candidate_n - 1` negative candidates for each). | `int`        |     |
 | `--seed`           | Seed value for random number generation.                 | int        | 0       |
 | `--use_seed`       | Whether to use a seed for reproducibility.               | bool| `True`    |
 
-TODO: describe the splits that are created in detail
+The dataset is split into training, validation, and test sets ensuring there is no patient overlap between the splits. Lab values are converted into percentiles using a NaN-aware empirical cumulative distribution function.
+
+To build the evaluation sets for Symile-MIMIC (`val_retrieval.csv` and `test.csv`), we treat each data sample as a query for the CXR retrieval task. For each query, we sample 9 negative candidates from the remaining data in the respective split, ensuring that each query has a total of 10 candidates: 1 positive (the query itself) and 9 negatives.
 
 ## Process and save dataset tensors
 
