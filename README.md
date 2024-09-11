@@ -183,7 +183,39 @@ All checkpoints will be saved to `./ckpts/support/`.
 
 TODO: figure?
 
-In this section, we describe how to reproduce the CXR prediction experiments from Section 5.3 of the paper (TODO link). See [here](https://github.com/rajesh-lab/symile/tree/main/src/data_processing/symile_mimic) for details on how to create the Symile-MIMIC dataset from scratch.
+In this section, we describe how to access Symile-MIMIC, and provide the code to reproduce the Symile-MIMIC experiments from Section 5.3 of the paper (TODO link). See [here](https://github.com/rajesh-lab/symile/tree/main/src/data_processing/symile_mimic) for details on how to create the Symile-MIMIC dataset from scratch.
+
+### Dataset and evaluation description
+
+TODO: Work on this section entirely. I think it's easier to describe the dataset and evaluation as one.
+
+Symile-MIMIC is a clinical dataset comprised of chest X-rays (CXRs), electrocardiograms (ECGs), and blood laboratory measurements from the MIMIC-IV and MIMIC-CXR datasets. Each data sample includes an ECG reading and the 50 most common blood labs (see `constants.py`) taken within 24 hours of the patient's admission to the hospital, and a CXR taken in the 24-72 hour period post-admission. Each admission has a CXR, an ECG, and at least one of the 50 lab values.
+
+The dataset is split into training, validation, and test sets ensuring there is no patient overlap between the splits. Lab values are converted into percentiles using a NaN-aware empirical cumulative distribution function.
+
+To build the evaluation sets for Symile-MIMIC (`val_retrieval.csv` and `test.csv`), we treat each data sample as a query for the CXR retrieval task. For each query, we sample 9 negative candidates from the remaining data in the respective split, ensuring that each query has a total of 10 candidates: 1 positive (the query itself) and 9 negatives.
+
+Eventually, for the labs model, we will use a 100-dimensional vector as input: the first 50 coordinates are lab values standardized to percentiles based on the training set's empirical CDF, and the remaining 50 coordinates are binary indicators that denote whether each lab value is missing. When a lab value is unobserved, the mean percentile for that lab is substituted. This script computes the percentiles and the missingness indicators for the lab values, and then saves them as separate tensors.
+
+### Accessing the data
+
+TODO: fill out instructions for accessing the data once you've added to repo.
+
+### Pre-training
+
+The following command runs pretraining on Symile-MIMIC:
+
+```
+(symile-env) > python main.py --experiment symile_mimic [FLAGS]
+```
+
+In addition to the [common pre-training command-line arguments](#pretrain_args), this command takes the following experiment-specific flag:
+
+| Flag                     | Description                                        | Type   | Choices                        | Default  |
+|--------------------------|----------------------------------------------------|--------|---------------------------------|----------|
+| `--pretrained`            | Whether to use pretrained encoders for CXR and ECG | bool   | `True`, `False`                 | `False`  |
+
+If `pretrained` is `True`, the CXR encoder (ResNet-50) is initialized with ImageNet (`IMAGENET1K_V2`) weights, and the ECG encoder (ResNet-18) is initialized with ImageNet (`IMAGENET1K_V1`) weights.
 
 <a name="questions"></a>
 ## Questions or bugs?
