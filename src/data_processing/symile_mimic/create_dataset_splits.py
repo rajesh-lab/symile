@@ -59,7 +59,7 @@ def save_mean_percentiles(df, args):
         json.dump(labs_means, f, indent=4)
 
 
-def sample_negative_candidates(df, candidate_n, seed=None):
+def sample_negative_candidates(df, candidate_n):
     """
     Generates negative samples for each row in df. The resulting DataFrame will
     contain positive samples (original rows) labeled as 1, and negative samples
@@ -69,8 +69,8 @@ def sample_negative_candidates(df, candidate_n, seed=None):
 
     Args:
         df (pd.DataFrame): The input DataFrame containing the data.
-        candidate_n (int): The number of negative candidates to sample for each row.
-        seed (int, optional): The random seed for reproducibility. Defaults to None.
+        candidate_n (int): The number of candidates for each test sample
+                           (candidate_n - 1 negative candidates to sample).
 
     Returns:
         pd.DataFrame: The DataFrame containing both the original rows with label 1
@@ -83,9 +83,9 @@ def sample_negative_candidates(df, candidate_n, seed=None):
     sampled_rows = []
 
     for i in range(len(df)):
-        # sample candidate_n rows to be negative candidates for the current row
+        # sample candidate_n - 1 rows to be negative candidates for the current row
         remaining_df = df.drop(df.index[i])
-        neg_candidates = remaining_df.sample(n=candidate_n, random_state=seed)
+        neg_candidates = remaining_df.sample(n=candidate_n-1, replace=False)
 
         neg_candidates["label_hadm_id"] = df.iloc[i]["hadm_id"]
         neg_candidates["label"] = 0
@@ -130,14 +130,14 @@ if __name__ == '__main__':
 
     save_mean_percentiles(train_df, args)
 
-    # sample negative candidates for each test sample
-    val_acc_df = sample_negative_candidates(val_df, args.candidate_n, seed=seed)
-    test_df = sample_negative_candidates(test_df, args.candidate_n, seed=seed)
+    # sample negative candidates for evaluation sets
+    val_retrieval_df = sample_negative_candidates(val_df, args.candidate_n)
+    test_df = sample_negative_candidates(test_df, args.candidate_n)
 
     # save splits
     train_df.to_csv(args.save_dir / "train.csv", index=False)
     val_df.to_csv(args.save_dir / "val.csv", index=False)
-    val_acc_df.to_csv(args.save_dir / "val_acc.csv", index=False)
+    val_retrieval_df.to_csv(args.save_dir / "val_retrieval.csv", index=False)
     test_df.to_csv(args.save_dir / "test.csv", index=False)
 
     end = time.time()

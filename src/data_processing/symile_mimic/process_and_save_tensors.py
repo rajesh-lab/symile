@@ -4,6 +4,7 @@ resulting tensors to split-specific directories in `data_dir`.
 """
 import json
 import os
+import time
 
 import pandas as pd
 from PIL import Image
@@ -115,7 +116,7 @@ def process_and_save_tensors(args, df, split):
         labs_missingness_list.append(labs_missingness)
         hadm_id_list.append(row["hadm_id"])
 
-        if split in ["val_acc", "test"]:
+        if split in ["val_retrieval", "test"]:
             label_hadm_id_list.append(row["label_hadm_id"])
             label_list.append(row["label"])
 
@@ -131,7 +132,7 @@ def process_and_save_tensors(args, df, split):
     torch.save(labs_missingness_tensor, save_dir / f"labs_missingness_{split}.pt")
     torch.save(hadm_id_tensor, save_dir / f"hadm_id_{split}.pt")
 
-    if split in ["val_acc", "test"]:
+    if split in ["val_retrieval", "test"]:
         label_hadm_id_tensor = torch.tensor(label_hadm_id_list)
         torch.save(label_hadm_id_tensor, save_dir / f"label_hadm_id_{split}.pt")
 
@@ -140,11 +141,13 @@ def process_and_save_tensors(args, df, split):
 
 
 if __name__ == '__main__':
+    start = time.time()
+
     args = parse_process_and_save_tensors()
 
     train_df = pd.read_csv(args.data_dir / args.train_csv)
     val_df = pd.read_csv(args.data_dir / args.val_csv)
-    val_acc_df = pd.read_csv(args.data_dir / args.val_acc_csv)
+    val_retrieval_df = pd.read_csv(args.data_dir / args.val_retrieval_csv)
     test_df = pd.read_csv(args.data_dir / args.test_csv)
 
     print("Saving train tensors...")
@@ -153,8 +156,8 @@ if __name__ == '__main__':
     print("Saving val tensors...")
     process_and_save_tensors(args, val_df, "val")
 
-    print("Saving val accuracy tensors...")
-    process_and_save_tensors(args, val_acc_df, "val_acc")
+    print("Saving val retrieval tensors...")
+    process_and_save_tensors(args, val_retrieval_df, "val_retrieval")
 
     print("Saving test tensors...")
     process_and_save_tensors(args, test_df, "test")
@@ -163,8 +166,12 @@ if __name__ == '__main__':
         json.dump({
             "train size": len(train_df),
             "val size": len(val_df),
-            "val acc size": len(val_acc_df),
+            "val retrieval size": len(val_retrieval_df),
             "test size": len(test_df),
             "cxr_scale": args.cxr_scale,
             "cxr_crop": args.cxr_crop
         }, f, indent=4)
+
+    end = time.time()
+    total_time = (end - start)/60
+    print(f"Script took {total_time:.4f} minutes")

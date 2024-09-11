@@ -39,7 +39,8 @@ def parse_create_dataset_splits():
     parser.add_argument("--val_n", type=int,
                         help="Number of samples in val set.")
     parser.add_argument("--candidate_n", type=int,
-                        help="Number of negative candidates to sample for each test sample.")
+                        help="Number of candidates for each test sample \
+                              (candidate_n - 1 negative candidates for each).")
 
     return parser.parse_args()
 
@@ -65,9 +66,9 @@ def parse_process_and_save_tensors():
     parser.add_argument("--val_csv", type=Path,
                         default=Path("val.csv"),
                         help="Filename for val csv.")
-    parser.add_argument("--val_acc_csv", type=Path,
-                        default=Path("val_acc.csv"),
-                        help="Filename for val accuracy csv.")
+    parser.add_argument("--val_retrieval_csv", type=Path,
+                        default=Path("val_retrieval.csv"),
+                        help="Filename for val retrieval csv.")
     parser.add_argument("--test_csv", type=Path,
                         default=Path("test.csv"),
                         help="Filename for test csv.")
