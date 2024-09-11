@@ -5,17 +5,11 @@
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=16
 #SBATCH --gres=gpu:a100:1
-#SBATCH --mem=100GB
-#SBATCH --time=12:00:00
+#SBATCH --mem=150GB
+#SBATCH --time=4:00:00
 
-# when in AS's BP
 source ~/miniconda3/bin/activate symile
 cd /gpfs/scratch/as16583/symile/src/data_processing/symile_mimic
-
-# when in AP's BP
-# source "$(conda info --base)/etc/profile.d/conda.sh"
-# conda activate symile
-# cd /gpfs/scratch/pulia01/adriel/symile/symile/healthcare/data_processing
 
 python process_and_save_tensors.py \
     --data_dir /gpfs/scratch/as16583/symile/src/datasets/symile_mimic \

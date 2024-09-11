@@ -9,14 +9,8 @@
 #SBATCH --mem=150GB
 #SBATCH --time=0:30:00
 
-# when in AS's BP
 source ~/miniconda3/bin/activate symile
 cd /gpfs/scratch/as16583/symile/symile/cxr_prediction
-
-# when in AP's BP
-# source "$(conda info --base)/etc/profile.d/conda.sh"
-# conda activate symile
-# cd /gpfs/scratch/pulia01/adriel/symile/symile/cxr_prediction
 
 echo 'running test script...'
 python test.py \
