@@ -146,7 +146,7 @@ def parse_args_main():
         parser.add_argument("--metadata_filename", type=Path,
                                 default=Path("metadata.json"),
                                 help="Path to json file with metadata for all encoders.")
-    ### CXR PREDICTION ARGS ###
+    ### SYMILE-MIMIC ARGS ###
     elif args.experiment == "symile_mimic":
         parser.add_argument("--pretrained", type=str_to_bool, default=False,
                             help="Whether to pretrained encoders for CXR and ECG.")
