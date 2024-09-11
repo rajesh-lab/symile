@@ -6,7 +6,7 @@ import random
 import time
 
 from lightning.pytorch import Trainer, seed_everything
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, RandomSampler
 
 from args import parse_args_test
 import datasets
@@ -16,6 +16,8 @@ def get_dataloader(args):
     """
     Loads and returns a dataloader instance based on the experiment name.
     """
+    num_workers = len(os.sched_getaffinity(0))
+
     if args.experiment == "symile_m3":
         ds_test = datasets.SymileM3Dataset(args, "test")
     elif args.experiment == "cxr_prediction":
@@ -25,10 +27,15 @@ def get_dataloader(args):
     else:
         raise ValueError("Unsupported experiment name specified.")
 
-    num_workers = len(os.sched_getaffinity(0))
+    if args.bootstrap:
+        sampler = RandomSampler(ds_test, replacement=True, num_samples=len(ds_test))
+        dl = DataLoader(ds_test, sampler=sampler, batch_size=args.batch_sz_test,
+                        shuffle=False, num_workers=num_workers, drop_last=False)
+    else:
+        dl = DataLoader(ds_test, batch_size=args.batch_sz_test,
+                        shuffle=False, num_workers=num_workers, drop_last=False)
 
-    return DataLoader(ds_test, batch_size=args.batch_sz_test,
-                      shuffle=False, num_workers=num_workers, drop_last=False)
+    return dl
 
 
 def load_model_from_ckpt(args):
@@ -44,17 +51,15 @@ def load_model_from_ckpt(args):
     else:
         raise ValueError("Unsupported experiment name specified.")
 
-    return ModelClass.load_from_checkpoint(args.load_from_ckpt)
+    return ModelClass.load_from_checkpoint(args.ckpt_path,
+                                           data_dir=args.data_dir,
+                                           save_dir=args.save_dir,
+                                           save_representations=args.save_representations)
 
 
 def test(args, trainer):
-    print("Loading checkpoint from ", args.load_from_ckpt)
+    print("Loading checkpoint from ", args.ckpt_path)
     model = load_model_from_ckpt(args)
-
-    # override model args
-    model.args.data_dir = args.data_dir
-    model.args.save_dir = args.save_dir
-    model.args.save_representations = args.save_representations
 
     # set dl as an attribute of the model
     dl = get_dataloader(args)
@@ -99,14 +104,24 @@ if __name__ == '__main__':
     if args.use_seed:
         seed_everything(args.seed, workers=True)
 
-    metrics = test(args, trainer)[0]
-    metrics["description"] = args.description
+    if args.bootstrap:
+        bootstrap_metrics = []
 
-    save_pt = save_dir / "results.json"
-    print("\nsaving results to ", save_pt)
+        for i in range(args.bootstrap_n):
+            print(f"\nRunning bootstrap iteration {i+1}/{args.bootstrap_n}...")
 
-    with open(save_pt, "w") as f:
-        json.dump(metrics, f, indent=4)
+            metrics = test(args, trainer)[0]
+            breakpoint()
+
+    else:
+        metrics = test(args, trainer)[0]
+        metrics["description"] = args.description
+
+        save_pt = save_dir / "results.json"
+        print("\nsaving results to ", save_pt)
+
+        with open(save_pt, "w") as f:
+            json.dump(metrics, f, indent=4)
 
     end = time.time()
     total_time = (end - start)/60
