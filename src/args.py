@@ -150,8 +150,6 @@ def parse_args_main():
     elif args.experiment == "symile_mimic":
         parser.add_argument("--pretrained", type=str_to_bool, default=False,
                             help="Whether to pretrained encoders for CXR and ECG.")
-        parser.add_argument("--labs_model", type=str, default=None,
-                            choices=["mlp", "ftt"])
 
     all_args = parser.parse_args(remaining_argv)
 
@@ -165,12 +163,16 @@ def parse_args_test():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--experiment", type=str,
-                        choices = ["symile_m3", "cxr_prediction"],
+                        choices = ["symile_m3", "symile_mimic"],
                         help="Which experiment is being run.")
 
     ### ARGUMENTS COMMON TO BOTH EXPERIMENTS ###
     parser.add_argument("--batch_sz_test", type=int,
                         help="Test set batch size.")
+    parser.add_argument("--bootstrap", type=str_to_bool, default=False,
+                        help="Whether to bootstrap test results.")
+    parser.add_argument("--bootstrap_n", type=int, default=10,
+                        help="Number of bootstrap samples.")
     parser.add_argument("--data_dir", type=Path,
                         help="Directory with dataset csvs.")
     parser.add_argument("--description" , type=str, default="",
@@ -198,7 +200,7 @@ def parse_args_collect_tuning_results():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--experiment", type=str,
-                        choices = ["symile_m3", "cxr_prediction"], required=True,
+                        choices = ["symile_m3", "symile_mimic"], required=True,
                         help="Which experiment is being run.")
     parser.add_argument("--results_pt", type=Path,
                         help="Path to yaml file with hyperparameter tuning results.")
