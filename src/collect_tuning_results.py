@@ -12,7 +12,7 @@ from args import parse_args_collect_tuning_results
 def find_ckpt_file(run_path, epoch, experiment):
     if experiment == "symile_m3":
         pattern = re.compile(rf"epoch={epoch}-val_loss=\d+\.\d+-val_accuracy=\d+\.\d+\.ckpt$")
-    elif experiment == "cxr_prediction":
+    elif experiment == "symile_mimic":
         pattern = re.compile(rf"epoch={epoch}-.*\.ckpt$")
 
     # all '.ckpt' files in the directory
@@ -36,7 +36,7 @@ def assert_matching_val_loss(val_loss, ckpt_pt, experiment):
 
     if experiment == "symile_m3":
         decimal_places = len(match.group(1).split('.')[1])
-    elif experiment == "cxr_prediction":
+    elif experiment == "symile_mimic":
         decimal_places = len(ckpt_pt.split('=')[-1].split('.')[1].rstrip('.ckpt'))
 
     # assert that the rounded values match
@@ -81,7 +81,7 @@ def main_symile_m3(tuning_data, experiment):
     return pd.DataFrame(data)
 
 
-def main_cxr_prediction(tuning_data, experiment):
+def main_symile_mimic(tuning_data, experiment):
     data = []
 
     for loss_fn, paths in tuning_data.items():
@@ -133,8 +133,8 @@ if __name__ == '__main__':
 
     if args.experiment == "symile_m3":
         df = main_symile_m3(tuning_data, args.experiment)
-    elif args.experiment == "cxr_prediction":
-        df = main_cxr_prediction(tuning_data, args.experiment)
+    elif args.experiment == "symile_mimic":
+        df = main_symile_mimic(tuning_data, args.experiment)
     else:
         raise ValueError("Invalid experiment.")
 
