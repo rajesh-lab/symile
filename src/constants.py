@@ -2,7 +2,6 @@
 # SYMILE-M3 CONSTANTS #
 #######################
 
-
 # abbreviations are language ISO-639 codes
 
 LANGUAGES_2 = [
@@ -33,17 +32,9 @@ LANGUAGES_10 = [
 
 MISSING_TOKEN = "[MISSING]"
 
-
-############################
-# CXR PREDICTION CONSTANTS #
-############################
-
-
-CHEXPERT_LABELS = ["Atelectasis",
-                   "Cardiomegaly",
-                   "Edema",
-                   "Lung Opacity",
-                   "Pleural Effusion"]
+##########################
+# SYMILE-MIMIC CONSTANTS #
+##########################
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
