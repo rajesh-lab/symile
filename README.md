@@ -17,7 +17,7 @@ We release the weights of all models trained and used for our work TODO.
 
 ### Table of Contents
 - [Set up environment](#environment)
-- [Pre-training command-line arguments](#pretrain_args)
+- [Command-line arguments](#args)
 - [Binary XOR experiments](#binary_xor)
 - [Symile-M3 experiments](#symile_m3)
 - [Symile-MIMIC experiments](#symile_mimic)
@@ -48,8 +48,10 @@ From the root directory, run
 (symile-env) > pip install -e .
 ```
 
-<a name="pretrain_args"></a>
-## Pre-training command-line arguments
+<a name="args"></a>
+## Command-line arguments
+
+### Pre-training
 
 The following command-line arguments are common to all three sets of experiments (Binary XOR, Symile-M3, and Symile-MIMIC) and can be specified when running `main.py`.
 
@@ -84,6 +86,25 @@ The following arguments are helpful for debugging and are set with default value
 | `--seed`                      | Random seed for reproducibility                               | int                 |                                  | 0             |
 | `--wandb`                     | Enable Weights and Biases for logging                         | bool                | `True`, `False`                  | `False`       |
 
+### Evaluation
+
+The following command-line arguments are common to all three sets of experiments (Binary XOR, Symile-M3, and Symile-MIMIC) and can be specified when running `test.py`.
+
+TODO: is this really used for Binary XOR? make sure use_seed is False by default
+
+| Flag                          | Description                                                   | Type                | Choices                          | Default |
+|-------------------------------|---------------------------------------------------------------|---------------------|----------------------------------|---------|
+| `--experiment`                | Experiment identifier                                | str                 | `symile_m3`, `symile_mimic`      |         |
+| `--batch_sz_test`             | Batch size for testing                                        | int                 |                                  |               |
+| `--bootstrap`                 | Whether to bootstrap test results                            | bool                | `True`, `False`                  | `False` |
+| `--bootstrap_n`               | Number of bootstrap samples                                  | int                 |                                  | 10    |
+| `--data_dir`                  | Directory with dataset csv files                                  | Path                |                                  |         |
+| `--description`               | Human-readable description of the test run                                  | str                 |                                  |     |
+| `--ckpt_path`                 | Path of the checkpoint to use         | str                 |                                  |   |
+| `--save_dir`                  | Directory to save results                                   | Path                |                                  |         |
+| `--use_seed`                  | Use a seed for reproducibility                    | bool                | `True`, `False`                  | `False`  |
+| `--seed`                      | Random seed for reproducibility                              | int                 |                                  | 0     |
+
 <a name="binary_xor"></a>
 ## Binary XOR experiments
 
@@ -97,7 +118,7 @@ The following command runs the binary XOR experiment for values of $\hat{p}$ in 
 (symile-env) > python main.py --experiment binary_xor [FLAGS]
 ```
 
-In addition to the [common pre-training command-line arguments](#pretrain_args), this command takes the following experiment-specific flags:
+In addition to the [common pre-training command-line arguments](#args), this command takes the following experiment-specific flags:
 
 | Flag        | Description                               | Type   | Choices           | Default |
 |-------------|-------------------------------------------|--------|-------------------|---------|
@@ -148,7 +169,7 @@ The following command runs pretraining on Symile-M3:
 (symile-env) > python main.py --experiment symile_m3 [FLAGS]
 ```
 
-In addition to the [common pre-training command-line arguments](#pretrain_args), this command takes the following experiment-specific flags:
+In addition to the [common pre-training command-line arguments](#args), this command takes the following experiment-specific flags:
 
 | Flag                    | Description                                         | Type   | Choices                        | Default                                                  |
 |-------------------------|-----------------------------------------------------|--------|--------------------------------|----------------------------------------------------------|
@@ -209,13 +230,23 @@ The following command runs pretraining on Symile-MIMIC:
 (symile-env) > python main.py --experiment symile_mimic [FLAGS]
 ```
 
-In addition to the [common pre-training command-line arguments](#pretrain_args), this command takes the following experiment-specific flag:
+In addition to the [common pre-training command-line arguments](#args), this command takes the following experiment-specific flag:
 
 | Flag                     | Description                                        | Type   | Choices                        | Default  |
 |--------------------------|----------------------------------------------------|--------|---------------------------------|----------|
 | `--pretrained`            | Whether to use pretrained encoders for CXR and ECG | bool   | `True`, `False`                 | `False`  |
 
 If `pretrained` is `True`, the CXR encoder (ResNet-50) is initialized with ImageNet (`IMAGENET1K_V2`) weights, and the ECG encoder (ResNet-18) is initialized with ImageNet (`IMAGENET1K_V1`) weights.
+
+### Evaluation
+
+The following command runs evaluation on Symile-MIMIC:
+
+```
+(symile-env) > python test.py --experiment symile_mimic [FLAGS]
+```
+
+See [above](#args) for the common evaluation command-line arguments.
 
 <a name="questions"></a>
 ## Questions or bugs?
