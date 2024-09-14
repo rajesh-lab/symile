@@ -1,3 +1,4 @@
+import csv
 from datetime import datetime
 import importlib
 import json
@@ -20,8 +21,8 @@ def get_dataloader(args):
 
     if args.experiment == "symile_m3":
         ds_test = datasets.SymileM3Dataset(args, "test")
-    elif args.experiment == "cxr_prediction":
-        dm = datasets.CXRPredictionDataModule(args)
+    elif args.experiment == "symile_mimic":
+        dm = datasets.SymileMIMICDataModule(args)
         dm.setup(stage="test")
         ds_test = dm.ds_test
     else:
@@ -45,20 +46,21 @@ def load_model_from_ckpt(args):
     if args.experiment == "symile_m3":
         module = importlib.import_module("models.symile_m3_model")
         ModelClass = getattr(module, "SymileM3Model")
-    elif args.experiment == "cxr_prediction":
-        module = importlib.import_module("models.cxr_prediction_model")
-        ModelClass = getattr(module, "CXRPredictionModel")
+    elif args.experiment == "symile_mimic":
+        module = importlib.import_module("models.symile_mimic_model")
+        ModelClass = getattr(module, "SymileMIMICModel")
     else:
         raise ValueError("Unsupported experiment name specified.")
 
     return ModelClass.load_from_checkpoint(args.ckpt_path,
+                                           batch_sz_test=args.batch_sz_test,
                                            data_dir=args.data_dir,
                                            save_dir=args.save_dir,
-                                           save_representations=args.save_representations)
+                                           bootstrap=args.bootstrap)
 
 
 def test(args, trainer):
-    print("Loading checkpoint from ", args.ckpt_path)
+    print("\nLoading checkpoint from ", args.ckpt_path)
     model = load_model_from_ckpt(args)
 
     # set dl as an attribute of the model
@@ -111,8 +113,15 @@ if __name__ == '__main__':
             print(f"\nRunning bootstrap iteration {i+1}/{args.bootstrap_n}...")
 
             metrics = test(args, trainer)[0]
-            breakpoint()
 
+            bootstrap_metrics.append(metrics)
+
+        headers = list(bootstrap_metrics[0].keys())
+        save_pt = save_dir / "bootstrap_metrics.csv"
+        with open(save_pt, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=headers)
+            writer.writeheader()
+            writer.writerows(bootstrap_metrics)
     else:
         metrics = test(args, trainer)[0]
         metrics["description"] = args.description

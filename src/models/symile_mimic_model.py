@@ -268,11 +268,10 @@ class SymileMIMICModel(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         pass
 
-    def on_test_epoch_start(self):
-        breakpoint()
-        metrics = self.zeroshot_retrieval("test")
+    def on_test_epoch_end(self):
+        acc = self.zeroshot_retrieval("test", self.args.bootstrap)
 
-        self.log_dict(metrics, sync_dist=True, prog_bar=False)
+        self.log("test_acc", acc, sync_dist=True, prog_bar=False)
 
     def get_retrieval_dataset(self, split):
         """
@@ -296,6 +295,11 @@ class SymileMIMICModel(pl.LightningModule):
                 - "label" (torch.Tensor): Tensor containing the label (1 or 0) to indicate whether the sample is a
                         positive or negative candidate (evaluation_n,).
         """
+        if split == "val_retrieval":
+            batch_sz = self.args.batch_sz_val
+        elif split == "test":
+            batch_sz = self.args.batch_sz_test
+
         retrieval_ds = SymileMIMICRetrievalDataset(self.args, split)
 
         r_c = []
@@ -308,8 +312,8 @@ class SymileMIMICModel(pl.LightningModule):
         # setting generator manually so that PyTorch uses it for _base_seed creation
         # (avoids altering global seed; helps ensure reproducibility)
         # (see https://discuss.pytorch.org/t/does-a-dataloader-change-random-state-even-when-shuffle-argument-is-false/92569/4)
-        for batch in DataLoader(retrieval_ds, batch_size=self.args.batch_sz_val,
-                                shuffle=False, generator=torch.Generator()):
+        for batch in DataLoader(retrieval_ds, batch_size=batch_sz, shuffle=False,
+                                drop_last=False, generator=torch.Generator()):
             r_c.append(self.cxr_encoder(batch["cxr"].to(self.device)))
 
             r_e.append(self.ecg_encoder(batch["ecg"].to(self.device)))
@@ -334,7 +338,54 @@ class SymileMIMICModel(pl.LightningModule):
         return {"r_c": r_c, "r_e": r_e, "r_l": r_l, "hadm_id": hadm_id,
                 "label_hadm_id": label_hadm_id, "label": label}
 
-    def zeroshot_retrieval(self, split):
+    def resample_retrieval_ds(self, ds):
+        # get all query samples
+        mask = ds["label"] == 1
+        query_r_c = ds["r_c"][mask]
+        query_r_e = ds["r_e"][mask]
+        query_r_l = ds["r_l"][mask]
+        query_hadm_id = ds["hadm_id"][mask]
+        query_label_hadm_id = ds["label_hadm_id"][mask]
+        query_label = ds["label"][mask]
+
+        # randomly sample from the query subset with replacement
+        n_samples = len(query_label)
+        sample_indices = torch.randint(0, n_samples, (n_samples,), dtype=torch.long)
+
+        # apply the sampled indices consistently across all keys
+        sampled_r_c = query_r_c[sample_indices]
+        sampled_r_e = query_r_e[sample_indices]
+        sampled_r_l = query_r_l[sample_indices]
+        sampled_hadm_id = query_hadm_id[sample_indices]
+        sampled_label_hadm_id = query_label_hadm_id[sample_indices]
+        sampled_label = query_label[sample_indices]
+
+        # get the negative candidate samples
+        negative_mask = ds["label"] == 0
+        negative_r_c = ds["r_c"][negative_mask]
+        negative_r_e = ds["r_e"][negative_mask]
+        negative_r_l = ds["r_l"][negative_mask]
+        negative_hadm_id = ds["hadm_id"][negative_mask]
+        negative_label_hadm_id = ds["label_hadm_id"][negative_mask]
+        negative_label = ds["label"][negative_mask]
+
+        # combine positive and negative samples
+        final_r_c = torch.cat([sampled_r_c, negative_r_c])
+        final_r_e = torch.cat([sampled_r_e, negative_r_e])
+        final_r_l = torch.cat([sampled_r_l, negative_r_l])
+        final_hadm_id = torch.cat([sampled_hadm_id, negative_hadm_id])
+        final_label_hadm_id = torch.cat([sampled_label_hadm_id, negative_label_hadm_id])
+        final_label = torch.cat([sampled_label, negative_label])
+
+        return {"r_c": final_r_c,
+                "r_e": final_r_e,
+                "r_l": final_r_l,
+                "hadm_id": final_hadm_id,
+                "label_hadm_id": final_label_hadm_id,
+                "label": final_label}
+
+
+    def zeroshot_retrieval(self, split, bootstrap=False):
         """
         Calculates zero-shot retrieval accuracy for a given dataset split ('val'
         or 'test'), where the task is to retrieve the true corresponding CXR
@@ -342,14 +393,19 @@ class SymileMIMICModel(pl.LightningModule):
 
         Args:
             split (str): The dataset split to evaluate ('val' or 'test').
+            bootstrap (bool): Whether to bootstrap resample the test retrieval dataset.
 
         Returns:
             retrieval_acc (float): The retrieval accuracy for the specified split.
         """
         retrieval_ds = self.get_retrieval_dataset(split)
 
+        if bootstrap:
+            retrieval_ds = self.resample_retrieval_ds(retrieval_ds)
+
         # get query data (positive samples)
         mask = retrieval_ds["label"] == 1
+        query_r_c = retrieval_ds["r_c"][mask]
         query_r_e = retrieval_ds["r_e"][mask]
         query_r_l = retrieval_ds["r_l"][mask]
         query_hadm_id = retrieval_ds["hadm_id"][mask]
@@ -359,19 +415,23 @@ class SymileMIMICModel(pl.LightningModule):
 
         # loop through each query sample
         for ix, true_hadm_id in enumerate(query_hadm_id):
+            r_c = query_r_c[ix] # (d,)
             r_e = query_r_e[ix] # (d,)
             r_l = query_r_l[ix] # (d,)
 
-            # find all candidates for this query
-            mask = retrieval_ds["label_hadm_id"] == true_hadm_id
-            r_c = retrieval_ds["r_c"][mask] # (candidate_n, d)
-            candidate_label = retrieval_ds["label"][mask] # (candidate_n,)
+            # find negative candidates for this query, and add to positive candidate
+            mask = (retrieval_ds["label_hadm_id"] == true_hadm_id) & (retrieval_ds["label"] == 0)
+            neg_r_c = retrieval_ds["r_c"][mask] # (candidate_n - 1, d)
+            r_c = torch.cat([r_c.unsqueeze(0), neg_r_c], dim=0) # (candidate_n, d)
+
+            candidate_label = torch.zeros(len(r_c), dtype=torch.long)
+            candidate_label[0] = 1
+
             assert torch.sum(candidate_label) == 1 and torch.count_nonzero(candidate_label) == 1, \
                 "candidate_label must have exactly one 1 and all other elements as 0."
 
             logits = zeroshot_retrieval_logits(r_e, r_l, r_c, self.logit_scale.exp(),
                                                self.args.loss_fn).cpu()
-            logits = logits.unsqueeze(0)
 
             # find all indices with the maximum value; if multiple indices have
             # the same max value, randomly select one of them (note: must use
