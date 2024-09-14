@@ -61,6 +61,7 @@ def main_symile_m3(tuning_data, experiment):
             for val_metric in run_info["validation_metrics"]:
                 ckpt_pt = find_ckpt_file(path, val_metric["epoch"], experiment)
 
+                assert loss_fn == run_info['args']['loss_fn'], "Mismatch in loss function."
                 assert_matching_val_loss(val_metric['val_loss'], ckpt_pt, experiment)
 
                 # Prepare a dictionary for each row
@@ -94,6 +95,7 @@ def main_symile_mimic(tuning_data, experiment):
             for val_metric in run_info["validation_metrics"]:
                 ckpt_pt = find_ckpt_file(path, val_metric['epoch'], experiment)
 
+                assert loss_fn == run_info['args']['loss_fn'], "Mismatch in loss function."
                 assert_matching_val_loss(val_metric['val_loss'], ckpt_pt, experiment)
 
                 row_data = {
@@ -101,23 +103,13 @@ def main_symile_mimic(tuning_data, experiment):
                     'loss_fn': loss_fn,
                     'ckpt_pt': ckpt_pt,
                     'pretrained': run_info['args']['pretrained'],
-                    'labs_model': run_info['args']['labs_model'],
+                    'val_loss': val_metric['val_loss'],
+                    'val_accuracy': val_metric['val_acc'],
                     'weight_decay': run_info['args']['weight_decay'],
                     'learning_rate': run_info['args']['lr'],
-                    'wandb_path': run_info['wandb']
+                    'wandb_path': run_info['wandb'],
+                    'seed': run_info['args']['seed']
                 }
-
-                excluded_keys = {'train_loss_step', 'logit_scale_exp_step', 'log_n_step'}
-                for key, value in val_metric.items():
-                    if key not in excluded_keys:
-                        # rename 'val_loss_epoch' to 'val_loss'
-                        if key == 'val_loss_epoch':
-                            row_data['val_loss'] = value
-                        else:
-                            row_data[key] = value
-
-                if "seed" in run_info["args"]:
-                    row_data["seed"] = run_info["args"]["seed"]
 
                 data.append(row_data)
 

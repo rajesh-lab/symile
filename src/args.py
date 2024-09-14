@@ -177,8 +177,8 @@ def parse_args_test():
                         help="Directory with dataset csvs.")
     parser.add_argument("--description" , type=str, default="",
                         help="Description of the test run.")
-    parser.add_argument("--ckpt_path", type=str, default=None,
-                        help="Path of the checkpoint from which training is resumed.")
+    parser.add_argument("--ckpt_path", type=str,
+                        help="Path of the checkpoint to use.")
     parser.add_argument("--save_dir", type=Path,
                         help="Where to save test results.")
     parser.add_argument("--seed", type=int, default=0)
@@ -186,8 +186,6 @@ def parse_args_test():
                         help="Whether to use a seed for reproducibility.")
 
     ### SYMILE-M3 ARGS ###
-    parser.add_argument("--save_representations", type=str_to_bool, default=False,
-                        help="Whether to save test representations.")
     parser.add_argument("--text_model_id", type=str,
                         help="Hugging Face XLMRobertaModel model id for text encoder.")
     parser.add_argument("--num_langs", type=int,
