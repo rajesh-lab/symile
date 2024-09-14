@@ -1,12 +1,12 @@
 #!/bin/bash
 
-#SBATCH --job-name=main_symile_wd2_lr0005_clip_logits
+#SBATCH --job-name=main_symile_wd5_lr001_testing
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=16
 #SBATCH --gres=gpu:a100:1
 #SBATCH --mem=150GB
-#SBATCH --time=4:00:00
+#SBATCH --time=5:00:00
 
 source ~/miniconda3/bin/activate symile
 cd /gpfs/scratch/as16583/symile/src
@@ -33,8 +33,8 @@ python main.py \
     --negative_sampling n_squared \
     --loss_fn symile \
     --ckpt_path None \
-    --wandb False \
-    --weight_decay 0.2 \
-    --lr 0.0005
+    --wandb True \
+    --weight_decay 0.5 \
+    --lr 0.001
 
 echo 'done!'

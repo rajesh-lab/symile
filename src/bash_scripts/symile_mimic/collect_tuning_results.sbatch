@@ -7,14 +7,8 @@
 #SBATCH --mem=10GB
 #SBATCH --time=1:00:00
 
-# when in AS's BP
 source ~/miniconda3/bin/activate symile
-cd /gpfs/scratch/as16583/symile/symile/cxr_prediction
-
-# when in AP's BP
-# source "$(conda info --base)/etc/profile.d/conda.sh"
-# conda activate symile
-# cd /gpfs/scratch/pulia01/adriel/symile/symile/high_dim/data_processing
+cd /gpfs/scratch/as16583/symile/src
 
 python collect_tuning_results.py \
     --results_pt /gpfs/scratch/as16583/symile/src/results/symile_mimic/tuning_runs.yaml \
