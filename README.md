@@ -208,15 +208,16 @@ In this section, we describe how to access Symile-MIMIC, and provide the code to
 
 ### Dataset and evaluation description
 
-TODO: Work on this section entirely. I think it's easier to describe the dataset and evaluation as one.
+TODO: work on this section.
 
-Symile-MIMIC is a clinical dataset comprised of chest X-rays (CXRs), electrocardiograms (ECGs), and blood laboratory measurements from the MIMIC-IV and MIMIC-CXR datasets. Each data sample includes an ECG reading and the 50 most common blood labs (see `constants.py`) taken within 24 hours of the patient's admission to the hospital, and a CXR taken in the 24-72 hour period post-admission. Each admission has a CXR, an ECG, and at least one of the 50 lab values.
+Symile-MIMIC is a clinical dataset comprised of chest X-rays (CXRs), electrocardiograms (ECGs), and blood laboratory measurements from the MIMIC-IV and MIMIC-CXR datasets. Each data sample includes an ECG reading and blood labs taken within 24 hours of the patient's admission to the hospital, and a CXR taken in the 24-72 hour period post-admission. The dataset is split into training, validation, and test sets ensuring there is no patient overlap between the splits.
 
-The dataset is split into training, validation, and test sets ensuring there is no patient overlap between the splits. Lab values are converted into percentiles using a NaN-aware empirical cumulative distribution function.
+Our analysis focuses on the 50 most common blood labs (see `constants.py`), with each sample containing at least one. Eventually, for the labs model, we will use a 100-dimensional vector as input: the first 50 coordinates are lab values standardized to percentiles based on the training set's empirical CDF, and the remaining 50 coordinates are binary indicators that denote whether each lab value is missing. When a lab value is unobserved, the mean percentile for that lab is substituted. This script computes the percentiles and the missingness indicators for the lab values, and then saves them as separate tensors. (Mention that this is what's saved?)
+
+We evaluate the learned representations on the zero-shot retrieval task of finding the most probable \textit{candidate} CXR for a given \textit{query} ECG and labs pair according to the similarity score.
+For each query ECG and labs pair in the test set, we sample nine negative CXR candidates from the remaining test samples, so that that each query has a total of 10 candidates: one positive (the true corresponding CXR) and nine negative.
 
 To build the evaluation sets for Symile-MIMIC (`val_retrieval.csv` and `test.csv`), we treat each data sample as a query for the CXR retrieval task. For each query, we sample 9 negative candidates from the remaining data in the respective split, ensuring that each query has a total of 10 candidates: 1 positive (the query itself) and 9 negatives.
-
-Eventually, for the labs model, we will use a 100-dimensional vector as input: the first 50 coordinates are lab values standardized to percentiles based on the training set's empirical CDF, and the remaining 50 coordinates are binary indicators that denote whether each lab value is missing. When a lab value is unobserved, the mean percentile for that lab is substituted. This script computes the percentiles and the missingness indicators for the lab values, and then saves them as separate tensors.
 
 ### Accessing the data
 
