@@ -128,6 +128,9 @@ class BinaryXORDataModule(pl.LightningDataModule):
                           num_workers=self.num_workers,
                           drop_last=True)
 
+    def resample_test_set(self):
+        self.ds_test = BinaryXORDataset(self.args.d_v, self.args.test_n, self.args.p_hat)
+
 
 #############
 # Symile-M3 #

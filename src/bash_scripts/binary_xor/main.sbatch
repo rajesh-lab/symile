@@ -1,21 +1,22 @@
 #!/bin/bash
 
-#SBATCH --job-name=testing
+#SBATCH --job-name=main_symile
 #SBATCH --output=./out/%j_%x.out
 #SBATCH --error=./out/%j_%x.err
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:a100:1
 #SBATCH --mem=100GB
-#SBATCH --time=12:00:00
+#SBATCH --time=4:00:00
 
 source ~/miniconda3/bin/activate symile
-cd /gpfs/scratch/as16583/symile/symile
+cd /gpfs/scratch/as16583/symile/src
 
 python main.py \
+    --experiment binary_xor \
     --batch_sz_train 1000 \
     --batch_sz_val 1000 \
     --batch_sz_test 1000 \
-    --check_val_every_n_epoch 10 \
+    --check_val_every_n_epoch 1 \
     --drop_last True \
     --epochs 100 \
     --freeze_logit_scale False \
@@ -23,19 +24,19 @@ python main.py \
     --limit_val_batches=1.0 \
     --logit_scale_init -0.3 \
     --use_seed True \
+    --seed 0 \
     --wandb False \
-    --missingness False \
-    --missingness_prob 0.5 \
     --train_n 10000 \
     --val_n 1000 \
     --test_n 5000 \
     --d 16 \
     --d_v 5 \
     --negative_sampling n \
-    --seed 0 \
     --ckpt_save_dir /gpfs/scratch/as16583/ckpts/binary \
+    --bootstrap True \
+    --bootstrap_n 10 \
     --loss_fn symile \
     --lr 0.1 \
-    --experiment binary_xor
+    --weight_decay 0.01
 
 echo 'done!'

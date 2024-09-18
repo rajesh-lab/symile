@@ -8,6 +8,7 @@ import time
 
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
+import pandas as pd
 from pytorch_lightning.loggers import WandbLogger
 
 from args import parse_args_main
@@ -63,13 +64,10 @@ def get_model_module(args):
 
 
 def binary_main(args):
-    results = {"seed": [], "p_hat": [], "loss_fn": [], "acc": []}
+    results = {"p_hat": [], "loss_fn": [], "acc": []}
 
     for p_hat in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
         print(f"\n***** running p_hat = {p_hat}... *****\n")
-
-        if args.use_seed:
-            seed_everything(args.seed, workers=True)
 
         p_hat_save_dir = args.save_dir / f"p_hat_{p_hat:.1f}"
 
@@ -107,12 +105,23 @@ def binary_main(args):
 
         trainer.fit(model, datamodule=dm)
 
-        p_hat_result = trainer.test(ckpt_path="best", datamodule=dm)[0]
+        if args.bootstrap:
+            for i in range(args.bootstrap_n):
+                print(f"\nRunning bootstrap iteration {i+1}/{args.bootstrap_n} for p_hat = {p_hat}...")
 
-        results["seed"].append(args.seed)
-        results["p_hat"].append(p_hat)
-        results["loss_fn"].append(args.loss_fn)
-        results["acc"].append(p_hat_result["test_acc"])
+                dm.resample_test_set()
+
+                metrics = trainer.test(ckpt_path="best", datamodule=dm)[0]
+
+                results["p_hat"].append(p_hat)
+                results["loss_fn"].append(args.loss_fn)
+                results["acc"].append(metrics["test_acc"])
+        else:
+            metrics = trainer.test(ckpt_path="best", datamodule=dm)[0]
+
+            results["p_hat"].append(p_hat)
+            results["loss_fn"].append(args.loss_fn)
+            results["acc"].append(metrics["test_acc"])
 
         if args.wandb:
             logger.experiment.finish()
@@ -122,9 +131,6 @@ def binary_main(args):
 
 
 def main(args):
-    if args.use_seed:
-        seed_everything(args.seed, workers=True)
-
     if args.wandb:
         logger = WandbLogger(project="symile", log_model=False,
                              save_dir=args.ckpt_save_dir, id=args.wandb_run_id)
@@ -187,6 +193,9 @@ if __name__ == '__main__':
     save_dir = create_save_directory(args)
     setattr(args, "save_dir", save_dir)
     print("\nSaving to: ", save_dir)
+
+    if args.use_seed:
+        seed_everything(args.seed, workers=True)
 
     if args.experiment == "binary_xor":
         binary_main(args)

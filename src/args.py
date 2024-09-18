@@ -111,6 +111,10 @@ def parse_args_main():
                             help="Number of samples (a, b, c) in test dataset.")
         parser.add_argument("--d_v", type=int,
                             help="Dimensionality of dataset vectors.")
+        parser.add_argument("--bootstrap", type=str_to_bool, default=False,
+                        help="Whether to bootstrap test results.")
+        parser.add_argument("--bootstrap_n", type=int, default=10,
+                        help="Number of bootstrap samples.")
     ### SYMILE-M3 ARGS ###
     elif args.experiment == "symile_m3":
         # data args
