@@ -186,8 +186,6 @@ def parse_args_test():
                         help="Whether to use a seed for reproducibility.")
 
     ### SYMILE-M3 ARGS ###
-    parser.add_argument("--text_model_id", type=str,
-                        help="Hugging Face XLMRobertaModel model id for text encoder.")
     parser.add_argument("--num_langs", type=int,
                         help="Number of languages in generated text.")
 

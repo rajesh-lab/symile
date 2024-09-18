@@ -199,7 +199,10 @@ class SymileM3Model(pl.LightningModule):
 
         self.loss_fn = symile if self.args.loss_fn == "symile" else clip
 
-        metadata = json.load(open(self.args.data_dir / self.args.metadata_filename))
+        try:
+            metadata = json.load(open(self.args.data_dir / self.args.metadata_filename))
+        except (FileNotFoundError, AttributeError):
+            metadata = json.load(open(self.args.data_dir / self.args.metadata_pt))
 
         self.audio_encoder = AudioEncoder(self.args, metadata["audio_enc_hidden_sz"])
         self.image_encoder = ImageEncoder(self.args, metadata["image_enc_hidden_sz"])
@@ -316,11 +319,6 @@ class SymileM3Model(pl.LightningModule):
         """
         r_a, r_i, r_t, logit_scale_exp = self(batch)
 
-        if self.args.save_representations:
-            self.r_a_test_save = torch.cat((self.r_a_test_save, r_a.cpu()), dim=0)
-            self.r_i_test_save = torch.cat((self.r_i_test_save, r_i.cpu()), dim=0)
-            self.r_t_test_save = torch.cat((self.r_t_test_save, r_t.cpu()), dim=0)
-
         accuracies = self.zeroshot_retrieval(r_a, r_t, batch, "test")
 
         self.test_step_accuracies.extend(accuracies)
@@ -374,11 +372,6 @@ class SymileM3Model(pl.LightningModule):
 
         self.test_step_accuracies.clear()
 
-        if self.args.save_representations:
-            torch.save(self.r_a_test_save, self.args.save_dir / "r_a_test.pt")
-            torch.save(self.r_i_test_save, self.args.save_dir / "r_i_test.pt")
-            torch.save(self.r_t_test_save, self.args.save_dir / "r_t_test.pt")
-
     def on_train_end(self):
         """
         Stores the arguments and logging information in the `run_info` attribute,
@@ -409,7 +402,7 @@ class SymileM3Model(pl.LightningModule):
             dl = self.trainer.datamodule.val_dataloader()
         elif split == "test":
             if self.trainer.datamodule is None:
-                dl = getattr(self, 'test_dataloader', None)
+                dl = getattr(self, "test_dataloader", None)
             else:
                 dl = self.trainer.datamodule.test_dataloader()
 

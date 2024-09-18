@@ -9,11 +9,14 @@ import yaml
 from args import parse_args_collect_tuning_results
 
 
-def find_ckpt_file(run_path, epoch, experiment):
+def find_ckpt_file(run_path, epoch, experiment, missingness=False):
     if experiment == "symile_m3":
         pattern = re.compile(rf"epoch={epoch}-val_loss=\d+\.\d+-val_accuracy=\d+\.\d+\.ckpt$")
     elif experiment == "symile_mimic":
         pattern = re.compile(rf"epoch={epoch}-.*\.ckpt$")
+
+    if missingness:
+        pattern = re.compile(rf"epoch={epoch}-val_loss=\d+\.\d+-val_acc=\d+\.\d+\.ckpt$")
 
     # all '.ckpt' files in the directory
     ckpt_files = glob.glob(os.path.join(run_path, "*.ckpt"))
@@ -59,19 +62,22 @@ def main_symile_m3(tuning_data, experiment):
                 run_info = json.load(f)
 
             for val_metric in run_info["validation_metrics"]:
-                ckpt_pt = find_ckpt_file(path, val_metric["epoch"], experiment)
+                missingness = run_info['args']['missingness']
+                ckpt_pt = find_ckpt_file(path, val_metric["epoch"], experiment, missingness)
 
-                assert loss_fn == run_info['args']['loss_fn'], "Mismatch in loss function."
+                if not missingness:
+                    assert loss_fn == run_info['args']['loss_fn'], "Mismatch in loss function."
                 assert_matching_val_loss(val_metric['val_loss'], ckpt_pt, experiment)
 
                 # Prepare a dictionary for each row
+                val_accuracy = val_metric['val_acc'] if missingness else val_metric['val_accuracy']
                 row_data = {
                     'run_name': run_name,
                     'loss_fn': loss_fn,
                     'ckpt_pt': ckpt_pt,
                     'epoch': val_metric['epoch'],
                     'val_loss': val_metric['val_loss'],
-                    'val_accuracy': val_metric['val_accuracy'],
+                    'val_accuracy': val_accuracy,
                     'weight_decay': run_info['args']['weight_decay'],
                     'learning_rate': run_info['args']['lr'],
                     'wandb_path': run_info['wandb']

@@ -177,6 +177,8 @@ class SymileM3Dataset(Dataset):
         if getattr(self.args, "missingness", False) and self.split != "test":
             if self.args.missingness_prob == 0.5:
                 missingness_prob_str = "50"
+            elif self.args.missingness_prob == 0.7:
+                missingness_prob_str = "70"
             elif self.args.missingness_prob == 0.75:
                 missingness_prob_str = "75"
             else:

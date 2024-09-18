@@ -4,18 +4,28 @@ each modality is missing with probability missingness_prob.
 """
 import os
 
-import pandas as pd
 import torch
 
 from args import parse_args_add_missingness
 
 
 def add_missingness(args, split, n):
+    """
+    Generates and saves missingness tensors for text, image, and audio based on
+    a specified probability. Each tensor has a length of `n` and is created by
+    drawing samples from a Bernoulli distribution, where each element is set to
+    1 (missing) with probability `args.missingness_prob`, and 0 otherwise.
+
+    Args:
+        args: Argument object containing the save directory and missingness probability.
+        split (str): The dataset split ("train" or "val") to determine the save path.
+        n (int): The length of the missingness tensor to generate.
+    """
     save_dir = os.path.join(args.save_dir, split)
     os.makedirs(save_dir, exist_ok=True)
 
     for name in ["text_missingness", "image_missingness", "audio_missingness"]:
-        tensor = (torch.rand(n) < args.missingness_prob).int()
+        tensor = torch.bernoulli(torch.full((n,), args.missingness_prob)).int()
 
         missingness_str = f"{args.missingness_prob:.2f}"[2:]
 

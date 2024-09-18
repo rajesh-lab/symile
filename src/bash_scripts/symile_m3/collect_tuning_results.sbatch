@@ -7,19 +7,12 @@
 #SBATCH --mem=10GB
 #SBATCH --time=0:10:00
 
-# when in AS's BP
 source ~/miniconda3/bin/activate symile
-cd /gpfs/scratch/as16583/symile/symile/high_dim
-
-# when in AP's BP
-# source "$(conda info --base)/etc/profile.d/conda.sh"
-# conda activate symile
-# cd /gpfs/scratch/pulia01/adriel/symile/symile/high_dim/data_processing
-
-echo 'sourcing (translating) data...'
+cd /gpfs/scratch/as16583/symile/src
 
 python collect_tuning_results.py \
-    --results_pt /gpfs/scratch/as16583/symile/symile/high_dim/results/2W_2L/tuning_runs.yaml \
-    --save_dir /gpfs/scratch/as16583/symile/symile/high_dim/results/2W_2L
+    --results_pt /gpfs/scratch/as16583/symile/src/results/symile_m3/2W_2L/tuning_runs.yaml \
+    --save_pt /gpfs/scratch/as16583/symile/src/results/symile_m3/2W_2L/tuning_runs.csv \
+    --experiment symile_m3
 
 echo 'done!'
