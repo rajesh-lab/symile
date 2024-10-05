@@ -458,7 +458,7 @@ class SymileM3Model(pl.LightningModule):
 
         # logits is a tensor of shape (num_samples_all_observed, num_candidates)
         # where each element in a row is the score for the corresponding image candidate.
-        logits = zeroshot_retrieval_logits(r_a, r_t, r_i, self.logit_scale.exp(),
+        logits = zeroshot_retrieval_logits(r_i, [r_a, r_t], self.logit_scale.exp(),
                                            self.args.loss_fn)
 
         # pred_idx is a tensor of length batch_sz where each element is the

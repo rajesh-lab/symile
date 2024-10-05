@@ -430,7 +430,7 @@ class SymileMIMICModel(pl.LightningModule):
             assert torch.sum(candidate_label) == 1 and torch.count_nonzero(candidate_label) == 1, \
                 "candidate_label must have exactly one 1 and all other elements as 0."
 
-            logits = zeroshot_retrieval_logits(r_e, r_l, r_c, self.logit_scale.exp(),
+            logits = zeroshot_retrieval_logits(r_c, [r_e, r_l], self.logit_scale.exp(),
                                                self.args.loss_fn).cpu()
 
             # find all indices with the maximum value; if multiple indices have

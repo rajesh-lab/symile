@@ -1,19 +1,20 @@
+import itertools
+
 import torch
 import torch.nn.functional as F
 
 
-def zeroshot_retrieval_logits(r_x, r_y, r_z, logit_scale_exp, loss_fn):
+def zeroshot_retrieval_logits(r_x, rep_list, logit_scale_exp, loss_fn):
     """
     Computes logits for zeroshot retrieval based on the specified loss function.
 
-    Calculates the logits for predicting the modality represented by r_z using
-    the representations r_x and r_y, and scales the logits by the exponentiated
-    logit scale parameter.
+    Calculates the logits for predicting the modality r_x using the representations
+    in rep_list, and scales the logits by the exponentiated logit scale parameter.
 
     Args:
-        r_x (torch.Tensor): Encoded representations of the first modality (batch_sz, d) or (d,).
-        r_y (torch.Tensor): Encoded representations of the second modality (batch_sz, d) or (d,).
-        r_z (torch.Tensor): Encoded representations of the modality to predict (num_candidates, d).
+        r_x (torch.Tensor): Encoded representations of the modality to predict (num_candidates, d).
+        rep_list (list[torch.Tensor]): List of representations for the remaining modalities, each of
+                                       size (batch_sz, d) or (d,). This list can can be of any length.
         logit_scale_exp (torch.Tensor): Exponentiated logit scale parameter.
         loss_fn (str): The loss function to use, either "symile" or "clip".
 
@@ -24,17 +25,30 @@ def zeroshot_retrieval_logits(r_x, r_y, r_z, logit_scale_exp, loss_fn):
         # logits is a (batch_sz, n) matrix where each row i is
         # [ MIP(r_x[i], r_y[i], r_z[0]) ... MIP(r_x[i], r_y[i], r_z[n-1]) ]
         # where MIP is the multilinear inner product.
-        logits = (r_x * r_y) @ torch.t(r_z)
+        product = torch.ones_like(rep_list[0])
+        for r in rep_list:
+            product *= r
+
+        logits = product @ torch.t(r_x)
+
         if logits.dim() == 1:
             logits = logits.unsqueeze(0)
     elif loss_fn == "clip":
         # logits is a (batch_sz, n) matrix where each row i is
         # [ r_x[i]^T r_z[0] + r_z[0]^T r_y[i]   + r_x[i]^T r_y[i] ...
         #   r_x[i]^T r_z[n-1] + r_z[n-1]^T r_y[i] + r_x[i]^T r_y[i] ]
-        r_x = r_x.unsqueeze(0) if r_x.dim() == 1 else r_x # (batch_sz, d)
-        r_y = r_y.unsqueeze(0) if r_y.dim() == 1 else r_y # (batch_sz, d)
-        xy = torch.diagonal(r_x @ torch.t(r_y)).unsqueeze(dim=1) # (batch_sz, 1)
-        logits = xy + (r_x @ torch.t(r_z)) + (r_y @ torch.t(r_z))
+        for i in range(len(rep_list)):
+            rep_list[i] = rep_list[i].unsqueeze(0) if rep_list[i].dim() == 1 else rep_list[i] # (batch_sz, d)
+
+        pairwise_sum_with_r_x = torch.zeros_like(rep_list[0] @ torch.t(r_x)) # (batch_sz, num_candidates)
+        for r in rep_list:
+            pairwise_sum_with_r_x += r @ torch.t(r_x)
+
+        pairwise_sum_without_r_x = torch.zeros((rep_list[0].shape[0], 1), device=rep_list[0].device) # (batch_sz, 1)
+        for x, y in itertools.combinations(rep_list, 2):
+            pairwise_sum_without_r_x += torch.diagonal(x @ torch.t(y)).unsqueeze(dim=1)
+
+        logits = pairwise_sum_with_r_x + pairwise_sum_without_r_x
 
     assert logits.dim() == 2, "Logits must be a 2D tensor."
 
