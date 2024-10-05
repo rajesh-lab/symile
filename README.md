@@ -17,7 +17,7 @@ We release the weights of all models trained and used for our work TODO.
 
 ### Table of Contents
 - [Set up environment](#environment)
-- [Command-line arguments](#args)
+- [Pre-training](#pretrain)
 - [Binary XOR experiments](#binary_xor)
 - [Symile-M3 experiments](#symile_m3)
 - [Symile-MIMIC experiments](#symile_mimic)
@@ -48,10 +48,8 @@ From the root directory, run
 (symile-env) > pip install -e .
 ```
 
-<a name="args"></a>
-## Command-line arguments
-
-### Pre-training
+<a name="pretrain"></a>
+## Pre-training
 
 The following command-line arguments are common to all three sets of experiments (Binary XOR, Symile-M3, and Symile-MIMIC) and can be specified when running `main.py`.
 
@@ -86,25 +84,6 @@ The following arguments are helpful for debugging and are set with default value
 | `--seed`                      | Random seed for reproducibility                               | int                 |                                  | 0             |
 | `--wandb`                     | Enable Weights and Biases for logging                         | bool                | `True`, `False`                  | `False`       |
 
-### Evaluation
-
-The following command-line arguments are common to all three sets of experiments (Binary XOR, Symile-M3, and Symile-MIMIC) and can be specified when running `test.py`.
-
-TODO: is this really used for Binary XOR? make sure use_seed is False by default
-
-| Flag                          | Description                                                   | Type                | Choices                          | Default |
-|-------------------------------|---------------------------------------------------------------|---------------------|----------------------------------|---------|
-| `--experiment`                | Experiment identifier                                | str                 | `symile_m3`, `symile_mimic`      |         |
-| `--batch_sz_test`             | Batch size for testing                                        | int                 |                                  |               |
-| `--bootstrap`                 | Whether to bootstrap test results                            | bool                | `True`, `False`                  | `False` |
-| `--bootstrap_n`               | Number of bootstrap samples                                  | int                 |                                  | 10    |
-| `--data_dir`                  | Directory with dataset csv files                                  | Path                |                                  |         |
-| `--description`               | Human-readable description of the test run                                  | str                 |                                  |     |
-| `--ckpt_path`                 | Path of the checkpoint to use         | str                 |                                  |   |
-| `--save_dir`                  | Directory to save results                                   | Path                |                                  |         |
-| `--use_seed`                  | Use a seed for reproducibility                    | bool                | `True`, `False`                  | `False`  |
-| `--seed`                      | Random seed for reproducibility                              | int                 |                                  | 0     |
-
 <a name="binary_xor"></a>
 ## Binary XOR experiments
 
@@ -118,7 +97,7 @@ The following command runs the binary XOR experiment for values of $\hat{p}$ in 
 (symile-env) > python main.py --experiment binary_xor [FLAGS]
 ```
 
-In addition to the [common pre-training command-line arguments](#args), this command takes the following experiment-specific flags:
+In addition to the [common pre-training command-line arguments](#pretrain), this command takes the following experiment-specific flags:
 
 | Flag        | Description                               | Type   | Choices           | Default |
 |-------------|-------------------------------------------|--------|-------------------|---------|
@@ -126,6 +105,8 @@ In addition to the [common pre-training command-line arguments](#args), this com
 | `--val_n`   | Number of validation samples to draw      | int    |  |     |
 | `--test_n`  | Number of test samples to draw            | int    |  |     |
 | `--d_v`     | Dimensionality of the input vectors $\mathbf{a}$, $\mathbf{b}$, and $\mathbf{c}$ | int |  |  |
+| `--bootstrap`                 | Whether to bootstrap test results                            | bool                | `True`, `False`                  | `False` |
+| `--bootstrap_n`               | Number of bootstrap samples                                  | int                 |                                  | 10    |
 
 ### Calculate information terms
 
@@ -199,6 +180,23 @@ Then run:
 
 All checkpoints will be saved to `./ckpts/support/`.
 
+The following command-line arguments are common to all three sets of experiments (Binary XOR, Symile-M3, and Symile-MIMIC) and can be specified when running `test.py`.
+
+TODO: is this really used for Binary XOR? make sure use_seed is False by default
+
+| Flag                          | Description                                                   | Type                | Choices                          | Default |
+|-------------------------------|---------------------------------------------------------------|---------------------|----------------------------------|---------|
+| `--experiment`                | Experiment identifier                                | str                 | `symile_m3`, `symile_mimic`      |         |
+| `--batch_sz_test`             | Batch size for testing                                        | int                 |                                  |               |
+| `--bootstrap`                 | Whether to bootstrap test results                            | bool                | `True`, `False`                  | `False` |
+| `--bootstrap_n`               | Number of bootstrap samples                                  | int                 |                                  | 10    |
+| `--data_dir`                  | Directory with dataset csv files                                  | Path                |                                  |         |
+| `--description`               | Human-readable description of the test run                                  | str                 |                                  |     |
+| `--ckpt_path`                 | Path of the checkpoint to use         | str                 |                                  |   |
+| `--save_dir`                  | Directory to save results                                   | Path                |                                  |         |
+| `--use_seed`                  | Use a seed for reproducibility                    | bool                | `True`, `False`                  | `False`  |
+| `--seed`                      | Random seed for reproducibility                              | int                 |                                  | 0     |
+
 <a name="symile_mimic"></a>
 ## Symile-MIMIC experiments
 
@@ -248,6 +246,23 @@ The following command runs evaluation on Symile-MIMIC:
 ```
 
 See [above](#args) for the common evaluation command-line arguments.
+
+The following command-line arguments are common to all three sets of experiments (Binary XOR, Symile-M3, and Symile-MIMIC) and can be specified when running `test.py`.
+
+TODO: is this really used for Binary XOR? make sure use_seed is False by default
+
+| Flag                          | Description                                                   | Type                | Choices                          | Default |
+|-------------------------------|---------------------------------------------------------------|---------------------|----------------------------------|---------|
+| `--experiment`                | Experiment identifier                                | str                 | `symile_m3`, `symile_mimic`      |         |
+| `--batch_sz_test`             | Batch size for testing                                        | int                 |                                  |               |
+| `--bootstrap`                 | Whether to bootstrap test results                            | bool                | `True`, `False`                  | `False` |
+| `--bootstrap_n`               | Number of bootstrap samples                                  | int                 |                                  | 10    |
+| `--data_dir`                  | Directory with dataset csv files                                  | Path                |                                  |         |
+| `--description`               | Human-readable description of the test run                                  | str                 |                                  |     |
+| `--ckpt_path`                 | Path of the checkpoint to use         | str                 |                                  |   |
+| `--save_dir`                  | Directory to save results                                   | Path                |                                  |         |
+| `--use_seed`                  | Use a seed for reproducibility                    | bool                | `True`, `False`                  | `False`  |
+| `--seed`                      | Random seed for reproducibility                              | int                 |                                  | 0     |
 
 <a name="questions"></a>
 ## Questions or bugs?
