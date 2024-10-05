@@ -9,17 +9,21 @@ import yaml
 from args import parse_args_collect_tuning_results
 
 
-def find_ckpt_file(run_path, epoch, experiment, missingness=False):
-    if experiment == "symile_m3":
-        pattern = re.compile(rf"epoch={epoch}-val_loss=\d+\.\d+-val_accuracy=\d+\.\d+\.ckpt$")
-    elif experiment == "symile_mimic":
-        pattern = re.compile(rf"epoch={epoch}-.*\.ckpt$")
-
-    if missingness:
-        pattern = re.compile(rf"epoch={epoch}-val_loss=\d+\.\d+-val_acc=\d+\.\d+\.ckpt$")
-
+def find_ckpt_file(run_path, epoch):
     # all '.ckpt' files in the directory
     ckpt_files = glob.glob(os.path.join(run_path, "*.ckpt"))
+
+    if not ckpt_files:
+        raise FileNotFoundError(f"No checkpoint files found in {run_path}")
+
+    sample_ckpt = os.path.basename(ckpt_files[0])
+
+    if "val_acc" in sample_ckpt:
+        pattern = re.compile(rf"epoch={epoch}-val_loss=\d+\.\d+-val_acc=\d+\.\d+\.ckpt$")
+    elif "val_loss" in sample_ckpt:
+        pattern = re.compile(rf"epoch={epoch}-val_loss=\d+\.\d+\.ckpt$")
+    else:
+        pattern = re.compile(rf"epoch={epoch}-.*\.ckpt$")
 
     matched_files = [f for f in ckpt_files if pattern.search(os.path.basename(f))]
 
@@ -63,7 +67,7 @@ def main_symile_m3(tuning_data, experiment):
 
             for val_metric in run_info["validation_metrics"]:
                 missingness = run_info['args']['missingness']
-                ckpt_pt = find_ckpt_file(path, val_metric["epoch"], experiment, missingness)
+                ckpt_pt = find_ckpt_file(path, val_metric["epoch"])
 
                 if not missingness:
                     assert loss_fn == run_info['args']['loss_fn'], "Mismatch in loss function."
