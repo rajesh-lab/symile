@@ -33,7 +33,8 @@ def parse_args_main():
     # first parse only the --experiment argument
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--experiment", type=str,
-                        choices=["binary_xor", "symile_m3", "symile_mimic"],
+                        choices=["binary_xor", "binary_xor_8",
+                                 "symile_m3", "symile_mimic"],
                         required=True,
                         help="Which experiment is being run.")
     args, remaining_argv = parser.parse_known_args()
@@ -111,6 +112,18 @@ def parse_args_main():
                             help="Number of samples (a, b, c) in test dataset.")
         parser.add_argument("--d_v", type=int,
                             help="Dimensionality of dataset vectors.")
+        parser.add_argument("--bootstrap", type=str_to_bool, default=False,
+                        help="Whether to bootstrap test results.")
+        parser.add_argument("--bootstrap_n", type=int, default=10,
+                        help="Number of bootstrap samples.")
+    ### BINARY XOR 8 ARGS ###
+    elif args.experiment == "binary_xor_8":
+        parser.add_argument("--train_n", type=int,
+                            help="Number of samples (a, b, c) in train dataset.")
+        parser.add_argument("--val_n", type=int,
+                            help="Number of samples (a, b, c) in val dataset.")
+        parser.add_argument("--test_n", type=int,
+                            help="Number of samples (a, b, c) in test dataset.")
         parser.add_argument("--bootstrap", type=str_to_bool, default=False,
                         help="Whether to bootstrap test results.")
         parser.add_argument("--bootstrap_n", type=int, default=10,
