@@ -34,6 +34,8 @@ def get_data_module(args):
     """
     if args.experiment == "binary_xor":
         dm = datasets.BinaryXORDataModule
+    elif args.experiment == "binary_xor_8":
+        dm = datasets.BinaryXOR8DataModule
     elif args.experiment == "symile_m3":
         dm = datasets.SymileM3DataModule
     elif args.experiment == "symile_mimic":
@@ -51,6 +53,9 @@ def get_model_module(args):
     if args.experiment == "binary_xor":
         module = importlib.import_module("models.binary_xor_model")
         ModelClass = getattr(module, "BinaryXORModel")
+    elif args.experiment == "binary_xor_8":
+        module = importlib.import_module("models.binary_xor_8_model")
+        ModelClass = getattr(module, "BinaryXOR8Model")
     elif args.experiment == "symile_m3":
         module = importlib.import_module("models.symile_m3_model")
         ModelClass = getattr(module, "SymileM3Model")
@@ -130,6 +135,60 @@ def binary_xor_main(args):
     results_df.to_csv(args.save_dir / "binary_xor_results.csv", index=False)
 
 
+def binary_xor_8_main(args):
+    results = {"loss_fn": [], "acc": []}
+
+    if args.wandb:
+        logger = WandbLogger(project="symile", log_model=False,
+                                save_dir=args.ckpt_save_dir)
+    else:
+        logger = False
+
+    checkpoint_callback = ModelCheckpoint(dirpath=args.save_dir,
+                                          filename="{epoch}-{val_loss:.4f}",
+                                          mode="min",
+                                          monitor="val_loss")
+
+    trainer = Trainer(
+        callbacks=checkpoint_callback,
+        check_val_every_n_epoch=args.check_val_every_n_epoch,
+        deterministic=args.use_seed,
+        enable_progress_bar=True,
+        limit_train_batches=args.limit_train_batches,
+        limit_val_batches=args.limit_val_batches,
+        log_every_n_steps=1,
+        logger=logger,
+        max_epochs=args.epochs,
+        num_sanity_val_steps=0,
+        profiler=None
+    )
+
+    dm = get_data_module(args)
+
+    model = get_model_module(args)
+
+    trainer.fit(model, datamodule=dm)
+
+    if args.bootstrap:
+        for i in range(args.bootstrap_n):
+            print(f"\nRunning bootstrap iteration {i+1}/{args.bootstrap_n}...")
+
+            dm.resample_test_set()
+
+            metrics = trainer.test(ckpt_path="best", datamodule=dm)[0]
+
+            results["loss_fn"].append(args.loss_fn)
+            results["acc"].append(metrics["test_acc"])
+    else:
+        metrics = trainer.test(ckpt_path="best", datamodule=dm)[0]
+
+        results["loss_fn"].append(args.loss_fn)
+        results["acc"].append(metrics["test_acc"])
+
+    results_df = pd.DataFrame(results)
+    results_df.to_csv(args.save_dir / "binary_xor_8_results.csv", index=False)
+
+
 def main(args):
     if args.wandb:
         logger = WandbLogger(project="symile", log_model=False,
@@ -199,6 +258,8 @@ if __name__ == '__main__':
 
     if args.experiment == "binary_xor":
         binary_xor_main(args)
+    elif args.experiment == "binary_xor_8":
+        binary_xor_8_main(args)
     elif args.experiment in ["symile_m3", "symile_mimic"]:
         main(args)
     else:

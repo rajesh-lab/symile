@@ -6,6 +6,8 @@ https://github.com/openai/whisper
 https://github.com/facebookresearch/segment-anything
 
 https://github.com/stanfordnlp/dspy
+
+https://github.com/openai/CLIP
 --->
 [`Paper (TODO)`]
 
@@ -16,6 +18,8 @@ This repository contains the datasets and code used to reproduce all experiments
 This repository contains the datasets and code used to reproduce all experiments in our [paper (TODO link)]. The original datasets include Symile-M3 (TODO link), a multilingual collection of 33 million image, text, and audio samples, and Symile-MIMIC (TODO link), a clinical dataset comprising chest X-rays, electrocardiograms, and laboratory measurements.
 
 We release the weights of all models trained and used for our work TODO.
+
+TODO: keep pyproject.toml as main configuration file, and generate a minimal setup.py file that refers to it, ensuring broader compatibility.
 
 ### Table of Contents
 
@@ -59,9 +63,37 @@ From the root directory, run
 <a name="usage"></a>
 ## Usage
 
+https://github.com/openai/CLIP
+
+https://github.com/mlfoundations/open_clip
+
+when you show example, make sure to scale using logit_scale_exp
+
 Here’s an example of how to use the Symile loss in your project:
 
+```
 from symile.losses import Symile
+
+logit_scale = torch.tensor(1.0)  # example value
+negative_sampling = "n_squared"
+
+# Example of using the Symile loss
+loss_fn = Symile(logit_scale, negative_sampling)
+rep_list = [...]  # Your batch of representations
+loss = loss_fn.forward(rep_list)
+
+from symile.similarity import MipSimilarity
+
+# Initialize the similarity function
+similarity_fn = MipSimilarity()
+
+# Example representations
+rep_list = [...]  # List of tensors, e.g., [(batch_sz, d), (batch_sz, d)]
+r_x = torch.randn(10, 128)  # Candidate modality of size (num_candidates, d)
+
+# Compute similarities
+similarity_scores = similarity_fn(rep_list, r_x)
+```
 
 # Example of using the Symile loss
 loss_fn = Symile()
