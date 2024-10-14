@@ -95,9 +95,28 @@ r_x = torch.randn(10, 128)  # Candidate modality of size (num_candidates, d)
 similarity_scores = similarity_fn(rep_list, r_x)
 ```
 
-# Example of using the Symile loss
-loss_fn = Symile()
-loss = loss_fn(output1, output2, labels)
+### Binary XOR example
+
+We provide an example script that uses Symile to train and test 8 simple linear encoders for the following data generating procedure:
+
+$$\texttt{v_a, v_b, v_c, v_d, v_e, v_f, v_g} \sim \text{Bernoulli}(0.5)$$
+$$\texttt{v_h} = \texttt{v_a} \text{ XOR } \texttt{v_b} \text{ XOR } \texttt{v_c} \text{ XOR } \texttt{v_d} \text{ XOR } \texttt{v_e} \text{ XOR } \texttt{v_f} \text{ XOR } \texttt{v_g}$$
+
+The zero-shot classification task is to predict v_a is 0 or 1 given the
+remaining variables (v_b, v_c, ..., v_h).
+
+After cloning the repository, from the root directory, first install the necessary dependencies:
+
+```
+poetry install --extras "examples"
+```
+
+And then run the binary XOR example script:
+
+```
+poetry run python examples/binary_xor.py
+```
+
 
 <a name="questions"></a>
 ## Questions or bugs?

@@ -5,17 +5,15 @@ import torch.nn.functional as F
 
 
 class Symile:
-    def __init__(self, logit_scale: torch.Tensor, negative_sampling: str = "n"):
+    def __init__(self, negative_sampling: str = "n"):
         """
         Initialize the Symile loss function.
 
         Args:
-            logit_scale (torch.Tensor): Learned temperature parameter.
             negative_sampling (str, optional): Specifies the negative sampling strategy.
                                                Must be either 'n' (for O(n)) or 'n_squared' (for O(n^2)).
                                                Defaults to 'n'.
         """
-        self.logit_scale = logit_scale
         self.negative_sampling = negative_sampling
 
     def compute_logits_n(self, anchor_rep, non_anchor_reps):
@@ -156,7 +154,7 @@ class Symile:
         logits = x @ y_z.T
         return logits
 
-    def forward(self, representations):
+    def forward(self, representations, logit_scale):
         """
         Computes the Symile loss for a batch of representation vectors.
 
@@ -171,20 +169,21 @@ class Symile:
 
         for i, r in enumerate(representations):
             if self.negative_sampling == "n":
-                logits = self.logit_scale * self.compute_logits_n(r, [rep for j, rep in enumerate(representations) if i != j])
+                logits = logit_scale * self.compute_logits_n(r, [rep for j, rep in enumerate(representations) if i != j])
             elif self.negative_sampling == "n_squared":
                 if len(representations) == 3:
                     # three modes allows for a faster implementation
-                    logits = self.logit_scale * self.compute_logits_n_squared_3_modes(r, [rep for j, rep in enumerate(representations) if i != j])
+                    logits = logit_scale * self.compute_logits_n_squared_3_modes(r, [rep for j, rep in enumerate(representations) if i != j])
                 else:
-                    logits = self.logit_scale * self.compute_logits_n_squared(r, [rep for j, rep in enumerate(representations) if i != j])
+                    logits = logit_scale * self.compute_logits_n_squared(r, [rep for j, rep in enumerate(representations) if i != j])
             else:
                 raise ValueError("Invalid value for negative_sampling. Expected 'n' or 'n_squared'.")
 
             loss = F.cross_entropy(logits, labels)
+
             losses.append(loss)
 
         return sum(losses) / len(losses)
 
-    def __call__(self, representations):
-        return self.forward(representations)
+    def __call__(self, representations, logit_scale):
+        return self.forward(representations, logit_scale)
