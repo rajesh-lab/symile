@@ -73,7 +73,7 @@ The zero-shot classification task is to predict whether **a** is 0 or 1 given th
 After cloning the repository, from the root directory, first install the necessary dependencies:
 
 ```
-poetry install --extras "examples"
+poetry install --with examples
 ```
 
 And then run the binary XOR example script:
