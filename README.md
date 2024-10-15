@@ -1,114 +1,79 @@
-# Symile: Simple Model-Agnostic Representation Learning for Unlimited Modalities
+# Symile
 
-<!--- good example repos:
-https://github.com/openai/whisper
+[Paper] [Datasets] [[Questions]](#questions) [[Citation]](#citation)
 
-https://github.com/facebookresearch/segment-anything
+Symile is a simple contrastive learning objective that accommodates any number of modalities and allows any model to produce representations for each modality. Symile maintains the simplicity of CLIP while delivering superior performance, even in the case of missing modalities. For a similarity metric, Symile uses the multilinear inner product (MIP), a simple generalization of the dot product to more than two vectors that allows for the simultaneous contrasting of all modalities and enables zero-shot applications such as classification and retrieval.
 
-https://github.com/stanfordnlp/dspy
+This repository contains an implementation of the Symile loss and the MIP similarity metric. To reproduce the experiments from the paper (TODO link), follow the instructions in `experiments/` [directory](https://github.com/rajesh-lab/symile/blob/main/experiments/README.md). TODO: add information on where to find datasets and model checkpoints.
 
-https://github.com/openai/CLIP
---->
-[`Paper (TODO)`]
+The original datasets include Symile-M3 (TODO link), a multilingual collection of 33 million image, text, and audio samples, and Symile-MIMIC (TODO link), a clinical dataset comprising chest X-rays, electrocardiograms, and laboratory measurements.
 
-Symile is a simple contrastive learning objective that accommodates any number of modalities and allows any model to produce representations for each modality. Symile maintains the simplicity of CLIP while delivering superior performance, even in the case of missing modalities.
+## Approach
 
-This repository contains the datasets and code used to reproduce all experiments in our paper (TODO link). The two original datasets are Symile-M3, an original multilingual dataset of 33M image, text and audio samples, and Symile-MIMIC, a clinical dataset of chest X-rays, electrocardiograms, and laboratory measurements.
-
-This repository contains the datasets and code used to reproduce all experiments in our [paper (TODO link)]. The original datasets include Symile-M3 (TODO link), a multilingual collection of 33 million image, text, and audio samples, and Symile-MIMIC (TODO link), a clinical dataset comprising chest X-rays, electrocardiograms, and laboratory measurements.
-
-We release the weights of all models trained and used for our work TODO.
-
-TODO: keep pyproject.toml as main configuration file, and generate a minimal setup.py file that refers to it, ensuring broader compatibility.
-
-### Table of Contents
-
-This repository contains the official implementation of the Symile loss function. To reproduce the experiments from the paper (TODO link), follow the instructions in [`experiments/`](https://github.com/rajesh-lab/symile/blob/main/experiments/README.md).
-
-- [Installation](#install)
-- [Usage](#usage)
-- [Questions or bugs?](#questions)
-- [License](#license)
-- [Citation](#citation)
+TODO: add figure.
 
 <a name="install"></a>
 ## Installation
 
-You can install the Symile package via pip:
+To install the Symile package via pip:
 
-```bash
+```
 pip install symile
-```
-
-#### create environment
-
-TODO: use requirements.txt or pyproject.toml: https://github.com/pypa/packaging.python.org/issues/685#issuecomment-1321616748 and https://venthur.de/2022-12-18-python-packaging.html#:~:text=requirements.,-txt&text=txt%20are%20still%20needed%20if,same%20as%20defined%20in%20pyproject.
-
-Most of the scripts in this project include a command line argument to run with Weights and Biases (W&B) for experiment tracking and visualization. If you'd like to use W&B, please follow the instructions to create an account and install W&B [here](https://docs.wandb.ai/quickstart).
-
-#### activate environment
-
-```
-> conda activate symile-env
-(symile-env) >
-```
-
-#### install project library
-
-From the root directory, run
-```
-(symile-env) > pip install -e .
 ```
 
 <a name="usage"></a>
 ## Usage
 
-https://github.com/openai/CLIP
-
-https://github.com/mlfoundations/open_clip
-
-when you show example, make sure to scale using logit_scale_exp
-
-Here’s an example of how to use the Symile loss in your project:
+Example usage of the Symile loss and MIP similarity metric for three modalities:
 
 ```
-from symile.losses import Symile
+import torch
+import torch.nn.functional as F
 
-logit_scale = torch.tensor(1.0)  # example value
-negative_sampling = "n_squared"
+from symile.loss import Symile
+from symile.similarity import MIPSimilarity
 
-# Example of using the Symile loss
-loss_fn = Symile(logit_scale, negative_sampling)
-rep_list = [...]  # Your batch of representations
-loss = loss_fn.forward(rep_list)
+inputs_a = torch.randn(batch_size, input_dim)
+inputs_b = torch.randn(batch_size, input_dim)
+inputs_c = torch.randn(batch_size, input_dim)
 
-from symile.similarity import MipSimilarity
+outputs_a, outputs_b, outputs_c, logit_scale_exp = model(inputs_a, inputs_b, inputs_c)
 
-# Initialize the similarity function
-similarity_fn = MipSimilarity()
+outputs_a = F.normalize(outputs_a, p=2.0, dim=1)
+outputs_b = F.normalize(outputs_b, p=2.0, dim=1)
+outputs_c = F.normalize(outputs_c, p=2.0, dim=1)
 
-# Example representations
-rep_list = [...]  # List of tensors, e.g., [(batch_sz, d), (batch_sz, d)]
-r_x = torch.randn(10, 128)  # Candidate modality of size (num_candidates, d)
+### train step ###
 
-# Compute similarities
-similarity_scores = similarity_fn(rep_list, r_x)
+symile_loss = Symile()
+loss = symile_loss([outputs_a, outputs_b, outputs_c], logit_scale_exp)
+
+### evaluation step ###
+
+mip_similarity = MIPSimilarity()
+
+inputs_a_candidates = torch.randn(num_candidates, input_dim)
+outputs_a_candidates = model.encoder_a(inputs_a_candidates)
+outputs_a_candidates = F.normalize(outputs_a_candidates, p=2.0, dim=1)
+
+similarity_scores = mip_similarity(outputs_a_candidates, [outputs_b, outputs_c])
+similarity_scores = logit_scale_exp * similarity_scores
 ```
 
-### Binary XOR example
+## Example
 
-We provide an example script that uses Symile to train and test 8 simple linear encoders for the following data generating procedure:
+We provide a very simple example script that uses the Symile loss and the MIP similarity metric to train and test 8 simple linear encoders for the following data generating procedure:
 
-$$\texttt{v_a, v_b, v_c, v_d, v_e, v_f, v_g} \sim \text{Bernoulli}(0.5)$$
-$$\texttt{v_h} = \texttt{v_a} \text{ XOR } \texttt{v_b} \text{ XOR } \texttt{v_c} \text{ XOR } \texttt{v_d} \text{ XOR } \texttt{v_e} \text{ XOR } \texttt{v_f} \text{ XOR } \texttt{v_g}$$
+**a**, **b**, **c**, **d**, **e**, **f**, **g** $\sim$ Bernoulli(0.5)
 
-The zero-shot classification task is to predict v_a is 0 or 1 given the
-remaining variables (v_b, v_c, ..., v_h).
+**h** $=$ **a** $\text{ XOR }$ **b** $\text{ XOR }$ **c** $\text{ XOR }$ **d** $\text{ XOR }$ **e** $\text{ XOR }$ **f** $\text{ XOR }$ **g**
+
+The zero-shot classification task is to predict whether **a** is 0 or 1 given the remaining variables **b**, **c**, **d**, **e**, **f**, **g**, **h**.
 
 After cloning the repository, from the root directory, first install the necessary dependencies:
 
 ```
-poetry install --extras "examples"
+poetry install --with examples
 ```
 
 And then run the binary XOR example script:
@@ -117,15 +82,9 @@ And then run the binary XOR example script:
 poetry run python examples/binary_xor.py
 ```
 
-
 <a name="questions"></a>
 ## Questions or bugs?
-For questions related to the paper, please post on alphaXiv (TODO link) for a prompt response from the authors. For questions related to the code, please open an issue in this repo or email Adriel Saporta (adriel@nyu.edu).
-
-<a name="license"></a>
-## License
-
-TODO
+For questions related to the paper, please post on alphaXiv (TODO link) for a prompt response from the authors. For questions related to the code, please open an issue in this repo or email Adriel (adriel@nyu.edu).
 
 <a name="citation"></a>
 ## Citation
