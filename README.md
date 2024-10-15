@@ -1,6 +1,6 @@
 # Symile
 
-[`Paper (TODO)`][Dataset (TODO)][Questions](#questions)[Citation](#citation)
+[`Paper (TODO)`][Dataset (TODO)][[Questions](#questions)][[Citation](#citation)]
 
 Symile is a simple contrastive learning objective that accommodates any number of modalities and allows any model to produce representations for each modality. Symile maintains the simplicity of CLIP while delivering superior performance, even in the case of missing modalities. For a similarity metric, Symile uses the multilinear inner product (MIP), a simple generalization of the dot product to more than two vectors that allows for the simultaneous contrasting of all modalities and enables zero-shot applications such as classification and retrieval.
 
