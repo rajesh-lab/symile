@@ -60,8 +60,11 @@ similarity_scores = similarity_fn(rep_list, r_x)
 
 We provide an example script that uses Symile to train and test 8 simple linear encoders for the following data generating procedure:
 
-$$\mathbf{a}, b, c, d, e, f, g \sim \text{Bernoulli}(0.5)$$
-$$\texttt{v_h} = \texttt{v_a} \text{ XOR } \texttt{v_b} \text{ XOR } \texttt{v_c} \text{ XOR } \texttt{v_d} \text{ XOR } \texttt{v_e} \text{ XOR } \texttt{v_f} \text{ XOR } \texttt{v_g}$$
+$a, b, c, d, e, f, g \sim \text{Bernoulli}(0.5) \mathbf{x}$
+
+$h = a \textsc{ XOR } b \text{ XOR } c \text{ XOR } d \text{ XOR } e \text{ XOR } f \text{ XOR } g$
+
+<span style="font-variant: small-caps;">XOR</span>
 
 The zero-shot classification task is to predict v_a is 0 or 1 given the
 remaining variables (v_b, v_c, ..., v_h).
