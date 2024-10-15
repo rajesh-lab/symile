@@ -60,7 +60,7 @@ similarity_scores = similarity_fn(rep_list, r_x)
 
 We provide an example script that uses Symile to train and test 8 simple linear encoders for the following data generating procedure:
 
-$$\texttt{v_a, v_b, v_c, v_d, v_e, v_f, v_g} \sim \text{Bernoulli}(0.5)$$
+$$\mathbf{a}, b, c, d, e, f, g \sim \text{Bernoulli}(0.5)$$
 $$\texttt{v_h} = \texttt{v_a} \text{ XOR } \texttt{v_b} \text{ XOR } \texttt{v_c} \text{ XOR } \texttt{v_d} \text{ XOR } \texttt{v_e} \text{ XOR } \texttt{v_f} \text{ XOR } \texttt{v_g}$$
 
 The zero-shot classification task is to predict v_a is 0 or 1 given the
@@ -81,7 +81,7 @@ poetry run python examples/binary_xor.py
 
 <a name="questions"></a>
 ## Questions or bugs?
-For questions related to the paper, please post on alphaXiv (TODO link) for a prompt response from the authors. For questions related to the code, please open an issue in this repo or email Adriel Saporta (adriel@nyu.edu).
+For questions related to the paper, please post on alphaXiv (TODO link) for a prompt response from the authors. For questions related to the code, please open an issue in this repo or email Adriel (adriel@nyu.edu).
 
 <a name="citation"></a>
 ## Citation
