@@ -5,7 +5,7 @@ following data generating procedure:
     v_a, v_b, v_c, v_d, v_e, v_f, v_g ~ Bernoulli(0.5)
     v_h = v_a XOR v_b XOR v_c XOR v_d XOR v_e XOR v_f XOR v_g
 
-The zero-shot classification task is to predict v_a is 0 or 1 given the
+The zero-shot classification task is to predict whether v_a is 0 or 1 given the
 remaining variables (v_b, v_c, ..., v_h).
 """
 import numpy as np
