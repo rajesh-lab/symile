@@ -10,8 +10,12 @@ readme = "README.md"
 python = "^3.11"
 torch = "^2.4.1"
 
-[tool.poetry.extras]
-examples = ["numpy", "scipy"]
+[tool.poetry.group.examples]
+optional = true
+
+[tool.poetry.group.examples.dependencies]
+numpy = "^2.1.2"
+scipy = "^1.14.1"
 
 [build-system]
 requires = ["poetry-core"]

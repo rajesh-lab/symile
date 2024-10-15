@@ -85,6 +85,7 @@ def validation(val_loader, model, loss_fn, device):
 
     v_a_candidates = torch.tensor([[0.], [1.]]).to(device)
     r_a_candidates = model.f_a(v_a_candidates)
+    r_a_candidates = l2_normalize([r_a_candidates])[0]
 
     similarity_fn = MIPSimilarity()
 
@@ -164,6 +165,7 @@ def test(test_loader, model, device):
     # get candidate representations
     v_a_candidates = torch.tensor([[0.], [1.]]).to(device)
     r_a_candidates = model.f_a(v_a_candidates)
+    r_a_candidates = l2_normalize([r_a_candidates])[0]
 
     similarity_fn = MIPSimilarity()
 
@@ -189,7 +191,7 @@ if __name__ == "__main__":
     ### hyperparameters ###
     batch_sz = 1000
     d = 16
-    epochs = 40
+    epochs = 50
     logit_scale_init = -0.3
     lr = 0.1
 
