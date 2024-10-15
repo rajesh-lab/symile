@@ -24,50 +24,51 @@ pip install symile
 <a name="usage"></a>
 ## Usage
 
-https://github.com/openai/CLIP
-
-https://github.com/mlfoundations/open_clip
-
-when you show example, make sure to scale using logit_scale_exp
-
-Here’s an example of how to use the Symile loss in your project:
+Example usage of the Symile loss and MIP similarity metric for three modalities:
 
 ```
-from symile.losses import Symile
+import torch
+import torch.nn.functional as F
 
-logit_scale = torch.tensor(1.0)  # example value
-negative_sampling = "n_squared"
+from symile.loss import Symile
+from symile.similarity import MIPSimilarity
 
-# Example of using the Symile loss
-loss_fn = Symile(logit_scale, negative_sampling)
-rep_list = [...]  # Your batch of representations
-loss = loss_fn.forward(rep_list)
+inputs_a = torch.randn(batch_size, input_dim)
+inputs_b = torch.randn(batch_size, input_dim)
+inputs_c = torch.randn(batch_size, input_dim)
 
-from symile.similarity import MipSimilarity
+outputs_a, outputs_b, outputs_c, logit_scale_exp = model(inputs_a, inputs_b, inputs_c)
 
-# Initialize the similarity function
-similarity_fn = MipSimilarity()
+outputs_a = F.normalize(outputs_a, p=2.0, dim=1)
+outputs_b = F.normalize(outputs_b, p=2.0, dim=1)
+outputs_c = F.normalize(outputs_c, p=2.0, dim=1)
 
-# Example representations
-rep_list = [...]  # List of tensors, e.g., [(batch_sz, d), (batch_sz, d)]
-r_x = torch.randn(10, 128)  # Candidate modality of size (num_candidates, d)
+### train step ###
 
-# Compute similarities
-similarity_scores = similarity_fn(rep_list, r_x)
+symile_loss = Symile()
+loss = symile_loss([outputs_a, outputs_b, outputs_c], logit_scale_exp)
+
+### evaluation step ###
+
+mip_similarity = MIPSimilarity()
+
+inputs_a_candidates = torch.randn(num_candidates, input_dim)
+outputs_a_candidates = model.encoder_a(inputs_a_candidates)
+outputs_a_candidates = F.normalize(outputs_a_candidates, p=2.0, dim=1)
+
+similarity_scores = mip_similarity(outputs_a_candidates, [outputs_b, outputs_c])
+similarity_scores = logit_scale_exp * similarity_scores
 ```
 
-### Binary XOR example
+## Binary XOR example
 
-We provide an example script that uses Symile to train and test 8 simple linear encoders for the following data generating procedure:
+We provide a very simple example script that uses the Symile loss and the MIP similarity metric to train and test 8 simple linear encoders for the following data generating procedure:
 
-$a, b, c, d, e, f, g \sim \text{Bernoulli}(0.5) \mathbf{x}$
+**a**, **b**, **c**, **d**, **e**, **f**, **g** $\sim$ Bernoulli(0.5)
 
-$h = a \textsc{ XOR } b \text{ XOR } c \text{ XOR } d \text{ XOR } e \text{ XOR } f \text{ XOR } g$
+**h** $=$ **a** $\text{ XOR }$ **b** $\text{ XOR }$ **c** $\text{ XOR }$ **d** $\text{ XOR }$ **e** $\text{ XOR }$ **f** $\text{ XOR }$ **g**
 
-<span style="font-variant: small-caps;">XOR</span>
-
-The zero-shot classification task is to predict v_a is 0 or 1 given the
-remaining variables (v_b, v_c, ..., v_h).
+The zero-shot classification task is to predict whether **a** is 0 or 1 given the remaining variables **b**, **c**, **d**, **e**, **f**, **g**, **h**.
 
 After cloning the repository, from the root directory, first install the necessary dependencies:
 
@@ -80,7 +81,6 @@ And then run the binary XOR example script:
 ```
 poetry run python examples/binary_xor.py
 ```
-
 
 <a name="questions"></a>
 ## Questions or bugs?
