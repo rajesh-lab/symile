@@ -4,7 +4,7 @@
 
 Symile is a simple contrastive learning objective that accommodates any number of modalities and allows any model to produce representations for each modality. Symile maintains the simplicity of CLIP while delivering superior performance, even in the case of missing modalities. For a similarity metric, Symile uses the multilinear inner product (MIP), a simple generalization of the dot product to more than two vectors that allows for the simultaneous contrasting of all modalities and enables zero-shot applications such as classification and retrieval.
 
-This repository contains an implementation of the Symile loss and the MIP similarity metric. To reproduce the experiments from the paper (TODO link), follow the instructions in [`experiments/`](https://github.com/rajesh-lab/symile/blob/main/experiments/README.md). TODO: add information on where to find datasets and model checkpoints.
+This repository contains an implementation of the Symile loss and the MIP similarity metric. To reproduce the experiments from the paper (TODO link), follow the instructions in `experiments/` [directory](https://github.com/rajesh-lab/symile/blob/main/experiments/README.md). TODO: add information on where to find datasets and model checkpoints.
 
 The original datasets include Symile-M3 (TODO link), a multilingual collection of 33 million image, text, and audio samples, and Symile-MIMIC (TODO link), a clinical dataset comprising chest X-rays, electrocardiograms, and laboratory measurements.
 
@@ -60,7 +60,7 @@ similarity_scores = mip_similarity(outputs_a_candidates, [outputs_b, outputs_c])
 similarity_scores = logit_scale_exp * similarity_scores
 ```
 
-## Binary XOR example
+## Example
 
 We provide a very simple example script that uses the Symile loss and the MIP similarity metric to train and test 8 simple linear encoders for the following data generating procedure:
 
