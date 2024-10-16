@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from statsmodels.distributions.empirical_distribution import StepFunction
 
 from args import parse_create_dataset_splits
-from src.constants import LABS
+from constants import LABS
 
 # admissions-related columns to drop from the dataset csv
 COLS_TO_DROP = ["admittime", "dischtime", "deathtime", "admission_type", "admission_location",

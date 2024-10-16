@@ -14,7 +14,7 @@ from tqdm import tqdm
 import wfdb
 
 from args import parse_process_and_save_tensors
-from src.constants import IMAGENET_MEAN, IMAGENET_STD
+from constants import IMAGENET_MEAN, IMAGENET_STD
 
 
 def get_cxr(args, pt, split):

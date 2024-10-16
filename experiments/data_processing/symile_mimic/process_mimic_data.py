@@ -9,7 +9,7 @@ import pandas as pd
 import wfdb
 
 from args import parse_process_mimic_data
-from src.constants import LABS
+from constants import LABS
 
 
 def get_admissions_df(mimiciv_hosp_dir):
