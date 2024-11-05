@@ -1,0 +1,37 @@
+argcomplete==3.5.1
+Bottleneck @ file:///croot/bottleneck_1707864210935/work
+cachetools==5.5.0
+certifi==2024.8.30
+charset-normalizer==3.4.0
+google-api-core==2.21.0
+google-auth==2.35.0
+google-cloud-core==2.4.1
+google-cloud-translate==3.17.0
+googleapis-common-protos==1.65.0
+grpc-google-iam-v1==0.13.1
+grpcio==1.67.0
+grpcio-status==1.67.0
+idna==3.10
+joblib @ file:///croot/joblib_1718217211762/work
+mkl-service==2.4.0
+mkl_fft @ file:///croot/mkl_fft_1725370245198/work
+mkl_random @ file:///croot/mkl_random_1725370241878/work
+numexpr @ file:///croot/numexpr_1696515281613/work
+numpy @ file:///croot/numpy_and_numpy_base_1708638617955/work/dist/numpy-1.26.4-cp311-cp311-linux_x86_64.whl#sha256=5f96f274d410a1682519282ae769c877d32fdbf171aa8badec7bf5e1d3a1748a
+pandas @ file:///croot/pandas_1718308974269/work/dist/pandas-2.2.2-cp311-cp311-linux_x86_64.whl#sha256=3c7ce50f9f519c785bd4cdb28a0ca71f85a541f3d27b25aa9da770f953e7f2e9
+pipx==1.7.1
+proto-plus==1.25.0
+protobuf==5.28.3
+pyasn1==0.6.1
+pyasn1_modules==0.4.1
+python-dateutil @ file:///croot/python-dateutil_1716495738603/work
+pytz @ file:///croot/pytz_1713974312559/work
+requests==2.32.3
+rsa==4.9
+scikit-learn @ file:///croot/scikit-learn_1721921875708/work
+scipy @ file:///croot/scipy_1717521478074/work/dist/scipy-1.13.1-cp311-cp311-linux_x86_64.whl#sha256=f0a29afe8e78f15653c9afe02349a3462e4e9e7131c5e68b77b70fd68d25e6a2
+six @ file:///tmp/build/80754af9/six_1644875935023/work
+threadpoolctl @ file:///croot/threadpoolctl_1719407800858/work
+tzdata @ file:///croot/python-tzdata_1690578112552/work
+urllib3==2.2.3
+userpath==1.9.2

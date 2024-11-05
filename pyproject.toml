@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "symile"
+version = "0.1.0"
+description = "Symile"
+authors = ["Adriel Saporta <adriel@nyu.edu>"]
+license = "MIT License"
+readme = "README.md"
+homepage = "https://github.com/rajesh-lab/symile"
+repository = "https://github.com/rajesh-lab/symile"
+keywords = ["symile", "multimodal", "contrastive learning", "clip"]
+packages = [
+    { include = "symile" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+torch = ">=1.9.0"
+numpy = "*"
+
+[tool.poetry.group.examples]
+optional = true
+
+[tool.poetry.group.examples.dependencies]
+scipy = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
