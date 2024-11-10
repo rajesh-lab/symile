@@ -2,11 +2,15 @@
 
 [Paper](https://arxiv.org/abs/2411.01053) • [Datasets](#datasets) • [Symile vs. CLIP](#symilevclip) • [Questions](#questions) • [Citation](#citation)
 
-Looking to do contrastive pre-training with more than two modalities? Meet Symile!
+Multimodal representation learning works for 2 modalities, but what if you're working with 3+ modalities, like in healthcare, robotics, or video?
 
-Symile is a flexible, architecture-agnostic contrastive loss that enables training modality-specific representations for any number of modalities. Symile maintains the simplicity of CLIP while delivering superior performance, even in the case of missing modalities.
+Meet **Symile**: A flexible, architecture-agnostic framework for contrastive pre-training across any number of modalities. Symile maintains the simplicity of CLIP while delivering superior performance, even when some modalities are [missing](#missing).
+
+No more specialized architectures, complex fusion models, or applying CLIP to pairs of modalities (e.g. ImageBind). Now, with Symile, you can learn modality-specific representations simultaneously for any number of modalities!
 
 For a similarity metric, Symile uses the multilinear inner product (MIP), a simple generalization of the dot product to more than two vectors that allows for the simultaneous contrasting of all modalities and enables zero-shot applications such as classification and retrieval.
+
+![PyPI Downloads](https://static.pepy.tech/badge/symile)
 
 ## Approach
 <img src="/img/symile_summary.png" alt="Symile" width="800"/>
@@ -119,6 +123,7 @@ To use the $O(N^2)$ approach:
 symile_loss = Symile(negative_sampling="n_squared")
 ```
 
+<a name="missing"></a>
 ## Missing data
 
 What if some samples in your dataset don’t contain all modalities? For instance, a patient may be missing lab results, or a social media post might not include an image. **Symile can be easily adapted to handle missing modalities** by passing as inputs to the model both the data (using any placeholder value for missing modalities) and binary indicators that signal which modalities are present for each sample. This approach lets Symile model the relationships between whichever modalities are present in each sample.
