@@ -3,6 +3,8 @@
 
 In this section, we describe how to generate Symile-M3, a new multilingual dataset of 33 million (audio, image, text) samples. The dataset is specifically designed to test a model's ability to capture higher-order information between three distinct high-dimensional data types: by incorporating multiple languages, we construct a task where text and audio are both needed to predict the image, and where, importantly, neither text nor audio alone would suffice. See our [paper](https://arxiv.org/abs/2411.01053) for details on the dataset.
 
+Download the dataset from Hugging Face [here](https://huggingface.co/datasets/arsaporta/symile-m3).
+
 ## Generate data
 
 ### Setup
