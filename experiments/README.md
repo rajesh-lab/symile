@@ -171,7 +171,7 @@ The following command will evaluate a given model (i.e. checkpoint) on Symile-M3
 ## Symile-MIMIC experiments
 <img src="/img/symile_mimic.png" alt="Symile-MIMIC" width="400"/>
 
-In this section, we reproduce the Symile-MIMIC experiments from Section 5.3 of our [paper](https://arxiv.org/abs/2411.01053). These scripts assume that you've downloaded the Symile-MIMIC dataset, preprocessed the dataset splits, and saved the resulting tensors in split-specific directories, as detailed [here](https://github.com/rajesh-lab/symile/blob/main/experiments/data_processing/symile_mimic/README.md).
+In this section, we reproduce the Symile-MIMIC experiments from Section 5.3 of our [paper](https://arxiv.org/abs/2411.01053). These scripts assume that you've downloaded the [Symile-MIMIC dataset](https://doi.org/10.13026/3vvj-s428), preprocessed the dataset splits, and saved the resulting tensors in split-specific directories, as detailed [here](https://github.com/rajesh-lab/symile/blob/main/experiments/data_processing/symile_mimic/README.md).
 
 The following command runs pretraining on Symile-MIMIC:
 
