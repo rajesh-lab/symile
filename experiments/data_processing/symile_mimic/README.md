@@ -1,7 +1,7 @@
 # Symile-MIMIC
 <img src="/img/symile_mimic.png" alt="Symile-MIMIC" width="400"/>
 
-In this section, we describe how to generate Symile-MIMIC, a clinical dataset of chest X-rays (CXRs), electrocardiograms (ECGs), and blood labs from the MIMIC-IV and MIMIC-CXR datasets. See our [paper](https://arxiv.org/abs/2411.01053) for details on the dataset.
+In this section, we describe how to generate Symile-MIMIC, a clinical dataset of chest X-rays (CXRs), electrocardiograms (ECGs), and blood labs from the MIMIC-IV and MIMIC-CXR datasets. Download the Symile-MIMIC dataset [here](https://doi.org/10.13026/3vvj-s428) and see our [paper](https://arxiv.org/abs/2411.01053) for details on the dataset.
 
 ## Download MIMIC data
 
