@@ -146,7 +146,7 @@ Note that instead of using binary indicators, you could also use any out-of-supp
 
 As part of this research, we release two novel multimodal datasets:
 * **[Symile-M3](https://huggingface.co/datasets/arsaporta/symile-m3):** a multilingual collection of 33 million image, text, and audio samples.
-* **Symile-MIMIC:** a clinical dataset of chest X-rays, electrocardiograms, and laboratory measurements (scheduled for public release, follow this repository for updates).
+* **[Symile-MIMIC](https://doi.org/10.13026/3vvj-s428):** a clinical dataset of chest X-rays, electrocardiograms, and laboratory measurements.
 
 To reproduce the experiments from our paper using these datasets, navigate to the `experiments/` directory and follow the step-by-step instructions in the dedicated README.
 
