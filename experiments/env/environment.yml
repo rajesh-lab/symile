@@ -196,4 +196,3 @@ dependencies:
       - cffi==1.17.1
       - pycparser==2.22
       - soundfile==0.12.1
-prefix: /gpfs/scratch/as16583/envs/symile-env
